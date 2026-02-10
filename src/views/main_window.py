@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
         self._scan_ports_all()
     
     def _setup_ui(self):
-        """Initialize main UI components with three-panel layout."""
+        """Initialize main UI components with three-panel layout and 3-console view."""
         central_widget = QWidget()
         main_layout = QVBoxLayout()
         
@@ -94,6 +94,10 @@ class MainWindow(QMainWindow):
         grp2 = self._create_port_group(tr("send_to_cpu2", "CPU2"), 2)
         left_layout.addWidget(grp2, 0)
         
+        # TLM Port Settings
+        grp_tlm = self._create_port_group(tr("tlm", "TLM (Telemetry)"), 3)
+        left_layout.addWidget(grp_tlm, 0)
+        
         # Data Transmission Group
         input_grp = self._create_transmission_group()
         left_layout.addWidget(input_grp, 0)
@@ -106,11 +110,11 @@ class MainWindow(QMainWindow):
         left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
         left_panel.setMaximumWidth(Sizes.LEFT_PANEL_MAX_WIDTH)
         
-        # CENTER PANEL: Logs
-        center_panel = self._create_logs_panel()
+        # CENTER PANEL: All 3 console logs with adaptive splitter
+        center_panel = self._create_consoles_panel()
         center_panel.setMinimumWidth(Sizes.CENTER_PANEL_MIN_WIDTH)
         
-        # RIGHT PANEL: Counters and AUX
+        # RIGHT PANEL: Counters
         right_panel = self._create_right_panel()
         right_panel.setMinimumWidth(Sizes.RIGHT_PANEL_MIN_WIDTH)
         right_panel.setMaximumWidth(Sizes.RIGHT_PANEL_MAX_WIDTH)
@@ -171,7 +175,7 @@ class MainWindow(QMainWindow):
         return grp
     
     def _create_transmission_group(self) -> QGroupBox:
-        """Create data transmission group with command input."""
+        """Create data transmission group with command input and send buttons."""
         grp = QGroupBox(tr("data_transmission", "Data Transmission"))
         layout = QVBoxLayout()
         layout.setSpacing(Sizes.LAYOUT_SPACING)
@@ -184,48 +188,61 @@ class MainWindow(QMainWindow):
         self.le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
         layout.addWidget(self.le_command)
         
-        # Send buttons
-        buttons_layout = QHBoxLayout()
+        # Send buttons (4 buttons: CPU1, CPU2, TLM, All)
+        buttons_layout = QGridLayout()
         buttons_layout.setSpacing(Sizes.LAYOUT_SPACING)
         
         btn1 = QPushButton(tr("send_to_cpu1", "CPU1"))
         btn1.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         btn1.clicked.connect(lambda: self._send_command(1))
         self.btn_send_1 = btn1
-        buttons_layout.addWidget(btn1, 1)
+        buttons_layout.addWidget(btn1, 0, 0)
         
         btn2 = QPushButton(tr("send_to_cpu2", "CPU2"))
         btn2.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         btn2.clicked.connect(lambda: self._send_command(2))
         self.btn_send_2 = btn2
-        buttons_layout.addWidget(btn2, 1)
+        buttons_layout.addWidget(btn2, 0, 1)
         
-        btn_both = QPushButton(tr("send_to_both", "1+2"))
-        btn_both.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
-        btn_both.clicked.connect(lambda: self._send_command(0))
-        self.btn_send_both = btn_both
-        buttons_layout.addWidget(btn_both, 1)
+        btn_tlm = QPushButton(tr("send_to_tlm", "TLM"))
+        btn_tlm.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        btn_tlm.clicked.connect(lambda: self._send_command(3))
+        self.btn_send_tlm = btn_tlm
+        buttons_layout.addWidget(btn_tlm, 1, 0)
+        
+        btn_all = QPushButton(tr("send_to_all_three", "All 1+2+3"))
+        btn_all.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        btn_all.clicked.connect(lambda: self._send_command(0))
+        self.btn_send_all = btn_all
+        buttons_layout.addWidget(btn_all, 1, 1)
         
         layout.addLayout(buttons_layout)
         grp.setLayout(layout)
         return grp
     
     def _create_status_group(self) -> QGroupBox:
-        """Create status group."""
+        """Create status group with per-port and TLM status."""
         grp = QGroupBox(tr("status", "Status"))
         layout = QFormLayout()
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
                                  Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN)
-        
+        # Per-port status labels
+        self.lbl_cpu1_status = QLabel(tr("disconnected", "Disconnected"))
+        self.lbl_cpu2_status = QLabel(tr("disconnected", "Disconnected"))
+        self.lbl_tlm_status = QLabel(tr("disconnected", "Disconnected"))
         self.lbl_overall_status = QLabel(tr("disconnected", "Disconnected"))
+
+        layout.addRow(tr("cpu1", "CPU1:"), self.lbl_cpu1_status)
+        layout.addRow(tr("cpu2", "CPU2:"), self.lbl_cpu2_status)
+        layout.addRow(tr("tlm", "TLM:"), self.lbl_tlm_status)
         layout.addRow(tr("overall", "Overall:"), self.lbl_overall_status)
         
         grp.setLayout(layout)
         return grp
     
-    def _create_logs_panel(self) -> QWidget:
-        """Create center panel with logs and toolbar."""
+    def _create_consoles_panel(self) -> QWidget:
+        """Create center panel with 3 console logs (CPU1, CPU2, TLM) using adaptive splitter."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
@@ -274,38 +291,46 @@ class MainWindow(QMainWindow):
         
         layout.addLayout(toolbar_layout)
         
-        # Create tabs for different views
-        self.tab_logs = QTabWidget()
+        # Create vertical splitter for 3 consoles with adaptive sizing
+        vsplit = QSplitter(Qt.Vertical)
+        vsplit.setChildrenCollapsible(False)
         
-        # Tab 1: CPU1 and CPU2 side-by-side
-        tab1 = QWidget()
-        tab1_layout = QHBoxLayout(tab1)
-        tab1_layout.setSpacing(Sizes.LAYOUT_SPACING)
-        tab1_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.txt_log_cpu1_tab1 = self._create_log_widget()
-        self.txt_log_cpu2_tab1 = self._create_log_widget()
-        
-        tab1_layout.addWidget(QLabel("CPU1:"), 0)
-        tab1_layout.addWidget(self.txt_log_cpu1_tab1, 1)
-        tab1_layout.addWidget(QLabel("CPU2:"), 0)
-        tab1_layout.addWidget(self.txt_log_cpu2_tab1, 1)
-        
-        self.tab_logs.addTab(tab1, tr("combined", "1+2"))
-        
-        # Tab 2: CPU1 only
+        # Create console groups
+        cpu1_grp = QGroupBox(tr("send_to_cpu1", "CPU1"))
+        cpu1_layout = QVBoxLayout()
+        cpu1_layout.setContentsMargins(0, 0, 0, 0)
         self.txt_log_cpu1 = self._create_log_widget()
-        self.tab_logs.addTab(self.txt_log_cpu1, tr("send_to_cpu1", "CPU1"))
+        cpu1_layout.addWidget(self.txt_log_cpu1)
+        cpu1_grp.setLayout(cpu1_layout)
         
-        # Tab 3: CPU2 only
+        cpu2_grp = QGroupBox(tr("send_to_cpu2", "CPU2"))
+        cpu2_layout = QVBoxLayout()
+        cpu2_layout.setContentsMargins(0, 0, 0, 0)
         self.txt_log_cpu2 = self._create_log_widget()
-        self.tab_logs.addTab(self.txt_log_cpu2, tr("send_to_cpu2", "CPU2"))
+        cpu2_layout.addWidget(self.txt_log_cpu2)
+        cpu2_grp.setLayout(cpu2_layout)
         
-        # Tab 4: All combined
-        self.txt_log_all = self._create_log_widget()
-        self.tab_logs.addTab(self.txt_log_all, tr("all", "All"))
+        tlm_grp = QGroupBox(tr("tlm", "TLM"))
+        tlm_layout = QVBoxLayout()
+        tlm_layout.setContentsMargins(0, 0, 0, 0)
+        self.txt_log_tlm = self._create_log_widget()
+        tlm_layout.addWidget(self.txt_log_tlm)
+        tlm_grp.setLayout(tlm_layout)
         
-        layout.addWidget(self.tab_logs, 1)
+        # Add to splitter with adaptive sizes (CPU1: 40%, CPU2: 40%, TLM: 20%)
+        vsplit.addWidget(cpu1_grp)
+        vsplit.addWidget(cpu2_grp)
+        vsplit.addWidget(tlm_grp)
+        vsplit.setSizes([400, 400, 200])
+        vsplit.setStretchFactor(0, 2)  # CPU1 gets priority
+        vsplit.setStretchFactor(1, 2)  # CPU2 gets priority
+        vsplit.setStretchFactor(2, 1)  # TLM is smaller
+        
+        layout.addWidget(vsplit, 1)
+        
+        # Keep reference to all log widgets
+        self.txt_log_all = self.txt_log_cpu1  # For compatibility with existing code
+        
         panel.setLayout(layout)
         return panel
     
@@ -317,14 +342,14 @@ class MainWindow(QMainWindow):
         return widget
     
     def _create_right_panel(self) -> QWidget:
-        """Create right panel with counters and AUX log."""
+        """Create right panel with counters only (TLM moved to center)."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
                                  Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN)
         
-        # Counters group
+        # Counters group (CPU1, CPU2, TLM)
         counters_grp = QGroupBox(tr("port_counters", "Port Counters"))
         counters_layout = QGridLayout()
         counters_layout.setSpacing(Sizes.LAYOUT_SPACING)
@@ -345,19 +370,15 @@ class MainWindow(QMainWindow):
         counters_layout.addWidget(self.lbl_cpu2_rx, 1, 1)
         counters_layout.addWidget(self.lbl_cpu2_tx, 1, 2)
         
+        # TLM
+        self.lbl_tlm_rx = QLabel("RX: 0")
+        self.lbl_tlm_tx = QLabel("TX: 0")
+        counters_layout.addWidget(QLabel("TLM:"), 2, 0)
+        counters_layout.addWidget(self.lbl_tlm_rx, 2, 1)
+        counters_layout.addWidget(self.lbl_tlm_tx, 2, 2)
+        
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp, 0)
-        
-        # AUX log
-        aux_grp = QGroupBox("AUX Log")
-        aux_layout = QVBoxLayout()
-        aux_layout.setSpacing(Sizes.LAYOUT_SPACING)
-        aux_layout.setContentsMargins(Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-                                      Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN)
-        self.txt_log_aux = self._create_log_widget()
-        aux_layout.addWidget(self.txt_log_aux)
-        aux_grp.setLayout(aux_layout)
-        layout.addWidget(aux_grp, 1)
         
         layout.addStretch()
         panel.setLayout(layout)
@@ -443,17 +464,29 @@ class MainWindow(QMainWindow):
     # ==================== Connection Management ====================
     
     def _toggle_connection(self, port_num: int):
-        """Toggle connection for a port."""
-        port_label = f"CPU{port_num}"
+        """Toggle connection for a port (1=CPU1, 2=CPU2, 3=TLM)."""
+        if port_num == 3:
+            port_label = "TLM"
+        else:
+            port_label = f"CPU{port_num}"
         btn = getattr(self, f'btn_connect_{port_num}')
         
         if port_label in self.workers and self.workers[port_label].isRunning():
-            # Disconnect
-            self.workers[port_label].stop()
-            del self.workers[port_label]
+            # Disconnect (request stop, UI will update on status signal)
+            self.statusBar().showMessage(f"{port_label}: {tr('disconnecting', 'Disconnecting...')}")
+            btn.setEnabled(False)
+            try:
+                self.workers[port_label].stop()
+            except Exception:
+                pass
+            # cleanup
+            try:
+                del self.workers[port_label]
+            except Exception:
+                pass
             self.connected_ports[port_label] = False
             btn.setText(tr("connect", "Connect"))
-            self.statusBar().showMessage(f"{port_label}: {tr('disconnected', 'Disconnected')}")
+            btn.setEnabled(True)
         else:
             # Connect
             port = getattr(self, f'cb_port_{port_num}').currentText()
@@ -464,12 +497,14 @@ class MainWindow(QMainWindow):
             worker.rx.connect(self._on_serial_rx)
             worker.status.connect(self._on_serial_status)
             worker.error.connect(self._on_serial_error)
+            # Start async worker; status signals will confirm connection
             worker.start()
-            
+
             self.workers[port_label] = worker
             self.connected_ports[port_label] = True
             btn.setText(tr("disconnect", "Disconnect"))
-            self.statusBar().showMessage(f"{port_label}: {tr('connected', 'Connected')}")
+            # show initiating message, final status will come from worker
+            self.statusBar().showMessage(f"{port_label}: {tr('connecting', 'Connecting...')}")
     
     def _scan_ports(self, port_num: int):
         """Scan for available serial ports."""
@@ -489,7 +524,7 @@ class MainWindow(QMainWindow):
     def _scan_ports_all(self):
         """Scan ports for all port combos at startup."""
         ports = self._get_available_ports()
-        for port_num in [1, 2]:
+        for port_num in [1, 2, 3]:
             combo = getattr(self, f'cb_port_{port_num}', None)
             if combo:
                 combo.addItems(ports)
@@ -509,34 +544,78 @@ class MainWindow(QMainWindow):
     # ==================== Serial Data Handlers ====================
     
     def _on_serial_rx(self, port_label: str, data: str):
-        """Handle received data from serial port."""
+        """Handle received data from serial port (CPU1, CPU2, or TLM)."""
         html = self.viewmodel.format_rx(port_label, data)
         if not html:
             return
         
         # Append to appropriate log widgets
-        self._append_log(self.txt_log_all, html, 'all')
-        
         if port_label == 'CPU1':
-            self._append_log(self.txt_log_cpu1_tab1, html, 'cpu1_tab1')
             self._append_log(self.txt_log_cpu1, html, 'cpu1')
             rx_count = self.viewmodel.increment_rx(1)
             self.lbl_cpu1_rx.setText(f"RX: {rx_count}")
         elif port_label == 'CPU2':
-            self._append_log(self.txt_log_cpu2_tab1, html, 'cpu2_tab1')
             self._append_log(self.txt_log_cpu2, html, 'cpu2')
             rx_count = self.viewmodel.increment_rx(2)
             self.lbl_cpu2_rx.setText(f"RX: {rx_count}")
+        elif port_label == 'TLM':
+            self._append_log(self.txt_log_tlm, html, 'tlm')
+            rx_count = self.viewmodel.increment_rx(3)
+            self.lbl_tlm_rx.setText(f"RX: {rx_count}")
     
     def _on_serial_status(self, port_label: str, message: str):
         """Handle status message from serial port."""
         html = self.viewmodel.format_system(port_label, message)
-        self._append_log(self.txt_log_all, html, 'all')
+        # Append to system log
+        self._append_log(self.txt_log_cpu1, html, 'cpu1')
+
+        # Update per-port and overall status labels and status bar
+        try:
+            if port_label == 'CPU1':
+                self.lbl_cpu1_status.setText(message)
+            elif port_label == 'CPU2':
+                self.lbl_cpu2_status.setText(message)
+            elif port_label == 'TLM':
+                self.lbl_tlm_status.setText(message)
+        except Exception:
+            pass
+
+        # Update overall status briefly
+        try:
+            self.lbl_overall_status.setText(message)
+        except Exception:
+            pass
+
+        # Show transient status message to user
+        try:
+            self.statusBar().showMessage(f"{port_label}: {message}", 5000)
+        except Exception:
+            pass
     
     def _on_serial_error(self, port_label: str, error_msg: str):
         """Handle error from serial port."""
         html = self.viewmodel.format_system(port_label, f"ERROR: {error_msg}")
-        self._append_log(self.txt_log_all, html, 'all')
+        self._append_log(self.txt_log_cpu1, html, 'cpu1')
+        # Reflect error in UI labels and status bar
+        try:
+            if port_label == 'CPU1':
+                self.lbl_cpu1_status.setText(f"Error: {error_msg}")
+            elif port_label == 'CPU2':
+                self.lbl_cpu2_status.setText(f"Error: {error_msg}")
+            elif port_label == 'TLM':
+                self.lbl_tlm_status.setText(f"Error: {error_msg}")
+        except Exception:
+            pass
+
+        try:
+            self.lbl_overall_status.setText(f"Error: {error_msg}")
+        except Exception:
+            pass
+
+        try:
+            self.statusBar().showMessage(f"{port_label}: Error - {error_msg}", 8000)
+        except Exception:
+            pass
     
     def _append_log(self, widget: QTextEdit, html_text: str, cache_key: str):
         """Append HTML to log widget and update cache."""
@@ -556,7 +635,7 @@ class MainWindow(QMainWindow):
     # ==================== Data Transmission ====================
     
     def _send_command(self, which: int):
-        """Send command to serial port(s)."""
+        """Send command to serial port(s): 1=CPU1, 2=CPU2, 3=TLM, 0=All."""
         text = self.le_command.text().strip()
         if not text:
             return
@@ -565,9 +644,7 @@ class MainWindow(QMainWindow):
             worker = self.workers['CPU1']
             worker.write(text)
             html = self.viewmodel.format_tx('CPU1', text)
-            self._append_log(self.txt_log_cpu1_tab1, html, 'cpu1_tab1')
             self._append_log(self.txt_log_cpu1, html, 'cpu1')
-            self._append_log(self.txt_log_all, html, 'all')
             tx_count = self.viewmodel.increment_tx(1)
             self.lbl_cpu1_tx.setText(f"TX: {tx_count}")
         
@@ -575,18 +652,23 @@ class MainWindow(QMainWindow):
             worker = self.workers['CPU2']
             worker.write(text)
             html = self.viewmodel.format_tx('CPU2', text)
-            self._append_log(self.txt_log_cpu2_tab1, html, 'cpu2_tab1')
             self._append_log(self.txt_log_cpu2, html, 'cpu2')
-            self._append_log(self.txt_log_all, html, 'all')
             tx_count = self.viewmodel.increment_tx(2)
             self.lbl_cpu2_tx.setText(f"TX: {tx_count}")
         
-        elif which == 0:
+        elif which == 3 and 'TLM' in self.workers:
+            worker = self.workers['TLM']
+            worker.write(text)
+            html = self.viewmodel.format_tx('TLM', text)
+            self._append_log(self.txt_log_tlm, html, 'tlm')
+            tx_count = self.viewmodel.increment_tx(3)
+            self.lbl_tlm_tx.setText(f"TX: {tx_count}")
+        
+        elif which == 0:  # Send to all 3
             if 'CPU1' in self.workers:
                 worker = self.workers['CPU1']
                 worker.write(text)
                 html = self.viewmodel.format_tx('CPU1', text)
-                self._append_log(self.txt_log_cpu1_tab1, html, 'cpu1_tab1')
                 self._append_log(self.txt_log_cpu1, html, 'cpu1')
                 tx_count = self.viewmodel.increment_tx(1)
                 self.lbl_cpu1_tx.setText(f"TX: {tx_count}")
@@ -595,13 +677,17 @@ class MainWindow(QMainWindow):
                 worker = self.workers['CPU2']
                 worker.write(text)
                 html = self.viewmodel.format_tx('CPU2', text)
-                self._append_log(self.txt_log_cpu2_tab1, html, 'cpu2_tab1')
                 self._append_log(self.txt_log_cpu2, html, 'cpu2')
                 tx_count = self.viewmodel.increment_tx(2)
                 self.lbl_cpu2_tx.setText(f"TX: {tx_count}")
             
-            html = self.viewmodel.format_tx('BOTH', text)
-            self._append_log(self.txt_log_all, html, 'all')
+            if 'TLM' in self.workers:
+                worker = self.workers['TLM']
+                worker.write(text)
+                html = self.viewmodel.format_tx('TLM', text)
+                self._append_log(self.txt_log_tlm, html, 'tlm')
+                tx_count = self.viewmodel.increment_tx(3)
+                self.lbl_tlm_tx.setText(f"TX: {tx_count}")
         
         self.le_command.clear()
     
@@ -613,41 +699,20 @@ class MainWindow(QMainWindow):
         show_source = self.chk_source.isChecked()
         self.viewmodel.set_display_options(show_time, show_source)
         
-        # Rebuild all logs from cache
-        current_tab = self.tab_logs.currentIndex()
-        if current_tab == 0:
-            for cache_key, widget in [('cpu1_tab1', self.txt_log_cpu1_tab1), 
-                                     ('cpu2_tab1', self.txt_log_cpu2_tab1)]:
-                content = ''.join(self.viewmodel.log_cache.get(cache_key, {}).get('html', []))
-                self._rebuild_log_widget(widget, content)
-        elif current_tab == 1:
-            content = ''.join(self.viewmodel.log_cache.get('cpu1', {}).get('html', []))
-            self._rebuild_log_widget(self.txt_log_cpu1, content)
-        elif current_tab == 2:
-            content = ''.join(self.viewmodel.log_cache.get('cpu2', {}).get('html', []))
-            self._rebuild_log_widget(self.txt_log_cpu2, content)
-        elif current_tab == 3:
-            content = ''.join(self.viewmodel.log_cache.get('all', {}).get('html', []))
-            self._rebuild_log_widget(self.txt_log_all, content)
+        # Rebuild all 3 consoles from cache
+        for cache_key, widget in [('cpu1', self.txt_log_cpu1),
+                                  ('cpu2', self.txt_log_cpu2),
+                                  ('tlm', self.txt_log_tlm)]:
+            content = ''.join(self.viewmodel.log_cache.get(cache_key, {}).get('html', []))
+            self._rebuild_log_widget(widget, content)
     
     def _on_search_changed(self, search_text: str):
-        """Handle search field changes."""
-        current_tab = self.tab_logs.currentIndex()
-        
-        if current_tab == 0:
-            for cache_key, widget in [('cpu1_tab1', self.txt_log_cpu1_tab1),
-                                     ('cpu2_tab1', self.txt_log_cpu2_tab1)]:
-                content = self.viewmodel.filter_cache(cache_key, search_text)
-                self._rebuild_log_widget(widget, content)
-        elif current_tab == 1:
-            content = self.viewmodel.filter_cache('cpu1', search_text)
-            self._rebuild_log_widget(self.txt_log_cpu1, content)
-        elif current_tab == 2:
-            content = self.viewmodel.filter_cache('cpu2', search_text)
-            self._rebuild_log_widget(self.txt_log_cpu2, content)
-        elif current_tab == 3:
-            content = self.viewmodel.filter_cache('all', search_text)
-            self._rebuild_log_widget(self.txt_log_all, content)
+        """Handle search field changes - search all 3 consoles."""
+        for cache_key, widget in [('cpu1', self.txt_log_cpu1),
+                                  ('cpu2', self.txt_log_cpu2),
+                                  ('tlm', self.txt_log_tlm)]:
+            content = self.viewmodel.filter_cache(cache_key, search_text)
+            self._rebuild_log_widget(widget, content)
     
     @staticmethod
     def _rebuild_log_widget(widget: QTextEdit, content: str):
@@ -663,12 +728,9 @@ class MainWindow(QMainWindow):
     
     def _clear_all_logs(self):
         """Clear all logs and cache."""
-        self.txt_log_cpu1_tab1.clear()
-        self.txt_log_cpu2_tab1.clear()
         self.txt_log_cpu1.clear()
         self.txt_log_cpu2.clear()
-        self.txt_log_all.clear()
-        self.txt_log_aux.clear()
+        self.txt_log_tlm.clear()
         
         self.viewmodel.clear_cache()
         self.le_search.blockSignals(True)
@@ -676,45 +738,101 @@ class MainWindow(QMainWindow):
         self.le_search.blockSignals(False)
     
     def _save_logs(self):
-        """Save current logs to file."""
-        current_tab = self.tab_logs.currentIndex()
+        """Save current logs to file - offers choice between combined or separate files."""
+        text_cpu1 = self.txt_log_cpu1.toPlainText()
+        text_cpu2 = self.txt_log_cpu2.toPlainText()
+        text_tlm = self.txt_log_tlm.toPlainText()
         
-        if current_tab == 0:  # 1+2 tab
-            text1 = self.txt_log_cpu1_tab1.toPlainText()
-            text2 = self.txt_log_cpu2_tab1.toPlainText()
-            text = f"=== CPU1 ===\n{text1}\n\n=== CPU2 ===\n{text2}"
-            default_name = f"logs_1+2_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        elif current_tab == 1:
-            text = self.txt_log_cpu1.toPlainText()
-            default_name = f"logs_CPU1_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        elif current_tab == 2:
-            text = self.txt_log_cpu2.toPlainText()
-            default_name = f"logs_CPU2_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        elif current_tab == 3:
-            text = self.txt_log_all.toPlainText()
-            default_name = f"logs_all_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        else:
-            return
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        path, _ = QFileDialog.getSaveFileName(
-            self, tr("save_logs", "Save Logs"), default_name, 
-            "Text Files (*.txt);;All Files (*.*)"
+        # Ask user: combined or separate files
+        reply = QMessageBox.question(
+            self,
+            tr("save_logs", "Save Logs"),
+            "Сохранить как:\n1. Один файл (все консоли вместе)\n2. Отдельные файлы для каждой консоли",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes
         )
         
-        if path:
-            try:
-                with open(path, 'w', encoding='utf-8') as f:
-                    f.write(text)
-                QMessageBox.information(self, tr("success", "Success"), 
-                                       f"{tr('logs_saved', 'Logs saved to')}:\n{path}")
-            except Exception as e:
-                QMessageBox.warning(self, tr("error", "Error"), 
-                                   f"{tr('failed_save', 'Failed to save logs')}:\n{str(e)}")
+        if reply == QMessageBox.StandardButton.Cancel:
+            return
+        elif reply == QMessageBox.StandardButton.Yes:
+            # Save combined file
+            combined_text = f"""=== UART Control - Combined Logs ===
+Generated: {timestamp}
+
+{'='*50}
+=== CPU1 ===
+{'='*50}
+{text_cpu1}
+
+{'='*50}
+=== CPU2 ===
+{'='*50}
+{text_cpu2}
+
+{'='*50}
+=== TLM (Telemetry) ===
+{'='*50}
+{text_tlm}
+"""
+            default_name = f"logs_combined_{timestamp}.txt"
+            path, _ = QFileDialog.getSaveFileName(
+                self, tr("save_logs", "Save Logs"), default_name, 
+                "Text Files (*.txt);;All Files (*.*)"
+            )
+            if path:
+                try:
+                    with open(path, 'w', encoding='utf-8') as f:
+                        f.write(combined_text)
+                    QMessageBox.information(self, tr("success", "Success"), 
+                                           f"{tr('logs_saved', 'Logs saved to')}:\n{path}")
+                except Exception as e:
+                    QMessageBox.warning(self, tr("error", "Error"), 
+                                       f"{tr('failed_save', 'Failed to save logs')}:\n{str(e)}")
+        else:
+            # Save separate files - user chooses directory
+            from PySide6.QtWidgets import QFileDialog
+            folder = QFileDialog.getExistingDirectory(
+                self, "Выбрать папку для сохранения файлов"
+            )
+            if folder:
+                try:
+                    files_saved = []
+                    if text_cpu1:
+                        cpu1_path = os.path.join(folder, f"logs_CPU1_{timestamp}.txt")
+                        with open(cpu1_path, 'w', encoding='utf-8') as f:
+                            f.write(text_cpu1)
+                        files_saved.append(cpu1_path)
+                    
+                    if text_cpu2:
+                        cpu2_path = os.path.join(folder, f"logs_CPU2_{timestamp}.txt")
+                        with open(cpu2_path, 'w', encoding='utf-8') as f:
+                            f.write(text_cpu2)
+                        files_saved.append(cpu2_path)
+                    
+                    if text_tlm:
+                        tlm_path = os.path.join(folder, f"logs_TLM_{timestamp}.txt")
+                        with open(tlm_path, 'w', encoding='utf-8') as f:
+                            f.write(text_tlm)
+                        files_saved.append(tlm_path)
+                    
+                    msg = f"Сохранено {len(files_saved)} файл(ов):\n" + "\n".join(files_saved)
+                    QMessageBox.information(self, tr("success", "Success"), msg)
+                except Exception as e:
+                    QMessageBox.warning(self, tr("error", "Error"), 
+                                       f"{tr('failed_save', 'Failed to save logs')}:\n{str(e)}")
     
     def closeEvent(self, event):
         """Handle window close - disconnect all ports."""
+        # Stop all running workers and wait briefly for cleanup
         for port_label, worker in list(self.workers.items()):
-            if worker.isRunning():
-                worker.stop()
+            try:
+                if worker.isRunning():
+                    worker.stop()
+            except Exception:
+                pass
+        # give threads a moment
+        QtCore.QThread.msleep(100)
         event.accept()
 

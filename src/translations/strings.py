@@ -180,9 +180,21 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "1+2",
         "en": "1+2",
     },
-    "aux": {
-        "ru": "AUX",
-        "en": "AUX",
+    "tlm": {
+        "ru": "TLM (Телеметрия)",
+        "en": "TLM (Telemetry)",
+    },
+    "send_to_tlm": {
+        "ru": "Отправить в TLM",
+        "en": "Send to TLM",
+    },
+    "tlm_log": {
+        "ru": "Логи TLM",
+        "en": "TLM Logs",
+    },
+    "send_to_all_three": {
+        "ru": "1+2+3",
+        "en": "All",
     },
     "clear": {
         "ru": "Очистить",

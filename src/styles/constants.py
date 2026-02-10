@@ -105,7 +105,7 @@ class Sizes:
     # Text areas
     LOG_MIN_HEIGHT = 60
     STATUS_MIN_HEIGHT = 100
-    AUX_LOG_MIN_HEIGHT = 100
+    TLM_LOG_MIN_HEIGHT = 100
     
     # Spacing and margins
     LAYOUT_SPACING = 5
@@ -136,7 +136,7 @@ class SerialConfig:
     # Port labels
     PORT_LABEL_1 = "CPU1"
     PORT_LABEL_2 = "CPU2"
-    PORT_LABEL_AUX = "AUX"
+    PORT_LABEL_TLM = "TLM"
     
     # Default ports (if no real ports available)
     DEFAULT_PORTS = ["COM1", "COM2", "COM3", "COM4", "COM5"]

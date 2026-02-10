@@ -49,6 +49,8 @@ class SerialWorker(QtCore.QThread):
         self._write_q = queue.Queue()
         self._lock = QtCore.QMutex()
         self._read_buffer = ""  # Buffer for incomplete lines
+        self._ser = None
+        self._port_name = None
 
     def configure(self, port: str, baud: int) -> None:
         """
@@ -72,13 +74,19 @@ class SerialWorker(QtCore.QThread):
         ser = None
         try:
             if HAS_PYSERIAL:
+                # Attempt to open the port with guarded parameters
                 ser = serial.Serial(getattr(self, '_port_name', ''), self._baud, timeout=0.1)
+                # Ensure port is actually open
+                if not getattr(ser, 'is_open', True):
+                    ser.open()
             else:
                 ser = None
             self._ser = ser
-            self.status.emit(self.port_label, "Connected")
+            # Emit a more descriptive status including physical port name
+            pname = getattr(self, '_port_name', 'N/A')
+            self.status.emit(self.port_label, f"Connected to {pname}")
         except Exception as e:
-            self.error.emit(self.port_label, f"Open error: {e}")
+            self.error.emit(self.port_label, f"Open error ({getattr(self, '_port_name', 'N/A')}): {e}")
             self._running = False
             return
 
@@ -134,16 +142,22 @@ class SerialWorker(QtCore.QThread):
 
                 if item is not None:
                     try:
-                        if ser is not None:
+                        if self._ser is not None:
                             # Add CR+LF to the outgoing data
                             data_to_send = item if item.endswith('\r\n') else item + '\r\n'
-                            ser.write(data_to_send.encode())
+                            try:
+                                self._ser.write(data_to_send.encode())
+                            except Exception as we:
+                                raise
+                        else:
+                            # Not connected
+                            raise RuntimeError("Port not open")
                         self.status.emit(self.port_label, f"TX: {item}")
                         # Also emit rx-like echo if no real device (for debug)
                         if ser is None:
                             self.rx.emit(self.port_label, f"(simulated echo) {item}")
                     except Exception as e:
-                        self.error.emit(self.port_label, f"Write error: {e}")
+                        self.error.emit(self.port_label, f"Write error ({getattr(self, '_port_name', 'N/A')}): {e}")
 
                 # Keep UI responsive with small sleep
                 time.sleep(0.02)
@@ -154,7 +168,8 @@ class SerialWorker(QtCore.QThread):
                     ser.close()
             except Exception:
                 pass
-            self.status.emit(self.port_label, "Disconnected")
+            pname = getattr(self, '_port_name', 'N/A')
+            self.status.emit(self.port_label, f"Disconnected from {pname}")
 
     def write(self, data: str) -> None:
         """
@@ -169,4 +184,19 @@ class SerialWorker(QtCore.QThread):
     def stop(self) -> None:
         """Stop the worker thread gracefully."""
         self._running = False
-        self.wait(500)
+        # Try to close serial immediately to unblock reads/writes
+        try:
+            if hasattr(self, '_ser') and self._ser is not None:
+                try:
+                    self._ser.flush()
+                except Exception:
+                    pass
+                try:
+                    self._ser.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Wait for thread to finish gracefully
+        self.wait(1000)
