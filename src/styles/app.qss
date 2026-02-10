@@ -1,0 +1,90 @@
+/* Application QSS - basic dark theme and component styles */
+
+/* General */
+QWidget {
+    background: #1e1e1e;
+    color: #ffffff;
+    font-family: "Segoe UI", "Helvetica", Arial;
+    font-size: 10pt;
+}
+
+/* Group boxes */
+QGroupBox {
+    border: 1px solid #2b2b2b;
+    margin-top: 6px;
+    padding: 6px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 8px;
+    padding: 0 3px;
+}
+
+/* Buttons */
+QPushButton {
+    background: #2d2d2d;
+    border: 1px solid #3a3a3a;
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+QPushButton:hover {
+    background: #3a3a3a;
+}
+QPushButton:pressed {
+    background: #252525;
+}
+
+/* Line edits and combo boxes */
+QLineEdit, QComboBox {
+    background: #151515;
+    border: 1px solid #2f2f2f;
+    padding: 4px;
+    border-radius: 4px;
+    color: #ffffff;
+}
+
+/* Tabs */
+QTabWidget::pane { 
+    border-top: 1px solid #2b2b2b; 
+}
+QTabBar::tab {
+    background: #232323;
+    color: #ddd;
+    padding: 6px 12px;
+}
+QTabBar::tab:selected {
+    background: #1e1e1e;
+    border-bottom: 2px solid #3a7bd5;
+}
+
+/* Text edits (logs) - monospace for aligned tables */
+QTextEdit {
+    background: #0f0f0f;
+    color: #dcdcdc;
+    font-family: "Courier New", Consolas, monospace;
+    font-size: 9pt;
+}
+
+/* Labels */
+QLabel {
+    color: #e6e6e6;
+}
+
+/* Checkboxes */
+QCheckBox {
+    spacing: 6px;
+}
+
+/* Small LED-like frames */
+QFrame {
+    background: #333333;
+    border-radius: 7px;
+}
+
+/* Specific log colors inserted inline by ViewModel formatting (RX/TX/SYS) */
+
+/* File dialogs and message boxes */
+QMessageBox {
+    background: #1e1e1e;
+    color: #ffffff;
+}
