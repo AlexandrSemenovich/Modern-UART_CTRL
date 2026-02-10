@@ -1,5 +1,4 @@
 import os
-import json
 from typing import Dict, Optional
 from PySide6.QtCore import QObject, Signal
 

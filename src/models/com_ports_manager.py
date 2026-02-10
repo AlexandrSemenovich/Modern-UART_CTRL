@@ -2,6 +2,7 @@ import serial
 import serial.tools.list_ports
 from PySide6.QtCore import QObject, Signal, QTimer
 from src.models.com_port_model import ComPortModel
+from src.utils.translator import tr
 
 class ComPortsManager(QObject):
     """Менеджер для управления несколькими COM портами"""
@@ -64,7 +65,10 @@ class ComPortsManager(QObject):
     def connect_port(self, port_name, baud_rate=9600, data_bits=8, parity='N', stop_bits=1):
         """Подключение к COM порту"""
         if port_name in self.serial_connections:
-            self.error_occurred.emit(port_name, "Port already connected")
+            self.error_occurred.emit(
+                port_name,
+                tr("manager_port_already_connected", "Port already connected")
+            )
             return False
         
         try:
@@ -98,7 +102,10 @@ class ComPortsManager(QObject):
             return True
             
         except Exception as e:
-            error_msg = f"Failed to connect to {port_name}: {str(e)}"
+            error_msg = tr("manager_failed_connect", "Failed to connect to {port}: {error}").format(
+                port=port_name,
+                error=str(e)
+            )
             self.error_occurred.emit(port_name, error_msg)
             return False
     
@@ -127,14 +134,20 @@ class ComPortsManager(QObject):
             return True
             
         except Exception as e:
-            error_msg = f"Failed to disconnect from {port_name}: {str(e)}"
+            error_msg = tr("manager_failed_disconnect", "Failed to disconnect from {port}: {error}").format(
+                port=port_name,
+                error=str(e)
+            )
             self.error_occurred.emit(port_name, error_msg)
             return False
     
     def send_data(self, port_name, data):
         """Отправка данных в COM порт"""
         if port_name not in self.serial_connections:
-            self.error_occurred.emit(port_name, "Port not connected")
+            self.error_occurred.emit(
+                port_name,
+                tr("manager_port_not_connected", "Port not connected")
+            )
             return False
         
         try:
@@ -150,7 +163,10 @@ class ComPortsManager(QObject):
             return True
             
         except Exception as e:
-            error_msg = f"Failed to send data to {port_name}: {str(e)}"
+            error_msg = tr("manager_failed_send", "Failed to send data to {port}: {error}").format(
+                port=port_name,
+                error=str(e)
+            )
             self.error_occurred.emit(port_name, error_msg)
             return False
     
@@ -201,7 +217,10 @@ class ComPortsManager(QObject):
                 self.data_received.emit(port_name, text_data)
                 
         except Exception as e:
-            error_msg = f"Error monitoring {port_name}: {str(e)}"
+            error_msg = tr("manager_monitor_error", "Error monitoring {port}: {error}").format(
+                port=port_name,
+                error=str(e)
+            )
             self.error_occurred.emit(port_name, error_msg)
             self.stop_monitoring(port_name)
     

@@ -50,14 +50,14 @@ class ModernSplashScreen(QWidget):
         self._set_icon()
         
         # Заголовок
-        self.lbl_title = QLabel("UART Control", self.background)
+        self.lbl_title = QLabel(tr("splash_title", "UART Control"), self.background)
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_title.setGeometry(0, 200, 380, 40)
         self.lbl_title.setObjectName("SplashTitle")
         self.lbl_title.setFont(QFont("Arial", 24, QFont.Weight.Bold))
         
         # Подзаголовок
-        self.lbl_subtitle = QLabel("Modern COM Port Control", self.background)
+        self.lbl_subtitle = QLabel(tr("splash_subtitle", "Modern COM Port Control"), self.background)
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setGeometry(0, 235, 380, 20)
         self.lbl_subtitle.setObjectName("SplashSubtitle")
@@ -168,7 +168,7 @@ class ModernSplashScreen(QWidget):
             pass
         
         # Если иконки нет, показываем логотип текстом
-        self.lbl_icon.setText("UART")
+        self.lbl_icon.setText(tr("splash_logo_text", "UART"))
         self.lbl_icon.setFont(QFont("Arial", 48, QFont.Weight.Bold))
     
     def update_progress(self, value: int, status_text: str = None):

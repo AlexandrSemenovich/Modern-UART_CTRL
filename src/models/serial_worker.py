@@ -5,6 +5,8 @@ Provides line-buffered reading, write queueing, and signal-based event emission.
 
 from PySide6 import QtCore
 from PySide6.QtCore import Signal
+
+from src.utils.translator import tr
 import queue
 import time
 
@@ -69,7 +71,11 @@ class SerialWorker(QtCore.QThread):
         Only emits complete lines (terminated by \\r, \\n, or \\r\\n).
         """
         self._running = True
-        self.status.emit(self.port_label, f"Connecting to {getattr(self, '_port_name', 'N/A')}...")
+        pname = getattr(self, '_port_name', 'N/A')
+        self.status.emit(
+            self.port_label,
+            tr("worker_connecting_to", "Connecting to {port}...").format(port=pname)
+        )
 
         ser = None
         try:
@@ -84,9 +90,16 @@ class SerialWorker(QtCore.QThread):
             self._ser = ser
             # Emit a more descriptive status including physical port name
             pname = getattr(self, '_port_name', 'N/A')
-            self.status.emit(self.port_label, f"Connected to {pname}")
+            self.status.emit(
+                self.port_label,
+                tr("worker_connected_to", "Connected to {port}").format(port=pname)
+            )
         except Exception as e:
-            self.error.emit(self.port_label, f"Open error ({getattr(self, '_port_name', 'N/A')}): {e}")
+            pname = getattr(self, '_port_name', 'N/A')
+            self.error.emit(
+                self.port_label,
+                tr("worker_open_error", "Open error ({port}): {error}").format(port=pname, error=e)
+            )
             self._running = False
             return
 
@@ -132,7 +145,10 @@ class SerialWorker(QtCore.QThread):
                         # no serial: small sleep
                         pass
                 except Exception as e:
-                    self.error.emit(self.port_label, f"Read error: {e}")
+                    self.error.emit(
+                        self.port_label,
+                        tr("worker_read_error", "Read error: {error}").format(error=e)
+                    )
 
                 # Handle outgoing write queue
                 try:
@@ -152,12 +168,25 @@ class SerialWorker(QtCore.QThread):
                         else:
                             # Not connected
                             raise RuntimeError("Port not open")
-                        self.status.emit(self.port_label, f"TX: {item}")
+                        self.status.emit(
+                            self.port_label,
+                            tr("worker_tx_message", "TX: {data}").format(data=item)
+                        )
                         # Also emit rx-like echo if no real device (for debug)
                         if ser is None:
-                            self.rx.emit(self.port_label, f"(simulated echo) {item}")
+                            self.rx.emit(
+                                self.port_label,
+                                tr("worker_simulated_echo", "(simulated echo) {data}").format(data=item)
+                            )
                     except Exception as e:
-                        self.error.emit(self.port_label, f"Write error ({getattr(self, '_port_name', 'N/A')}): {e}")
+                        pname = getattr(self, '_port_name', 'N/A')
+                        self.error.emit(
+                            self.port_label,
+                            tr("worker_write_error", "Write error ({port}): {error}").format(
+                                port=pname,
+                                error=e
+                            )
+                        )
 
                 # Keep UI responsive with small sleep
                 time.sleep(0.02)
@@ -169,7 +198,10 @@ class SerialWorker(QtCore.QThread):
             except Exception:
                 pass
             pname = getattr(self, '_port_name', 'N/A')
-            self.status.emit(self.port_label, f"Disconnected from {pname}")
+            self.status.emit(
+                self.port_label,
+                tr("worker_disconnected_from", "Disconnected from {port}").format(port=pname)
+            )
 
     def write(self, data: str) -> None:
         """

@@ -88,6 +88,18 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Помощь",
         "en": "Help",
     },
+    "splash_title": {
+        "ru": "UART Control",
+        "en": "UART Control",
+    },
+    "splash_subtitle": {
+        "ru": "Современное управление COM-портами",
+        "en": "Modern COM Port Control",
+    },
+    "splash_logo_text": {
+        "ru": "UART",
+        "en": "UART",
+    },
     "about": {
         "ru": "О программе",
         "en": "About",
@@ -146,6 +158,22 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Отключен",
         "en": "Disconnected",
     },
+    "ports_found": {
+        "ru": "Найдено {count} порт(ов)",
+        "en": "Found {count} port(s)",
+    },
+    "rx_label": {
+        "ru": "RX: {count}",
+        "en": "RX: {count}",
+    },
+    "tx_label": {
+        "ru": "TX: {count}",
+        "en": "TX: {count}",
+    },
+    "error_with_message": {
+        "ru": "Ошибка: {message}",
+        "en": "Error: {message}",
+    },
     
     # Data transmission
     "data_transmission": {
@@ -181,8 +209,8 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "en": "1+2",
     },
     "tlm": {
-        "ru": "TLM (Телеметрия)",
-        "en": "TLM (Telemetry)",
+        "ru": "TLM",
+        "en": "TLM",
     },
     "send_to_tlm": {
         "ru": "Отправить в TLM",
@@ -271,6 +299,18 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "ready": {
         "ru": "Готов",
         "en": "Ready",
+    },
+    "status_theme_changed": {
+        "ru": "Тема: {theme}",
+        "en": "Theme: {theme}",
+    },
+    "status_port_message": {
+        "ru": "{port}: {message}",
+        "en": "{port}: {message}",
+    },
+    "status_port_error": {
+        "ru": "Ошибка ({port}): {message}",
+        "en": "Error ({port}): {message}",
     },
     "connecting": {
         "ru": "Подключение...",
@@ -583,5 +623,95 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "profile_name": {
         "ru": "Имя профиля",
         "en": "Profile Name",
+    },
+
+    # Logging helpers
+    "save_logs_prompt": {
+        "ru": "Сохранить как:\n1. Один файл (все консоли вместе)\n2. Отдельные файлы для каждой консоли",
+        "en": "Save as:\n1. Single file (all consoles)\n2. Separate files for each console",
+    },
+    "logs_combined_title": {
+        "ru": "=== {app_name} - объединённые логи ===",
+        "en": "=== {app_name} - Combined Logs ===",
+    },
+    "logs_generated": {
+        "ru": "Сгенерировано: {timestamp}",
+        "en": "Generated: {timestamp}",
+    },
+    "logs_section_cpu1": {
+        "ru": "=== CPU1 ===",
+        "en": "=== CPU1 ===",
+    },
+    "logs_section_cpu2": {
+        "ru": "=== CPU2 ===",
+        "en": "=== CPU2 ===",
+    },
+    "logs_section_tlm": {
+        "ru": "=== TLM (Телеметрия) ===",
+        "en": "=== TLM (Telemetry) ===",
+    },
+    "logs_saved_files": {
+        "ru": "Сохранено {count} файл(ов):\n{files}",
+        "en": "Saved {count} file(s):\n{files}",
+    },
+
+    # Serial worker
+    "worker_connecting_to": {
+        "ru": "Подключение к {port}...",
+        "en": "Connecting to {port}...",
+    },
+    "worker_connected_to": {
+        "ru": "Подключено к {port}",
+        "en": "Connected to {port}",
+    },
+    "worker_disconnected_from": {
+        "ru": "Отключено от {port}",
+        "en": "Disconnected from {port}",
+    },
+    "worker_open_error": {
+        "ru": "Ошибка открытия ({port}): {error}",
+        "en": "Open error ({port}): {error}",
+    },
+    "worker_read_error": {
+        "ru": "Ошибка чтения: {error}",
+        "en": "Read error: {error}",
+    },
+    "worker_write_error": {
+        "ru": "Ошибка записи ({port}): {error}",
+        "en": "Write error ({port}): {error}",
+    },
+    "worker_tx_message": {
+        "ru": "TX: {data}",
+        "en": "TX: {data}",
+    },
+    "worker_simulated_echo": {
+        "ru": "(симулируемый отклик) {data}",
+        "en": "(simulated echo) {data}",
+    },
+
+    # COM ports manager
+    "manager_port_already_connected": {
+        "ru": "Порт уже подключен",
+        "en": "Port already connected",
+    },
+    "manager_port_not_connected": {
+        "ru": "Порт не подключен",
+        "en": "Port not connected",
+    },
+    "manager_failed_connect": {
+        "ru": "Не удалось подключиться к {port}: {error}",
+        "en": "Failed to connect to {port}: {error}",
+    },
+    "manager_failed_disconnect": {
+        "ru": "Не удалось отключиться от {port}: {error}",
+        "en": "Failed to disconnect from {port}: {error}",
+    },
+    "manager_failed_send": {
+        "ru": "Не удалось отправить данные на {port}: {error}",
+        "en": "Failed to send data to {port}: {error}",
+    },
+    "manager_monitor_error": {
+        "ru": "Ошибка мониторинга {port}: {error}",
+        "en": "Error monitoring {port}: {error}",
     },
 }

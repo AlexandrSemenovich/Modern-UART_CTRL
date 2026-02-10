@@ -6,6 +6,7 @@ MVVM Architecture: ViewModel layer that binds Model to View.
 from PySide6.QtCore import QObject, Signal, Property
 
 from src.models.com_port_model import ComPortModel
+from src.utils.translator import tr
 
 
 class ComPortViewModel(QObject):
@@ -20,19 +21,19 @@ class ComPortViewModel(QObject):
         super().__init__()
         self._model = model
         self._is_connected = False
-        self._connection_status = "Disconnected"
+        self._connection_status = tr("disconnected", "Disconnected")
     
     def connect_port(self):
         """Connect to COM port."""
         try:
             self._model.set_open(True)
             self._is_connected = True
-            self._connection_status = "Connected"
+            self._connection_status = tr("connected", "Connected")
             self.connected_changed.emit(True)
             self.connection_status_changed.emit(self._connection_status)
         except Exception as e:
             self._model.set_error(str(e))
-            self._connection_status = f"Error: {str(e)}"
+            self._connection_status = tr("error_with_message", "Error: {message}").format(message=str(e))
             self.connection_status_changed.emit(self._connection_status)
     
     def disconnect_port(self):
@@ -40,7 +41,7 @@ class ComPortViewModel(QObject):
         try:
             self._model.set_open(False)
             self._is_connected = False
-            self._connection_status = "Disconnected"
+            self._connection_status = tr("disconnected", "Disconnected")
             self.connected_changed.emit(False)
             self.connection_status_changed.emit(self._connection_status)
         except Exception as e:
