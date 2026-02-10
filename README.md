@@ -1,5 +1,7 @@
 # Modern UART Control
 
+**Version:** 1.0.0 (tag: v1.0.0)
+
 Современное приложение для управления COM портами с поддержкой одновременной работы с несколькими портами.
 
 ## Особенности
@@ -80,14 +82,37 @@ pip install -r requirements.txt
 
 ## Запуск приложения
 
+Рекомендуемый способ запуска — через обёртки в `scripts/` (поддерживает venv activation):
+
+PowerShell:
+```powershell
+.
+scripts\run.ps1
+```
+
+CMD / Batch:
+```cmd
+scripts\run.bat
+```
+
+Прямой запуск (в активированном venv):
 ```bash
 python src/main.py
 ```
 
 ## Запуск тестов
 
+Через `pytest` (рекомендуется):
+
 ```bash
-python test_structure.py
+python -m pytest -q tests/
+```
+
+Альтернатива — старые обёртки в корне:
+
+PowerShell:
+```powershell
+.\test_final_validation.py
 ```
 
 ## Использование
