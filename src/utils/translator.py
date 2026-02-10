@@ -11,7 +11,7 @@ class Translator(QObject):
         super().__init__()
         self.current_language = default_language
         # Язык в коде: ru или en
-        self.current_lang_code = "ru"
+        self.current_lang_code = "en"
         self.translations = {}
         self.available_languages = {
             "ru_RU": "Русский",

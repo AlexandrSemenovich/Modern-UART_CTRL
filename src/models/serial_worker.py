@@ -46,10 +46,9 @@ class SerialWorker(QtCore.QThread):
         super().__init__()
         self.port_label = port_label
         self._port = None
-        self._baud = 9600
+        self._baud = 115200
         self._running = False
         self._write_q = queue.Queue()
-        self._lock = QtCore.QMutex()
         self._read_buffer = ""  # Buffer for incomplete lines
         self._ser = None
         self._port_name = None
@@ -131,10 +130,17 @@ class SerialWorker(QtCore.QThread):
                                     break  # No complete line yet
                                 
                                 first_idx = min(indices)
+                                
+                                # Safety check: ensure we don't go out of bounds
+                                buffer_len = len(self._read_buffer)
+                                if first_idx >= buffer_len:
+                                    break
+                                
                                 line = self._read_buffer[:first_idx]
                                 
                                 # Determine which line ending was used and skip it
-                                if self._read_buffer[first_idx:first_idx+2] == '\r\n':
+                                if (first_idx + 2 <= buffer_len and 
+                                    self._read_buffer[first_idx:first_idx+2] == '\r\n'):
                                     self._read_buffer = self._read_buffer[first_idx+2:]
                                 else:
                                     self._read_buffer = self._read_buffer[first_idx+1:]

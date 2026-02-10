@@ -130,7 +130,7 @@ class Timing:
 class SerialConfig:
     """Default serial port configuration."""
     
-    DEFAULT_BAUD = 9600
+    DEFAULT_BAUD = 115200
     BAUD_RATES = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
     
     # Port labels

@@ -192,6 +192,18 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Отправить",
         "en": "Send",
     },
+    "save_command": {
+        "ru": "Сохранить команду",
+        "en": "Save Command",
+    },
+    "command_history": {
+        "ru": "История команд",
+        "en": "Command History",
+    },
+    "clear_history": {
+        "ru": "Очистить историю",
+        "en": "Clear History",
+    },
     "send_to_cpu1": {
         "ru": "CPU1",
         "en": "CPU1",
@@ -221,7 +233,7 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "en": "TLM Logs",
     },
     "send_to_all_three": {
-        "ru": "1+2+3",
+        "ru": "1+2",
         "en": "All",
     },
     "clear": {
@@ -235,6 +247,32 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "ascii_view": {
         "ru": "ASCII вид",
         "en": "ASCII View",
+    },
+
+    # Status panels
+    "port_counters": {
+        "ru": "Счётчики портов",
+        "en": "Port Counters",
+    },
+    "status": {
+        "ru": "Статусы",
+        "en": "Status",
+    },
+    "cpu1": {
+        "ru": "CPU1",
+        "en": "CPU1",
+    },
+    "cpu2": {
+        "ru": "CPU2",
+        "en": "CPU2",
+    },
+    "tlm": {
+        "ru": "TLM",
+        "en": "TLM",
+    },
+    "overall": {
+        "ru": "Общее",
+        "en": "Overall",
     },
     
     # Themes
@@ -623,6 +661,68 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "profile_name": {
         "ru": "Имя профиля",
         "en": "Profile Name",
+    },
+
+    # UI strings used in main window
+    "port": {
+        "ru": "Порт:",
+        "en": "Port:",
+    },
+    "scan": {
+        "ru": "Сканировать",
+        "en": "Scan",
+    },
+    "scan_ports": {
+        "ru": "Сканирование портов",
+        "en": "Scan Ports",
+    },
+    "connect": {
+        "ru": "Подключить",
+        "en": "Connect",
+    },
+    "disconnect": {
+        "ru": "Отключить",
+        "en": "Disconnect",
+    },
+    "disconnecting": {
+        "ru": "Отключение...",
+        "en": "Disconnecting...",
+    },
+    "enter_command": {
+        "ru": "Введите команду...",
+        "en": "Enter command...",
+    },
+    "save_logs": {
+        "ru": "Сохранить логи",
+        "en": "Save Logs",
+    },
+    "logs_saved": {
+        "ru": "Логи сохранены:",
+        "en": "Logs saved to:",
+    },
+    "failed_save": {
+        "ru": "Не удалось сохранить логи",
+        "en": "Failed to save logs",
+    },
+    "search": {
+        "ru": "Поиск",
+        "en": "Search",
+    },
+    "search_logs": {
+        "ru": "Поиск в логах...",
+        "en": "Search logs...",
+    },
+    "show": {
+        "ru": "Показать:",
+        "en": "Show:",
+    },
+    "time": {
+        "ru": "Время",
+        "en": "Time",
+    },
+    "source": {
+        "ru": "Источник",
+        "en": "Source",
     },
 
     # Logging helpers

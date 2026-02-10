@@ -6,12 +6,12 @@ Integrates console logging with 3 serial ports, real-time counters, and search/f
 
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QIcon, QFont, QColor
+from PySide6.QtGui import QIcon, QFont, QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, 
     QMessageBox, QSplitter, QGroupBox, QFormLayout, QComboBox, QPushButton,
     QLineEdit, QCheckBox, QLabel, QTextEdit, QFrame, QGridLayout,
-    QFileDialog
+    QFileDialog, QListWidget
 )
 import os
 import sys
@@ -32,6 +32,16 @@ except Exception:
     HAS_PYSERIAL = False
 
 
+class PortWidgets:
+    """Container for widgets of a single port."""
+    def __init__(self, port_num: int):
+        self.port_num = port_num
+        self.port_combo: QComboBox = None
+        self.scan_btn: QPushButton = None
+        self.baud_combo: QComboBox = None
+        self.connect_btn: QPushButton = None
+
+
 class MainWindow(QMainWindow):
     """
     Main application window with integrated serial port logging.
@@ -47,6 +57,9 @@ class MainWindow(QMainWindow):
         # Serial port workers
         self.workers = {}  # port_label -> SerialWorker
         self.connected_ports = {}  # port_label -> is_connected
+        
+        # Port widgets container (replaces dynamic setattr)
+        self.port_widgets = {1: PortWidgets(1), 2: PortWidgets(2), 3: PortWidgets(3)}
         
         # Setup window properties
         self.setWindowTitle(tr("app_name", "UART Control"))
@@ -70,6 +83,24 @@ class MainWindow(QMainWindow):
         
         # Initialize port scanning
         self._scan_ports_all()
+
+        # Command history and shortcuts
+        self.command_history: list[str] = []
+        self.max_history = 20
+        self.history_index = -1
+        self.default_send_target = 0
+        shortcut_send = QShortcut(QKeySequence("Ctrl+Enter"), self)
+        shortcut_send.activated.connect(self._send_default_command)
+        shortcut_cpu1 = QShortcut(QKeySequence("Ctrl+Alt+1"), self)
+        shortcut_cpu1.activated.connect(lambda: self._send_command(1))
+        shortcut_cpu2 = QShortcut(QKeySequence("Ctrl+Alt+2"), self)
+        shortcut_cpu2.activated.connect(lambda: self._send_command(2))
+        shortcut_tlm = QShortcut(QKeySequence("Ctrl+Alt+3"), self)
+        shortcut_tlm.activated.connect(lambda: self._send_command(3))
+        history_shortcut_up = QShortcut(QKeySequence("Ctrl+Up"), self)
+        history_shortcut_down = QShortcut(QKeySequence("Ctrl+Down"), self)
+        history_shortcut_up.activated.connect(lambda: self._navigate_history(-1))
+        history_shortcut_down.activated.connect(lambda: self._navigate_history(1))
     
     def _setup_ui(self):
         """Initialize main UI components with three-panel layout and 3-console view."""
@@ -101,10 +132,6 @@ class MainWindow(QMainWindow):
         # Data Transmission Group
         input_grp = self._create_transmission_group()
         left_layout.addWidget(input_grp, 0)
-        
-        # Status indicators
-        status_grp = self._create_status_group()
-        left_layout.addWidget(status_grp, 0)
         
         left_layout.addStretch()
         left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
@@ -140,16 +167,19 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
                                  Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN)
         
+        # Get widgets container
+        widgets = self.port_widgets[port_num]
+        
         # Port combo
         port_combo = QComboBox()
         port_combo.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
-        setattr(self, f'cb_port_{port_num}', port_combo)
+        widgets.port_combo = port_combo
         
         scan_btn = QPushButton(tr("scan", "Scan"))
         scan_btn.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         scan_btn.setMaximumWidth(Sizes.BUTTON_MAX_WIDTH)
         scan_btn.clicked.connect(lambda: self._scan_ports(port_num))
-        setattr(self, f'btn_scan_{port_num}', scan_btn)
+        widgets.scan_btn = scan_btn
         
         port_layout = QHBoxLayout()
         port_layout.setSpacing(Sizes.LAYOUT_SPACING)
@@ -161,14 +191,15 @@ class MainWindow(QMainWindow):
         baud_combo = QComboBox()
         baud_combo.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         baud_combo.addItems(['9600', '19200', '38400', '57600', '115200'])
-        setattr(self, f'cb_baud_{port_num}', baud_combo)
+        baud_combo.setCurrentText('115200')  # Default baud rate
+        widgets.baud_combo = baud_combo
         layout.addRow(tr("baud_rate", "Baud:"), baud_combo)
         
         # Connect button
         conn_btn = QPushButton(tr("connect", "Connect"))
         conn_btn.setMinimumHeight(Sizes.BUTTON_MIN_HEIGHT)
         conn_btn.clicked.connect(lambda: self._toggle_connection(port_num))
-        setattr(self, f'btn_connect_{port_num}', conn_btn)
+        widgets.connect_btn = conn_btn
         layout.addRow(conn_btn)
         
         grp.setLayout(layout)
@@ -177,46 +208,72 @@ class MainWindow(QMainWindow):
     def _create_transmission_group(self) -> QGroupBox:
         """Create data transmission group with command input and send buttons."""
         grp = QGroupBox(tr("data_transmission", "Data Transmission"))
+        self.grp_transmission = grp
         layout = QVBoxLayout()
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
                                  Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN)
-        
+
         # Command input
+        input_layout = QHBoxLayout()
         self.le_command = QLineEdit()
         self.le_command.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self.le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
-        layout.addWidget(self.le_command)
+        input_layout.addWidget(self.le_command, 1)
+        layout.addLayout(input_layout)
         
-        # Send buttons (4 buttons: CPU1, CPU2, TLM, All)
+        # Send buttons (4 buttons: 1+2, CPU1, CPU2, TLM)
         buttons_layout = QGridLayout()
         buttons_layout.setSpacing(Sizes.LAYOUT_SPACING)
+        
+        btn_combo = QPushButton(tr("send_to_both", "1+2"))
+        btn_combo.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        btn_combo.clicked.connect(lambda: self._send_command(0))
+        self.btn_send_combo = btn_combo
+        buttons_layout.addWidget(btn_combo, 0, 0)
         
         btn1 = QPushButton(tr("send_to_cpu1", "CPU1"))
         btn1.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         btn1.clicked.connect(lambda: self._send_command(1))
         self.btn_send_1 = btn1
-        buttons_layout.addWidget(btn1, 0, 0)
+        buttons_layout.addWidget(btn1, 0, 1)
         
         btn2 = QPushButton(tr("send_to_cpu2", "CPU2"))
         btn2.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         btn2.clicked.connect(lambda: self._send_command(2))
         self.btn_send_2 = btn2
-        buttons_layout.addWidget(btn2, 0, 1)
+        buttons_layout.addWidget(btn2, 1, 0)
         
         btn_tlm = QPushButton(tr("send_to_tlm", "TLM"))
         btn_tlm.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         btn_tlm.clicked.connect(lambda: self._send_command(3))
         self.btn_send_tlm = btn_tlm
-        buttons_layout.addWidget(btn_tlm, 1, 0)
-        
-        btn_all = QPushButton(tr("send_to_all_three", "All 1+2+3"))
-        btn_all.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
-        btn_all.clicked.connect(lambda: self._send_command(0))
-        self.btn_send_all = btn_all
-        buttons_layout.addWidget(btn_all, 1, 1)
-        
+        buttons_layout.addWidget(btn_tlm, 1, 1)
+
         layout.addLayout(buttons_layout)
+
+        # Command history block
+        history_layout = QVBoxLayout()
+        history_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
+        self.lbl_history_title = QLabel(tr("command_history", "Command History"))
+        self.list_history = QListWidget()
+        self.list_history.setMaximumHeight(150)
+        self.list_history.itemDoubleClicked.connect(self._insert_history_command)
+
+        history_controls = QHBoxLayout()
+        self.btn_save_command = QPushButton(tr("save_command", "Save Command"))
+        self.btn_save_command.setProperty("translation-key", "save_command")
+        self.btn_save_command.clicked.connect(self._save_current_command)
+        self.btn_clear_history = QPushButton(tr("clear_history", "Clear History"))
+        self.btn_clear_history.setProperty("translation-key", "clear_history")
+        self.btn_clear_history.clicked.connect(self._clear_history)
+        history_controls.addWidget(self.btn_save_command)
+        history_controls.addWidget(self.btn_clear_history)
+
+        history_layout.addWidget(self.lbl_history_title)
+        history_layout.addWidget(self.list_history)
+        history_layout.addLayout(history_controls)
+        layout.addLayout(history_layout)
         grp.setLayout(layout)
         return grp
     
@@ -394,6 +451,9 @@ class MainWindow(QMainWindow):
         
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp, 0)
+
+        status_grp = self._create_status_group()
+        layout.addWidget(status_grp, 0)
         
         layout.addStretch()
         panel.setLayout(layout)
@@ -466,9 +526,35 @@ class MainWindow(QMainWindow):
     
     def _on_language_changed(self, language):
         """Handle language change event - refresh UI text."""
-        self.setWindowTitle(tr("app_name", "UART Control"))
+        # Rebuild main UI so all widgets pick up translations
+        try:
+            # Remove old central widget
+            old = self.takeCentralWidget()
+            if old is not None:
+                old.deleteLater()
+        except Exception:
+            pass
+        # Recreate UI and menu with translated texts
+        self._setup_ui()
         self._setup_menu()
+        # Update window title and brief status
+        self.setWindowTitle(tr("app_name", "UART Control"))
         self.statusBar().showMessage(tr("ready", "Ready"), 3000)
+
+        # Restore connect button texts based on current connection state
+        try:
+            for port_num in [1, 2, 3]:
+                widgets = self.port_widgets.get(port_num)
+                btn = widgets.connect_btn if widgets else None
+                port_label = 'TLM' if port_num == 3 else f'CPU{port_num}'
+                if btn is None:
+                    continue
+                if self.connected_ports.get(port_label):
+                    btn.setText(tr("disconnect", "Disconnect"))
+                else:
+                    btn.setText(tr("connect", "Connect"))
+        except Exception:
+            pass
     
     def _show_about(self):
         """Show about dialog."""
@@ -487,7 +573,8 @@ class MainWindow(QMainWindow):
             port_label = "TLM"
         else:
             port_label = f"CPU{port_num}"
-        btn = getattr(self, f'btn_connect_{port_num}')
+        widgets = self.port_widgets.get(port_num)
+        btn = widgets.connect_btn if widgets else None
         
         if port_label in self.workers and self.workers[port_label].isRunning():
             # Disconnect (request stop, UI will update on status signal)
@@ -512,8 +599,8 @@ class MainWindow(QMainWindow):
             btn.setEnabled(True)
         else:
             # Connect
-            port = getattr(self, f'cb_port_{port_num}').currentText()
-            baud = int(getattr(self, f'cb_baud_{port_num}').currentText())
+            port = widgets.port_combo.currentText() if widgets else ""
+            baud = int(widgets.baud_combo.currentText()) if widgets else 115200
             
             worker = SerialWorker(port_label)
             worker.configure(port, baud)
@@ -537,8 +624,9 @@ class MainWindow(QMainWindow):
     def _scan_ports(self, port_num: int):
         """Scan for available serial ports."""
         ports = self._get_available_ports()
-        combo = getattr(self, f'cb_port_{port_num}')
-        current = combo.currentText()
+        widgets = self.port_widgets.get(port_num)
+        combo = widgets.port_combo if widgets else None
+        current = combo.currentText() if combo else ""
         combo.clear()
         combo.addItems(ports)
         
@@ -556,7 +644,8 @@ class MainWindow(QMainWindow):
         """Scan ports for all port combos at startup."""
         ports = self._get_available_ports()
         for port_num in [1, 2, 3]:
-            combo = getattr(self, f'cb_port_{port_num}', None)
+            widgets = self.port_widgets.get(port_num)
+            combo = widgets.port_combo if widgets else None
             if combo:
                 combo.addItems(ports)
     
@@ -684,6 +773,8 @@ class MainWindow(QMainWindow):
         text = self.le_command.text().strip()
         if not text:
             return
+
+        self._append_history(text)
         
         if which == 1 and 'CPU1' in self.workers:
             worker = self.workers['CPU1']
@@ -889,3 +980,47 @@ class MainWindow(QMainWindow):
         layout.addWidget(label)
         layout.addStretch()
         return header
+    def _send_default_command(self):
+        self._send_command(self.default_send_target)
+
+    def _navigate_history(self, direction: int):
+        if direction not in (-1, 1) or not self.command_history:
+            return
+        self.history_index += direction
+        self.history_index = max(0, min(len(self.command_history) - 1, self.history_index))
+        try:
+            self.le_command.setText(self.command_history[self.history_index])
+        except Exception:
+            pass
+
+    def _append_history(self, command: str) -> None:
+        if not command:
+            return
+        if self.command_history and self.command_history[-1] == command:
+            self.history_index = len(self.command_history)
+            return
+        self.command_history.append(command)
+        if len(self.command_history) > self.max_history:
+            self.command_history.pop(0)
+            try:
+                self.list_history.takeItem(0)
+            except Exception:
+                pass
+        self.list_history.addItem(command)
+        self.list_history.scrollToBottom()
+        self.history_index = len(self.command_history)
+
+    def _save_current_command(self) -> None:
+        text = self.le_command.text().strip()
+        self._append_history(text)
+
+    def _clear_history(self) -> None:
+        self.command_history.clear()
+        self.history_index = -1
+        self.list_history.clear()
+
+    def _insert_history_command(self, item) -> None:
+        try:
+            self.le_command.setText(item.text())
+        except Exception:
+            pass

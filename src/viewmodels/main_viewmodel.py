@@ -27,6 +27,9 @@ class MainViewModel(QtCore.QObject):
     
     counters_changed = Signal(int, int, int)  # cpu1_rx, cpu1_tx, etc
     
+    # Maximum number of log lines to keep in cache per widget
+    MAX_CACHE_LINES = 10000
+    
     def __init__(self):
         super().__init__()
         
@@ -46,6 +49,32 @@ class MainViewModel(QtCore.QObject):
         self.show_time = show_time
         self.show_source = show_source
     
+    def _format_message(self, source: str, text: str, source_label: str, text_color: str) -> str:
+        """
+        Common formatting logic for all message types.
+        
+        Args:
+            source (str): Port label (e.g., 'CPU1', 'CPU2')
+            text (str): Message text
+            source_label (str): Label prefix (e.g., 'RX', 'TX', 'SYS')
+            text_color (str): CSS color for the text
+            
+        Returns:
+            str: HTML formatted text
+        """
+        if not text or not text.strip():
+            return ""
+            
+        ts = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
+        time_part = f"<span style='color:gray'>[{ts}]</span> " if self.show_time else ""
+        source_part = f"<b style='{text_color}'>{source_label}({source}):</b> " if self.show_source else ""
+        
+        # Remove trailing line endings
+        text = text.rstrip('\r\n')
+        
+        escaped_text = escape(text)
+        return f"{time_part}{source_part}<span style='color:{text_color}; white-space:pre'>{escaped_text}</span><br>"
+    
     def format_rx(self, source: str, text: str) -> str:
         """
         Format RX (received) message.
@@ -57,18 +86,7 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: HTML formatted text
         """
-        if not text or not text.strip():
-            return ""
-            
-        ts = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
-        time_part = f"<span style='color:gray'>[{ts}]</span> " if self.show_time else ""
-        source_part = f"<b style='color:green'>RX({source}):</b> " if self.show_source else ""
-        
-        # Remove trailing line endings
-        text = text.rstrip('\r\n')
-        
-        escaped_text = escape(text)
-        return f"{time_part}{source_part}<span style='color:#c7f0c7; white-space:pre'>{escaped_text}</span><br>"
+        return self._format_message(source, text, "RX", "color:green")
     
     def format_tx(self, source: str, text: str) -> str:
         """
@@ -81,17 +99,7 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: HTML formatted text
         """
-        if not text or not text.strip():
-            return ""
-            
-        ts = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
-        time_part = f"<span style='color:gray'>[{ts}]</span> " if self.show_time else ""
-        source_part = f"<b style='color:#ffdd57'>TX({source}):</b> " if self.show_source else ""
-        
-        text = text.rstrip('\r\n')
-        
-        escaped_text = escape(text)
-        return f"{time_part}{source_part}<span style='color:#fff7d6; white-space:pre'>{escaped_text}</span><br>"
+        return self._format_message(source, text, "TX", "color:#ffdd57")
     
     def format_system(self, source: str, text: str) -> str:
         """
@@ -104,17 +112,7 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: HTML formatted text
         """
-        if not text or not text.strip():
-            return ""
-            
-        ts = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
-        time_part = f"<span style='color:gray'>[{ts}]</span> " if self.show_time else ""
-        source_part = f"<b style='color:lightgray'>SYS({source}):</b> " if self.show_source else ""
-        
-        text = text.rstrip('\r\n')
-        
-        escaped_text = escape(text)
-        return f"{time_part}{source_part}<span style='color:lightgray; white-space:pre'>{escaped_text}</span><br>"
+        return self._format_message(source, text, "SYS", "color:lightgray")
     
     def increment_rx(self, port_index: int) -> int:
         """
@@ -169,7 +167,7 @@ class MainViewModel(QtCore.QObject):
     
     def cache_log_line(self, cache_key: str, html: str, plain: str) -> None:
         """
-        Cache a log line for filtering support.
+        Cache a log line for filtering support with size limit.
         
         Args:
             cache_key (str): Widget identifier (e.g., 'cpu1', 'cpu2', 'all')
@@ -181,6 +179,16 @@ class MainViewModel(QtCore.QObject):
         
         self.log_cache[cache_key]['html'].append(html)
         self.log_cache[cache_key]['plain'].append(plain)
+        
+        # Limit cache size to prevent memory issues
+        max_lines = self.MAX_CACHE_LINES
+        html_list = self.log_cache[cache_key]['html']
+        plain_list = self.log_cache[cache_key]['plain']
+        
+        if len(html_list) > max_lines:
+            # Keep only the most recent lines
+            self.log_cache[cache_key]['html'] = html_list[-max_lines:]
+            self.log_cache[cache_key]['plain'] = plain_list[-max_lines:]
     
     def clear_cache(self) -> None:
         """Clear all cached logs."""

@@ -62,7 +62,7 @@ class ComPortsManager(QObject):
         """Получение модели порта"""
         return self.com_ports.get(port_name)
     
-    def connect_port(self, port_name, baud_rate=9600, data_bits=8, parity='N', stop_bits=1):
+    def connect_port(self, port_name, baud_rate=115200, data_bits=8, parity='N', stop_bits=1):
         """Подключение к COM порту"""
         if port_name in self.serial_connections:
             self.error_occurred.emit(

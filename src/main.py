@@ -1,11 +1,11 @@
 import sys
 import os
-import time
 
 # Добавляем родительскую директорию в path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
 from src.views.splash_screen import ModernSplashScreen, SplashController
 from src.views.main_window import MainWindow
 from src.utils.theme_manager import theme_manager
@@ -33,10 +33,10 @@ def main():
     splash.show()
     app.processEvents()  # Обработка событий для отображения splash
     
-    # Создание контроллера splash экрана
+    # Create splash controller
     controller = SplashController(splash, duration_ms=3000)
     
-    # Переменные для отслеживания этапов загрузки
+    # Define load steps
     load_steps = [
         (10, tr("loading_initializing", "Initializing application...")),
         (25, tr("loading_theme_manager", "Loading theme manager...")),
@@ -47,28 +47,36 @@ def main():
         (95, tr("loading_almost_ready", "Almost ready...")),
     ]
     
-    # Обработчик завершения загрузки
+    # Handler for splash finished
     def on_splash_finished():
         global main_window_ref
         splash.close()
         
-        # Создание главного окна
         main_window_ref = MainWindow()
         main_window_ref.show()
     
     controller.finished.connect(on_splash_finished)
     
-    # Запуск с информативными сообщениями
+    # Update progress for each step
+    def execute_load_step(index: int):
+        """Execute a single load step and schedule the next."""
+        if index < len(load_steps):
+            progress, message = load_steps[index]
+            controller._elapsed_ms = int(progress / 100.0 * 3000)
+            splash.update_progress(progress, message)
+            app.processEvents()
+            # Schedule next step
+            QTimer.singleShot(100, lambda i=index+1: execute_load_step(i))
+        else:
+            # All steps complete, start animation
+            controller.start()
+    
+    # Start loading
     splash.update_progress(0, tr("loading", "Initializing..."))
     app.processEvents()
     
-    for progress, message in load_steps:
-        controller._elapsed_ms = int(progress / 100.0 * 3000)
-        splash.update_progress(progress, message)
-        app.processEvents()
-        time.sleep(0.1)
-    
-    controller.start()
+    # Begin step-by-step loading
+    execute_load_step(0)
     
     # Запуск приложения
     sys.exit(app.exec())

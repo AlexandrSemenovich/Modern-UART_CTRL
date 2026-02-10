@@ -65,6 +65,17 @@ QTextEdit {
     font-size: 9pt;
 }
 
+/* Data Transmission specific tweaks */
+QGroupBox#data_transmission {
+    border: 1px solid #2b2b2b;
+}
+QComboBox, QLineEdit {
+    padding: 6px 8px;
+}
+QPushButton {
+    min-height: 28px;
+}
+
 /* Labels */
 QLabel {
     color: #e6e6e6;

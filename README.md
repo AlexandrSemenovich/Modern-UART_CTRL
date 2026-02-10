@@ -21,25 +21,25 @@ d:/7_Test_SW/10_Modern-UART_CTRL/
 │   ├── main.py                 # Главный файл приложения
 │   ├── models/
 │   │   ├── base_model.py       # Базовый класс модели
-│   │   ├── com_port_model.py   # Модель COM порта
-│   │   └── com_ports_manager.py # Менеджер для управления портами
+│   │   └── serial_worker.py    # QThread для работы с COM портами
 │   ├── views/
 │   │   ├── main_window.py      # Главное окно приложения
-│   │   ├── splash_screen.py    # Загрузочный экран
-│   │   └── com_port_view.py    # Представление COM порта
+│   │   └── splash_screen.py    # Загрузочный экран
 │   ├── viewmodels/
-│   │   ├── com_port_viewmodel.py       # ViewModel для COM порта
-│   │   └── com_ports_manager_viewmodel.py # ViewModel менеджера
+│   │   └── main_viewmodel.py   # Business logic для главного окна
 │   ├── utils/
 │   │   ├── translator.py       # Система переводов
-│   │   └── theme_manager.py    # Менеджер тем
+│   │   ├── theme_manager.py    # Менеджер тем
+│   │   └── transmission_settings.py # Настройки передачи
 │   ├── styles/
-│   │   └── glass_styles.py     # Стили жидкого стекла
+│   │   ├── app.qss            # Стили QSS
+│   │   ├── constants.py       # Константы размеров
+│   │   └── glass_styles.py   # Стили жидкого стекла
 │   └── translations/
 │       ├── ru_RU.py            # Русские переводы
 │       └── en_US.py            # Английские переводы
 ├── requirements.txt            # Зависимости проекта
-├── test_structure.py           # Тесты структуры проекта
+├── tests/                      # Тесты
 └── README.md                   # Этот файл
 ```
 
