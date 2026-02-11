@@ -1,0 +1,417 @@
+"""
+ComPortViewModel: ViewModel for a single COM port.
+Handles all business logic for one serial port connection.
+"""
+
+from PySide6 import QtCore
+from PySide6.QtCore import Signal, QObject
+from typing import Optional, Dict, Any
+import logging
+
+from src.utils.translator import tr
+from src.models.serial_worker import SerialWorker
+
+logger = logging.getLogger(__name__)
+
+
+class PortConnectionState:
+    """Connection states for a COM port."""
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    ERROR = "error"
+
+
+class ComPortViewModel(QObject):
+    """
+    ViewModel for managing a single COM port.
+    
+    Responsibilities:
+    - Port configuration and connection management
+    - Data transmission and reception
+    - State management
+    - Counter tracking
+    
+    Signals:
+        state_changed (str): New connection state
+        data_received (str): Received data text
+        data_sent (str): Sent data text
+        error_occurred (str): Error message
+        counter_updated (int, int): RX and TX counts
+    """
+    
+    # Signals for View binding
+    state_changed = Signal(str)  # ConnectionState
+    data_received = Signal(str)   # Formatted RX data
+    data_sent = Signal(str)      # Formatted TX data
+    error_occurred = Signal(str) # Error message
+    counter_updated = Signal(int, int)  # rx_count, tx_count
+    
+    def __init__(
+        self, 
+        port_label: str,
+        port_number: int,
+        config: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Initialize ComPortViewModel.
+        
+        Args:
+            port_label: Display label (e.g., "CPU1", "CPU2", "TLM")
+            port_number: Port number (1-based index)
+            config: Optional configuration dictionary
+        """
+        super().__init__()
+        
+        self._port_label = port_label
+        self._port_number = port_number
+        self._config = config or {}
+        
+        # Connection state
+        self._state = PortConnectionState.DISCONNECTED
+        self._port_name: Optional[str] = None
+        self._baud_rate: int = self._config.get('default_baud_rate', 115200)
+        
+        # Counters
+        self._rx_count: int = 0
+        self._tx_count: int = 0
+        
+        # Serial worker
+        self._worker: Optional[SerialWorker] = None
+        
+        # Available ports cache
+        self._available_ports: list = []
+    
+    @property
+    def port_label(self) -> str:
+        """Get port display label."""
+        return self._port_label
+    
+    @property
+    def port_number(self) -> int:
+        """Get port number (1-based)."""
+        return self._port_number
+    
+    @property
+    def state(self) -> str:
+        """Get current connection state."""
+        return self._state
+    
+    @property
+    def port_name(self) -> Optional[str]:
+        """Get selected port name."""
+        return self._port_name
+    
+    @property
+    def baud_rate(self) -> int:
+        """Get current baud rate."""
+        return self._baud_rate
+    
+    @property
+    def rx_count(self) -> int:
+        """Get RX counter value."""
+        return self._rx_count
+    
+    @property
+    def tx_count(self) -> int:
+        """Get TX counter value."""
+        return self._tx_count
+    
+    @property
+    def is_connected(self) -> bool:
+        """Check if port is connected."""
+        return self._state == PortConnectionState.CONNECTED
+    
+    @property
+    def available_ports(self) -> list:
+        """Get list of available COM ports."""
+        return self._available_ports.copy()
+    
+    def set_port_name(self, port_name: str) -> None:
+        """Set the COM port name to connect to."""
+        self._port_name = port_name
+
+    def set_port_label(self, label: str) -> None:
+        """Update display label (used for UI when language changes)."""
+        self._port_label = label
+
+    def set_baud_rate(self, baud_rate: int) -> None:
+        """
+        Set baud rate for connection.
+        
+        Args:
+            baud_rate: Valid baud rate (9600, 19200, 38400, 57600, 115200, etc.)
+        """
+        valid_rates = [9600, 19200, 38400, 57600, 115200, 230400, 460800]
+        if baud_rate in valid_rates:
+            self._baud_rate = baud_rate
+        else:
+            logger.warning(f"Invalid baud rate {baud_rate}, using {self._baud_rate}")
+    
+    def set_available_ports(self, ports: list) -> None:
+        """Update list of available COM ports."""
+        self._available_ports = ports
+        logger.debug(f"Available ports updated: {ports}")
+    
+    _active_ports: set[str] = set()
+    _system_ports = {"COM1", "COM2"}
+
+    def connect(self) -> bool:
+        """
+        Establish connection to the configured serial port.
+        
+        Returns:
+            True if connection initiated successfully, False otherwise
+        """
+        if self._state == PortConnectionState.CONNECTED:
+            logger.warning(f"Port {self._port_label} already connected")
+            return False
+        
+        if not self._port_name:
+            self._emit_error(tr("error_no_port", "No port selected"))
+            return False
+
+        if self._port_name.upper() in self._system_ports:
+            self._emit_error(tr("error_system_port", "System COM ports cannot be used"))
+            return False
+
+        if self._port_name in self._active_ports:
+            self._emit_error(tr("error_port_in_use", "Port already in use"))
+            return False
+
+        self._set_state(PortConnectionState.CONNECTING)
+
+        # Create worker running in its own QThread
+        self._worker = SerialWorker(self._port_label)
+        self._worker.configure(self._port_name, self._baud_rate)
+        self._active_ports.add(self._port_name)
+
+        # Connect signals directly to the worker thread
+        self._worker.rx.connect(self._on_data_received)
+        self._worker.error.connect(self._on_error_occurred)
+        self._worker.status.connect(self._on_status_changed)
+        self._worker.finished.connect(self._on_worker_finished)
+        self._worker.finished.connect(self._worker.deleteLater)
+
+        # Start worker thread
+        self._worker.start()
+        
+        logger.info(f"Connecting to {self._port_name} at {self._baud_rate} baud")
+        return True
+    
+    def disconnect(self) -> None:
+        """Disconnect from the serial port."""
+        if self._state == PortConnectionState.DISCONNECTED:
+            return
+
+        self._safe_stop_worker()
+
+        if self._port_name in self._active_ports:
+            self._active_ports.remove(self._port_name)
+
+        self._set_state(PortConnectionState.DISCONNECTED)
+        logger.info(f"Disconnected from {self._port_label}")
+    
+    def send_data(self, data: str) -> bool:
+        """
+        Send data through the serial port.
+        
+        Args:
+            data: Text data to send
+            
+        Returns:
+            True if data was queued successfully
+        """
+        if not self._worker or self._state != PortConnectionState.CONNECTED:
+            self._emit_error(tr("error_not_connected", "Port not connected"))
+            return False
+        
+        # Queue data for sending
+        self._worker.write(data)
+        
+        # Update TX counter
+        self._tx_count += 1
+        self._emit_counter_update()
+        
+        # Emit TX data for display (View will format)
+        self.data_sent.emit(data)
+        
+        logger.debug(f"TX to {self._port_label}: {data}")
+        return True
+    
+    def send_command(self, command: str) -> bool:
+        """
+        Send a command with automatic newline.
+        
+        Args:
+            command: Command text without newline
+            
+        Returns:
+            True if command was sent successfully
+        """
+        # Add CR+LF if not present
+        if not command.endswith('\r\n'):
+            command = command + '\r\n'
+        return self.send_data(command)
+    
+    def clear_counters(self) -> None:
+        """Reset RX and TX counters to zero."""
+        self._rx_count = 0
+        self._tx_count = 0
+        self._emit_counter_update()
+    
+    def _set_state(self, new_state: str) -> None:
+        """
+        Update connection state and emit signal.
+        
+        Args:
+            new_state: New state to set
+        """
+        if self._state != new_state:
+            old_state = self._state
+            self._state = new_state
+            logger.debug(f"State changed: {old_state} -> {new_state}")
+            self.state_changed.emit(new_state)
+    
+    def _on_data_received(self, port_label: str, data: str) -> None:
+        """
+        Handle received data from serial port.
+        
+        Args:
+            port_label: Source port label
+            data: Received data text
+        """
+        # Update RX counter
+        self._rx_count += 1
+        self._emit_counter_update()
+        
+        # Emit RX data for display (View will format)
+        self.data_received.emit(data)
+        
+        logger.debug(f"RX from {port_label}: {data}")
+    
+    def _on_error_occurred(self, port_label: str, error_message: str) -> None:
+        """
+        Handle error from serial worker.
+        
+        Args:
+            port_label: Source port label
+            error_message: Error description
+        """
+        logger.error(f"Error on {port_label}: {error_message}")
+
+        # Surface error to UI and mark the port as faulted
+        self._set_state(PortConnectionState.ERROR)
+        self._emit_error(error_message)
+
+        # Ensure worker is stopped
+        self._safe_stop_worker()
+    
+    def _on_status_changed(self, port_label: str, status_message: str) -> None:
+        """
+        Handle status update from serial worker.
+
+        Args:
+            port_label: Source port label
+            status_message: Status text
+        """
+        port_name = self._port_name or "N/A"
+
+        connected_msg = tr("worker_connected_to", "Connected to {port}").format(port=port_name)
+        disconnected_msg = tr("worker_disconnected_from", "Disconnected from {port}").format(port=port_name)
+        connecting_msg = tr("worker_connecting_to", "Connecting to {port}...").format(port=port_name)
+
+        if status_message == connected_msg:
+            self._set_state(PortConnectionState.CONNECTED)
+        elif status_message == disconnected_msg:
+            self._set_state(PortConnectionState.DISCONNECTED)
+        elif status_message == connecting_msg:
+            self._set_state(PortConnectionState.CONNECTING)
+
+        logger.debug(f"Status {port_label}: {status_message}")
+    
+    def _format_rx_data(self, data: str) -> str:
+        """
+        Format received data for display.
+        
+        Args:
+            data: Raw received data
+            
+        Returns:
+            HTML formatted string for display
+        """
+        import html
+        from PySide6.QtCore import QDateTime
+        
+        timestamp = QDateTime.currentDateTime().toString('hh:mm:ss')
+        escaped_data = html.escape(data.rstrip('\r\n'))
+        
+        return (
+            f"<span style='color:gray'>[{timestamp}]</span> "
+            f"<b style='color:green'>RX({self._port_label}):</b> "
+            f"<span style='color:#c7f0c7; white-space:pre'>{escaped_data}</span><br>"
+        )
+    
+    def _format_tx_data(self, data: str) -> str:
+        """
+        Format sent data for display.
+        
+        Args:
+            data: Raw sent data
+            
+        Returns:
+            HTML formatted string for display
+        """
+        import html
+        from PySide6.QtCore import QDateTime
+        
+        timestamp = QDateTime.currentDateTime().toString('hh:mm:ss')
+        escaped_data = html.escape(data.rstrip('\r\n'))
+        
+        return (
+            f"<span style='color:gray'>[{timestamp}]</span> "
+            f"<b style='color:#ffdd57'>TX({self._port_label}):</b> "
+            f"<span style='color:#fff7d6; white-space:pre'>{escaped_data}</span><br>"
+        )
+    
+    def _emit_error(self, message: str) -> None:
+        """Emit error signal with formatted message."""
+        from PySide6.QtCore import QDateTime
+        
+        timestamp = QDateTime.currentDateTime().toString('hh:mm:ss')
+        formatted = (
+            f"<span style='color:gray'>[{timestamp}]</span> "
+            f"<b style='color:red'>ERROR:</b> {message}<br>"
+        )
+        self.error_occurred.emit(formatted)
+    
+    def _emit_counter_update(self) -> None:
+        """Emit counter update signal."""
+        self.counter_updated.emit(self._rx_count, self._tx_count)
+    
+    def shutdown(self) -> None:
+        """Clean shutdown of the port and worker."""
+        self._safe_stop_worker()
+        
+        if self._port_name in self._active_ports:
+            self._active_ports.remove(self._port_name)
+
+        self._set_state(PortConnectionState.DISCONNECTED)
+        logger.info(f"Shutdown complete for {self._port_label}")
+
+    def _on_worker_finished(self) -> None:
+        if self._port_name in self._active_ports:
+            self._active_ports.remove(self._port_name)
+        self._worker = None
+        # Return to disconnected state if we were connecting
+        if self._state == PortConnectionState.CONNECTING:
+            self._set_state(PortConnectionState.DISCONNECTED)
+
+    def _safe_stop_worker(self) -> None:
+        if self._worker:
+            try:
+                self._worker.stop()
+                if self._worker.isRunning():
+                    self._worker.wait(1000)
+            except RuntimeError:
+                pass

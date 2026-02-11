@@ -546,6 +546,18 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Предупреждение",
         "en": "Warning",
     },
+    "error_no_port": {
+        "ru": "COM порт не выбран",
+        "en": "No COM port selected",
+    },
+    "error_system_port": {
+        "ru": "Системные COM порты нельзя использовать",
+        "en": "System COM ports cannot be used",
+    },
+    "error_port_in_use": {
+        "ru": "Порт уже используется",
+        "en": "Port already in use",
+    },
     "information": {
         "ru": "Информация",
         "en": "Information",
@@ -754,6 +766,18 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Сохранено {count} файл(ов):\n{files}",
         "en": "Saved {count} file(s):\n{files}",
     },
+    "port_label_template": {
+        "ru": "{name}:",
+        "en": "{name}:",
+    },
+    "logs_default_filename": {
+        "ru": "uart_logs_{timestamp}.txt",
+        "en": "uart_logs_{timestamp}.txt",
+    },
+    "text_files_filter": {
+        "ru": "Текстовые файлы (*.txt);;Все файлы (*)",
+        "en": "Text Files (*.txt);;All Files (*)",
+    },
 
     # Serial worker
     "worker_connecting_to": {
@@ -788,8 +812,28 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "(симулируемый отклик) {data}",
         "en": "(simulated echo) {data}",
     },
+    "worker_disconnected_from": {
+        "ru": "Отключено от {port}",
+        "en": "Disconnected from {port}",
+    },
+    "worker_simulated": {
+        "ru": "Режим симуляции (нет pyserial)",
+        "en": "Simulation mode (no pyserial)",
+    },
+    "worker_fatal_error": {
+        "ru": "Критическая ошибка: {error}",
+        "en": "Fatal error: {error}",
+    },
+    "worker_too_many_errors": {
+        "ru": "Слишком много ошибок, отключение",
+        "en": "Too many errors, disconnecting",
+    },
 
     # COM ports manager
+    "manager_port_already_connected": {
+        "ru": "Порт уже подключен",
+        "en": "Port already connected",
+    },
     "manager_port_already_connected": {
         "ru": "Порт уже подключен",
         "en": "Port already connected",

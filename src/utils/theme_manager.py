@@ -3,6 +3,8 @@ Theme Manager - handles application theme switching.
 Supports light and dark themes with QSettings persistence.
 """
 
+import os
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, Signal, QSettings
 from PySide6.QtGui import QPalette, QColor
@@ -17,6 +19,7 @@ class ThemeManager(QObject):
         super().__init__()
         self.current_theme = "dark"
         self.settings = QSettings("UART_CTRL", "ThemeSettings")
+        self._stylesheet_cache: str | None = None
         self.load_theme()
     
     def load_theme(self):
@@ -44,12 +47,14 @@ class ThemeManager(QObject):
         app = QApplication.instance()
         if not app:
             return
-        
+
         if self.current_theme == "light":
             self._apply_light_theme(app)
         else:  # dark or system
             self._apply_dark_theme(app)
-    
+        theme_class = "light" if self.current_theme == "light" else "dark"
+        app.setProperty("themeClass", theme_class)
+        self._apply_stylesheet(app)
     def _apply_light_theme(self, app):
         """Apply light theme palette."""
         palette = QPalette()
@@ -63,7 +68,7 @@ class ThemeManager(QObject):
         palette.setColor(QPalette.Highlight, QColor(76, 163, 224))
         
         app.setPalette(palette)
-    
+
     def _apply_dark_theme(self, app):
         """Apply dark theme palette."""
         palette = QPalette()
@@ -77,7 +82,28 @@ class ThemeManager(QObject):
         palette.setColor(QPalette.Highlight, QColor(76, 163, 224))
         
         app.setPalette(palette)
-    
+
+    def _apply_stylesheet(self, app):
+        """Ensure the global QSS is loaded and applied."""
+        if self._stylesheet_cache is None:
+            self._stylesheet_cache = self._load_stylesheet()
+
+        if self._stylesheet_cache:
+            app.setStyleSheet(self._stylesheet_cache)
+
+    def _load_stylesheet(self) -> str:
+        """Load application stylesheet from disk."""
+        qss_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "styles",
+            "app.qss",
+        )
+        try:
+            with open(qss_path, "r", encoding="utf-8") as handle:
+                return handle.read()
+        except OSError:
+            return ""
+
     def is_dark_theme(self) -> bool:
         """Check if current theme is dark."""
         return self.current_theme in ["dark", "system"]
