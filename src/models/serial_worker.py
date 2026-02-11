@@ -69,7 +69,7 @@ class SerialWorker(QThread):
         Initialize SerialWorker.
         
         Args:
-            port_label (str): Logical label for this port (e.g., 'CPU1', 'CPU2', 'AUX')
+            port_label (str): Logical label for this port (e.g., 'CPU1', 'CPU2', 'TLM')
             config (Optional[Dict]): Configuration dictionary with optional keys:
                 - 'timeout': Read timeout in seconds (default: 0.1)
                 - 'read_interval': Sleep interval in seconds (default: 0.02)

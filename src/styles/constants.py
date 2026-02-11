@@ -3,119 +3,84 @@ Unified style constants for the entire application.
 Provides colors, fonts, sizes, and spacing.
 """
 
-from PySide6.QtGui import QFont, QColor
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
+
+from src.utils.config_loader import config_loader
 
 # ==================== Colors ====================
 class Colors:
     """Color palette for the application."""
-    
-    # Log types - colors for console output
-    RX_COLOR = "#c7f0c7"      # Green for RX messages
-    TX_COLOR = "#fff7d6"      # Yellow for TX messages
-    SYS_COLOR = "lightgray"   # Gray for system messages
-    
-    # UI elements
-    TIMESTAMP_COLOR = "gray"   # Timestamp in logs
-    SOURCE_LABEL_COLOR = "green"  # RX label
-    SOURCE_LABEL_TX_COLOR = "#ffdd57"  # TX label
-    SOURCE_LABEL_SYS_COLOR = "lightgray"  # SYS label
-    
-    # Status and indicators
-    LED_OFF_COLOR = "#333333"  # LED off state
-    LED_RX_COLOR = "#00ff00"   # LED RX indicator
-    LED_TX_COLOR = "#ffcc33"   # LED TX indicator
-    
-    # Backgrounds (dark theme)
-    DARK_BG = "#1e1e1e"
-    DARK_FG = "#ffffff"
-    
-    # Backgrounds (light theme)
-    LIGHT_BG = "#ffffff"
-    LIGHT_FG = "#000000"
+
+    def __init__(self) -> None:
+        self._cache = {}
+
+    def get_theme_colors(self, theme: str):
+        if theme not in self._cache:
+            self._cache[theme] = config_loader.get_colors(theme)
+        return self._cache[theme]
 
 
 # ==================== Fonts ====================
 class Fonts:
-    """Font definitions for the application."""
-    
-    @staticmethod
-    def get_monospace_font(size: int = 9) -> QFont:
-        """Get monospace font for console/log display."""
+    """Font definitions with lazy config access."""
+
+    _config = config_loader.get_fonts()
+
+    @classmethod
+    def get_monospace_font(cls) -> QFont:
         font = QFont()
-        font.setFamily("Courier New")
-        font.setPointSize(size)
+        font.setFamily(cls._config.monospace_family)
+        font.setPointSize(cls._config.monospace_size)
         font.setStyleStrategy(QFont.PreferAntialias)
         return font
-    
-    @staticmethod
-    def get_default_font(size: int = 10) -> QFont:
-        """Get default font for UI elements."""
+
+    @classmethod
+    def get_default_font(cls) -> QFont:
         font = QFont()
-        font.setPointSize(size)
+        font.setFamily(cls._config.default_family)
+        font.setPointSize(cls._config.default_size)
         return font
-    
-    @staticmethod
-    def get_button_font(size: int = 10, bold: bool = False) -> QFont:
-        """Get font for buttons."""
+
+    @classmethod
+    def get_button_font(cls) -> QFont:
         font = QFont()
-        font.setPointSize(size)
-        font.setBold(bold)
+        font.setFamily(cls._config.default_family)
+        font.setPointSize(cls._config.button_size)
         return font
-    
-    @staticmethod
-    def get_title_font(size: int = 14, bold: bool = True) -> QFont:
-        """Get font for titles."""
+
+    @classmethod
+    def get_title_font(cls) -> QFont:
         font = QFont()
-        font.setPointSize(size)
-        font.setBold(bold)
+        font.setFamily(cls._config.default_family)
+        font.setPointSize(cls._config.title_size)
+        font.setBold(True)
         return font
 
 
 # ==================== Sizes ====================
 class Sizes:
-    """Size definitions for the application."""
-    
-    # Window
-    WINDOW_MIN_WIDTH = 800
-    WINDOW_MIN_HEIGHT = 600
-    WINDOW_DEFAULT_WIDTH = 1200
-    WINDOW_DEFAULT_HEIGHT = 800
-    
-    # Panels
-    LEFT_PANEL_MIN_WIDTH = 320
-    LEFT_PANEL_MAX_WIDTH = 380
-    CENTER_PANEL_MIN_WIDTH = 400
-    RIGHT_PANEL_MIN_WIDTH = 200
-    RIGHT_PANEL_MAX_WIDTH = 350
-    
-    # Buttons
-    BUTTON_MIN_HEIGHT = 26
-    BUTTON_MAX_WIDTH = 110
-    BUTTON_CLEAR_MAX_WIDTH = 80
-    BUTTON_SAVE_MAX_WIDTH = 80
-    
-    # Input fields
-    INPUT_MIN_HEIGHT = 32
-    SEARCH_FIELD_MAX_WIDTH = 200
-    
-    # Group boxes
-    GROUP_BOX_MIN_HEIGHT = 80
-    
-    # Text areas
-    LOG_MIN_HEIGHT = 60
-    STATUS_MIN_HEIGHT = 100
-    TLM_LOG_MIN_HEIGHT = 100
-    
-    # Spacing and margins
-    LAYOUT_SPACING = 5
-    LAYOUT_MARGIN = 5
-    TOOLBAR_SPACING = 5
-    TOOLBAR_MARGIN = 0
-    
-    # LED indicator
-    LED_SIZE = 16
-    LED_BORDER_RADIUS = 8
+    """Size definitions accessible as class attributes."""
+
+    _cfg = config_loader.get_sizes()
+    WINDOW_MIN_WIDTH = _cfg.window_min_width
+    WINDOW_MIN_HEIGHT = _cfg.window_min_height
+    WINDOW_DEFAULT_WIDTH = _cfg.window_default_width
+    WINDOW_DEFAULT_HEIGHT = _cfg.window_default_height
+    LEFT_PANEL_MIN_WIDTH = _cfg.left_panel_min_width
+    LEFT_PANEL_MAX_WIDTH = _cfg.left_panel_max_width
+    CENTER_PANEL_MIN_WIDTH = _cfg.center_panel_min_width
+    RIGHT_PANEL_MIN_WIDTH = _cfg.right_panel_min_width
+    RIGHT_PANEL_MAX_WIDTH = _cfg.right_panel_max_width
+    LAYOUT_SPACING = _cfg.layout_spacing
+    LAYOUT_MARGIN = _cfg.layout_margin
+    TOOLBAR_SPACING = _cfg.toolbar_spacing
+    TOOLBAR_MARGIN = _cfg.toolbar_margin
+    BUTTON_MIN_HEIGHT = _cfg.button_min_height
+    BUTTON_MAX_WIDTH = _cfg.button_max_width
+    BUTTON_CLEAR_MAX_WIDTH = _cfg.button_clear_max_width
+    BUTTON_SAVE_MAX_WIDTH = _cfg.button_save_max_width
+    INPUT_MIN_HEIGHT = _cfg.input_min_height
+    SEARCH_FIELD_MAX_WIDTH = _cfg.search_field_max_width
 
 
 # ==================== Timing ====================
@@ -129,14 +94,11 @@ class Timing:
 # ==================== Configuration ====================
 class SerialConfig:
     """Default serial port configuration."""
-    
-    DEFAULT_BAUD = 115200
-    BAUD_RATES = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
-    
-    # Port labels
-    PORT_LABEL_1 = "CPU1"
-    PORT_LABEL_2 = "CPU2"
-    PORT_LABEL_TLM = "TLM"
-    
-    # Default ports (if no real ports available)
-    DEFAULT_PORTS = ["COM1", "COM2", "COM3", "COM4", "COM5"]
+
+    _cfg = config_loader.get_serial_config()
+    DEFAULT_BAUD = int(_cfg.get("default_baud", 115200))
+    BAUD_RATES = [int(b) for b in _cfg.get("baud_rates", "1200,2400,4800,9600,19200,38400,57600,115200").split(",")]
+    PORT_LABEL_1 = _cfg.get("port_label_1", "CPU1")
+    PORT_LABEL_2 = _cfg.get("port_label_2", "CPU2")
+    PORT_LABEL_TLM = _cfg.get("port_label_3", "TLM")
+    DEFAULT_PORTS = _cfg.get("default_ports", "COM1,COM2,COM3,COM4,COM5").split(",")

@@ -8,6 +8,9 @@ from PySide6.QtCore import Signal, Qt
 from html import escape
 import re
 
+from src.utils.config_loader import config_loader
+from src.utils.theme_manager import theme_manager
+
 
 class MainViewModel(QtCore.QObject):
     """
@@ -23,7 +26,7 @@ class MainViewModel(QtCore.QObject):
     log_cpu1_changed = Signal(str)      # HTML for CPU1 log
     log_cpu2_changed = Signal(str)      # HTML for CPU2 log
     log_all_changed = Signal(str)       # HTML for combined log
-    log_aux_changed = Signal(str)       # HTML for AUX log
+    log_tlm_changed = Signal(str)       # HTML for TLM log
     
     counters_changed = Signal(int, int, int)  # cpu1_rx, cpu1_tx, etc
     
@@ -36,13 +39,21 @@ class MainViewModel(QtCore.QObject):
         # Display options
         self.show_time = True
         self.show_source = True
+        self._colors = config_loader.get_colors(self._current_theme())
+        theme_manager.theme_changed.connect(self._on_theme_changed)
         
         # Counters for each port
-        self.rx_counts = [0, 0, 0]  # CPU1, CPU2, AUX
+        self.rx_counts = [0, 0, 0]  # CPU1, CPU2, TLM
         self.tx_counts = [0, 0, 0]
         
         # Cache for filtering
         self.log_cache = {}
+
+    def _current_theme(self) -> str:
+        return "light" if theme_manager.is_light_theme() else "dark"
+
+    def _on_theme_changed(self, theme: str) -> None:
+        self._colors = config_loader.get_colors(theme)
     
     def set_display_options(self, show_time: bool, show_source: bool) -> None:
         """Update display options for time and source visibility."""
@@ -66,8 +77,9 @@ class MainViewModel(QtCore.QObject):
             return ""
             
         ts = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
-        time_part = f"<span style='color:gray'>[{ts}]</span> " if self.show_time else ""
-        source_part = f"<b style='{text_color}'>{source_label}({source}):</b> " if self.show_source else ""
+        time_color = self._colors.timestamp
+        time_part = f"<span style='color:{time_color}'>[{ts}]</span> " if self.show_time else ""
+        source_part = f"<b style='color:{text_color}'>{source_label}({source}):</b> " if self.show_source else ""
         
         # Remove trailing line endings
         text = text.rstrip('\r\n')
@@ -86,7 +98,7 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: HTML formatted text
         """
-        return self._format_message(source, text, "RX", "color:green")
+        return self._format_message(source, text, "RX", self._colors.rx_label)
     
     def format_tx(self, source: str, text: str) -> str:
         """
@@ -99,7 +111,7 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: HTML formatted text
         """
-        return self._format_message(source, text, "TX", "color:#ffdd57")
+        return self._format_message(source, text, "TX", self._colors.tx_label)
     
     def format_system(self, source: str, text: str) -> str:
         """
@@ -112,7 +124,7 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: HTML formatted text
         """
-        return self._format_message(source, text, "SYS", "color:lightgray")
+        return self._format_message(source, text, "SYS", self._colors.sys_label)
     
     def increment_rx(self, port_index: int) -> int:
         """

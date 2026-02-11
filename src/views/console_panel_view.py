@@ -10,6 +10,9 @@ import html
 
 from src.utils.translator import tr, translator
 from src.styles.constants import Fonts, Sizes
+from src.utils.config_loader import config_loader
+from src.utils.theme_manager import theme_manager
+import html
 
 
 class LogWidget:
@@ -69,6 +72,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         
         self._setup_ui()
         translator.language_changed.connect(self.retranslate_ui)
+        theme_manager.theme_changed.connect(self._on_theme_changed)
+        self._colors = config_loader.get_colors(self._current_theme())
     
     def _setup_ui(self) -> None:
         """Create and arrange UI elements."""
@@ -219,7 +224,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         """Create a read-only log text edit widget."""
         edit = QtWidgets.QTextEdit()
         edit.setReadOnly(True)
-        edit.setFont(Fonts.get_monospace_font(9))
+        edit.setFont(Fonts.get_monospace_font())
         edit.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
         edit.setUndoRedoEnabled(False)
         return edit
@@ -325,15 +330,32 @@ class ConsolePanelView(QtWidgets.QWidget):
         text = text.rstrip('\r\n')
         
         parts = []
+        colors = self._colors
+        timestamp = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
         if self._show_time:
-            timestamp = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
-            parts.append(f"[{timestamp}] ")
+            parts.append(f"<span style='color:{colors.timestamp}'>[{timestamp}]</span> ")
         
         if self._show_source:
-            parts.append(f"{msg_type}({port_label}): ")
+            label_color = {
+                "RX": colors.rx_label,
+                "TX": colors.tx_label,
+                "SYS": colors.sys_label,
+            }.get(msg_type, colors.sys_label)
+            parts.append(f"<b style='color:{label_color}'>{msg_type}({port_label}):</b> ")
         
-        parts.append(text)
+        body_color = {
+            "RX": colors.rx_text,
+            "TX": colors.tx_text,
+            "SYS": colors.sys_text,
+        }.get(msg_type, colors.sys_text)
+        parts.append(f"<span style='color:{body_color}; white-space:pre'>{html.escape(text)}</span>")
         return "".join(parts)
+
+    def _current_theme(self) -> str:
+        return "light" if theme_manager.is_light_theme() else "dark"
+
+    def _on_theme_changed(self, theme: str) -> None:
+        self._colors = config_loader.get_colors(theme)
     
     def _on_search_changed(self, text: str) -> None:
         """Handle search text change."""
