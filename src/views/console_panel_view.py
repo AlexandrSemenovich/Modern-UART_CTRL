@@ -70,6 +70,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         # Search filter
         self._search_text: str = ""
         
+        self._themed_buttons: List[QtWidgets.QPushButton] = []
         self._setup_ui()
         translator.language_changed.connect(self.retranslate_ui)
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -139,11 +140,13 @@ class ConsolePanelView(QtWidgets.QWidget):
         # Action buttons
         self._btn_clear = QtWidgets.QPushButton(tr("clear", "Clear"))
         self._btn_clear.setMaximumWidth(Sizes.BUTTON_CLEAR_MAX_WIDTH)
+        self._register_button(self._btn_clear, "danger")
         self._btn_clear.clicked.connect(self.clear_requested.emit)
         toolbar.addWidget(self._btn_clear)
 
         self._btn_save = QtWidgets.QPushButton(tr("save", "Save"))
         self._btn_save.setMaximumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH)
+        self._register_button(self._btn_save, "primary")
         self._btn_save.clicked.connect(self.save_requested.emit)
         toolbar.addWidget(self._btn_save)
         
@@ -356,6 +359,7 @@ class ConsolePanelView(QtWidgets.QWidget):
 
     def _on_theme_changed(self, theme: str) -> None:
         self._colors = config_loader.get_colors(theme)
+        self._apply_theme_to_buttons()
     
     def _on_search_changed(self, text: str) -> None:
         """Handle search text change."""
@@ -452,3 +456,34 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._chk_source.setText(tr("source", "Source"))
         self._btn_clear.setText(tr("clear", "Clear"))
         self._btn_save.setText(tr("save", "Save"))
+        self._apply_theme_to_buttons()
+
+    def _register_button(
+        self,
+        button: QtWidgets.QPushButton,
+        class_name: Optional[str] = None,
+    ) -> None:
+        if class_name:
+            existing = button.property("class")
+            if existing:
+                classes = set(str(existing).split())
+                classes.add(class_name)
+                button.setProperty("class", " ".join(sorted(classes)))
+            else:
+                button.setProperty("class", class_name)
+        if not hasattr(self, "_themed_buttons"):
+            self._themed_buttons = []
+        if button not in self._themed_buttons:
+            self._themed_buttons.append(button)
+        self._apply_theme_to_button(button)
+
+    def _apply_theme_to_buttons(self) -> None:
+        for button in getattr(self, "_themed_buttons", []):
+            self._apply_theme_to_button(button)
+
+    def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
+        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+        button.setProperty("themeClass", theme_class)
+        button.style().unpolish(button)
+        button.style().polish(button)
+        button.update()

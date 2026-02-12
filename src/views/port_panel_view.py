@@ -56,6 +56,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         
         self._viewmodel = viewmodel
         self._port_number = viewmodel.port_number
+        self._themed_buttons: List[QtWidgets.QPushButton] = []
         
         # Set label from viewmodel
         self.setTitle(viewmodel.port_label)
@@ -93,6 +94,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._scan_btn = QtWidgets.QPushButton(tr("scan", "Scan"))
         self._scan_btn.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self._scan_btn.setMaximumWidth(Sizes.BUTTON_MAX_WIDTH)
+        self._register_button(self._scan_btn, "secondary")
         port_layout.addWidget(self._scan_btn, 0)
         
         self._lbl_port = QtWidgets.QLabel(tr("port", "Port:"))
@@ -109,17 +111,15 @@ class PortPanelView(QtWidgets.QGroupBox):
         # Connect button (full width)
         self._connect_btn = QtWidgets.QPushButton(tr("connect", "Connect"))
         self._connect_btn.setMinimumHeight(Sizes.BUTTON_MIN_HEIGHT)
+        self._register_button(self._connect_btn, "primary")
         layout.addRow(self._connect_btn)
         
         # Status label
         self._status_label = QtWidgets.QPushButton(tr("disconnected", "Disconnected"))
         self._status_label.setEnabled(False)
         self._status_label.setObjectName("statusLabel")
+        self._register_button(self._status_label)
         self._status_label.setMinimumHeight(24)
-        self._status_label.setProperty(
-            "themeClass",
-            "dark" if theme_manager.is_dark_theme() else "light",
-        )
         self._status_label.setProperty("state", PortConnectionState.DISCONNECTED)
         layout.addRow(self._status_label)
         
@@ -301,13 +301,42 @@ class PortPanelView(QtWidgets.QGroupBox):
 
     def _on_theme_changed(self, *_args) -> None:
         """Refresh status colors when global theme switches."""
-        theme_class = "dark" if theme_manager.is_dark_theme() else "light"
-        self._status_label.setProperty("themeClass", theme_class)
+        self._apply_theme_to_all_buttons()
         self._refresh_status_style()
         self._update_status_ui(self._viewmodel.state)
 
     def _refresh_status_style(self) -> None:
         """Force the status label to re-evaluate QSS rules."""
-        self._status_label.style().unpolish(self._status_label)
-        self._status_label.style().polish(self._status_label)
-        self._status_label.update()
+        self._refresh_widget_style(self._status_label)
+
+    def _register_button(
+        self,
+        button: QtWidgets.QPushButton,
+        class_name: Optional[str] = None,
+    ) -> None:
+        """Attach theme-aware styling to a button."""
+        if class_name:
+            existing = button.property("class")
+            if existing:
+                classes = set(str(existing).split())
+                classes.add(class_name)
+                button.setProperty("class", " ".join(sorted(classes)))
+            else:
+                button.setProperty("class", class_name)
+        self._themed_buttons.append(button)
+        self._apply_theme_to_button(button)
+
+    def _apply_theme_to_all_buttons(self) -> None:
+        """Update all registered buttons with the active theme class."""
+        for button in self._themed_buttons:
+            self._apply_theme_to_button(button)
+
+    def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
+        theme_class = "dark" if theme_manager.is_dark_theme() else "light"
+        button.setProperty("themeClass", theme_class)
+        self._refresh_widget_style(button)
+
+    def _refresh_widget_style(self, widget: QtWidgets.QWidget) -> None:
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        widget.update()

@@ -41,6 +41,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._port_viewmodels: Dict[int, ComPortViewModel] = {}
         self._port_views: Dict[int, PortPanelView] = {}
         self._error_dialogs: List[QtWidgets.QMessageBox] = []
+        self._themed_buttons: List[QtWidgets.QPushButton] = []
         
         # Console panel
         self._console_panel: Optional[ConsolePanelView] = None
@@ -131,9 +132,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._console_panel.save_requested.connect(self._save_logs)
     
     def _create_left_panel(self) -> QtWidgets.QWidget:
-        """Create left panel with port controls."""
-        panel = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(panel)
+        """Create left panel with port controls wrapped in a scroll area."""
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        content = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(content)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
@@ -179,11 +185,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # Command input section
         command_group = self._create_command_group()
         layout.addWidget(command_group)
-        
+
         layout.addStretch()
-        panel.setLayout(layout)
+        content.setLayout(layout)
+        scroll_area.setWidget(content)
         
-        return panel
+        return scroll_area
     
     def _create_command_group(self) -> QtWidgets.QGroupBox:
         """Create command input group."""
@@ -207,28 +214,52 @@ class MainWindow(QtWidgets.QMainWindow):
         # Send buttons grid
         buttons_layout = QtWidgets.QGridLayout()
         buttons_layout.setSpacing(Sizes.LAYOUT_SPACING)
-        
+        buttons_layout.setColumnStretch(0, 1)
+        buttons_layout.setColumnStretch(1, 1)
+        buttons_layout.setRowStretch(0, 1)
+        buttons_layout.setRowStretch(1, 1)
+
         # 1+2 button (send to both CPU1 and CPU2)
         self._btn_combo = QtWidgets.QPushButton(tr("send_to_both", "1+2"))
         self._btn_combo.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        self._btn_combo.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        self._register_button(self._btn_combo, "primary")
         self._btn_combo.clicked.connect(lambda: self._send_command(0))
         buttons_layout.addWidget(self._btn_combo, 0, 0)
-        
+
         # CPU1 button
         self._btn_cpu1 = QtWidgets.QPushButton(tr("send_to_cpu1", "CPU1"))
         self._btn_cpu1.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        self._btn_cpu1.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        self._register_button(self._btn_cpu1, "secondary")
         self._btn_cpu1.clicked.connect(lambda: self._send_command(1))
         buttons_layout.addWidget(self._btn_cpu1, 0, 1)
-        
+
         # CPU2 button
         self._btn_cpu2 = QtWidgets.QPushButton(tr("send_to_cpu2", "CPU2"))
         self._btn_cpu2.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        self._btn_cpu2.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        self._register_button(self._btn_cpu2, "secondary")
         self._btn_cpu2.clicked.connect(lambda: self._send_command(2))
         buttons_layout.addWidget(self._btn_cpu2, 1, 0)
-        
+
         # TLM button
         self._btn_tlm = QtWidgets.QPushButton(tr("send_to_tlm", "TLM"))
         self._btn_tlm.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        self._btn_tlm.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        self._register_button(self._btn_tlm, "secondary")
         self._btn_tlm.clicked.connect(lambda: self._send_command(3))
         buttons_layout.addWidget(self._btn_tlm, 1, 1)
         
@@ -248,15 +279,28 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # History controls
         history_controls = QtWidgets.QHBoxLayout()
-        
+        history_controls.setSpacing(Sizes.LAYOUT_SPACING)
+
         self._btn_save_history = QtWidgets.QPushButton(tr("save_command", "Save Command"))
+        self._register_button(self._btn_save_history, "primary")
+        self._btn_save_history.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
+        )
         self._btn_save_history.clicked.connect(self._save_current_command)
         history_controls.addWidget(self._btn_save_history)
 
         self._btn_clear_history = QtWidgets.QPushButton(tr("clear_history", "Clear History"))
+        self._register_button(self._btn_clear_history, "danger")
+        self._btn_clear_history.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
+        )
         self._btn_clear_history.clicked.connect(self._clear_history)
         history_controls.addWidget(self._btn_clear_history)
-        
+
+        history_controls.addStretch()
+
         history_layout.addLayout(history_controls)
         layout.addLayout(history_layout)
         
@@ -264,9 +308,14 @@ class MainWindow(QtWidgets.QMainWindow):
         return grp
     
     def _create_right_panel(self) -> QtWidgets.QWidget:
-        """Create right panel with counters."""
-        panel = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(panel)
+        """Create right panel with counters wrapped in a scroll area."""
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        content = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(content)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
@@ -319,9 +368,10 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(status_grp)
         
         layout.addStretch()
-        panel.setLayout(layout)
+        content.setLayout(layout)
+        scroll_area.setWidget(content)
         
-        return panel
+        return scroll_area
     
     def _create_status_group(self) -> QtWidgets.QGroupBox:
         """Create status group."""
@@ -579,6 +629,7 @@ class MainWindow(QtWidgets.QMainWindow):
             tr("theme_changed", "Theme changed to {theme}").format(theme=theme),
             2000
         )
+        self._apply_theme_to_buttons()
     
     def _on_language_changed(self, language: str) -> None:
         """Handle language change."""
@@ -645,6 +696,7 @@ class MainWindow(QtWidgets.QMainWindow):
             tr("language_changed", "Language changed to {lang}").format(lang=language),
             2000
         )
+        self._apply_theme_to_buttons()
     
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Handle close event - shutdown all ports."""
@@ -670,3 +722,35 @@ class MainWindow(QtWidgets.QMainWindow):
                     remaining = timeout_seconds - (time.time() - start_time)
                     if remaining > 0:
                         thread.wait(int(remaining * 1000))
+
+    def _register_button(
+        self,
+        button: QtWidgets.QPushButton,
+        class_name: Optional[str] = None,
+    ) -> None:
+        if class_name:
+            existing = button.property("class")
+            if existing:
+                classes = set(str(existing).split())
+                classes.add(class_name)
+                button.setProperty("class", " ".join(sorted(classes)))
+            else:
+                button.setProperty("class", class_name)
+        if button not in self._themed_buttons:
+            self._themed_buttons.append(button)
+        self._apply_theme_to_button(button)
+
+    def _apply_theme_to_buttons(self) -> None:
+        for button in self._themed_buttons:
+            self._apply_theme_to_button(button)
+
+    def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
+        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+        button.setProperty("themeClass", theme_class)
+        self._refresh_widget_style(button)
+
+    @staticmethod
+    def _refresh_widget_style(widget: QtWidgets.QWidget) -> None:
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        widget.update()
