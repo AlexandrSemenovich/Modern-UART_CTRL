@@ -20,6 +20,12 @@ class ThemeManager(QObject):
         self.current_theme = "dark"
         self.settings = QSettings("UART_CTRL", "ThemeSettings")
         self._stylesheet_cache: str | None = None
+        self._last_modified: float = 0.0
+        self._qss_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "styles",
+            "app.qss",
+        )
         self.load_theme()
     
     def load_theme(self):
@@ -84,9 +90,20 @@ class ThemeManager(QObject):
         app.setPalette(palette)
 
     def _apply_stylesheet(self, app):
-        """Ensure the global QSS is loaded and applied."""
-        if self._stylesheet_cache is None:
+        """Ensure the global QSS is loaded and applied with cache invalidation."""
+        # Check if stylesheet file has been modified
+        try:
+            current_modified = os.path.getmtime(self._qss_path)
+        except OSError:
+            current_modified = 0.0
+        
+        # Invalidate cache if file changed or theme requires fresh load
+        if (
+            self._stylesheet_cache is None or
+            current_modified > self._last_modified
+        ):
             self._stylesheet_cache = self._load_stylesheet()
+            self._last_modified = current_modified
 
         if self._stylesheet_cache:
             app.setStyleSheet(self._stylesheet_cache)

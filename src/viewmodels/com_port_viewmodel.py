@@ -6,7 +6,11 @@ Handles all business logic for one serial port connection.
 from PySide6 import QtCore
 from PySide6.QtCore import Signal, QObject
 from typing import Optional, Dict, Any
+import html
 import logging
+import threading
+
+from enum import Enum
 
 from src.utils.translator import tr
 from src.models.serial_worker import SerialWorker
@@ -14,7 +18,10 @@ from src.models.serial_worker import SerialWorker
 logger = logging.getLogger(__name__)
 
 
-class PortConnectionState:
+from enum import Enum
+
+
+class PortConnectionState(Enum):
     """Connection states for a COM port."""
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
@@ -155,6 +162,7 @@ class ComPortViewModel(QObject):
     
     _active_ports: set[str] = set()
     _system_ports = {"COM1", "COM2"}
+    _active_ports_lock = threading.Lock()
 
     def connect(self) -> bool:
         """
@@ -175,16 +183,21 @@ class ComPortViewModel(QObject):
             self._emit_error(tr("error_system_port", "System COM ports cannot be used"))
             return False
 
-        if self._port_name in self._active_ports:
-            self._emit_error(tr("error_port_in_use", "Port already in use"))
-            return False
+        # Thread-safe check if port is already in use
+        with self._active_ports_lock:
+            if self._port_name in self._active_ports:
+                self._emit_error(tr("error_port_in_use", "Port already in use"))
+                return False
 
         self._set_state(PortConnectionState.CONNECTING)
 
         # Create worker running in its own QThread
         self._worker = SerialWorker(self._port_label)
         self._worker.configure(self._port_name, self._baud_rate)
-        self._active_ports.add(self._port_name)
+        
+        # Thread-safe add to active ports
+        with self._active_ports_lock:
+            self._active_ports.add(self._port_name)
 
         # Connect signals directly to the worker thread
         self._worker.rx.connect(self._on_data_received)
@@ -199,6 +212,76 @@ class ComPortViewModel(QObject):
         logger.info(f"Connecting to {self._port_name} at {self._baud_rate} baud")
         return True
     
+    def connect_with_retry(self, max_attempts: int = 3, initial_backoff_ms: int = 500) -> bool:
+        """
+        Establish connection to the configured serial port with retry and exponential backoff.
+        
+        Args:
+            max_attempts: Maximum number of connection attempts
+            initial_backoff_ms: Initial backoff time in milliseconds
+            
+        Returns:
+            True if connection initiated successfully, False otherwise
+        """
+        if self._state == PortConnectionState.CONNECTED:
+            logger.warning(f"Port {self._port_label} already connected")
+            return False
+        
+        if not self._port_name:
+            self._emit_error(tr("error_no_port", "No port selected"))
+            return False
+        
+        if self._port_name.upper() in self._system_ports:
+            self._emit_error(tr("error_system_port", "System COM ports cannot be used"))
+            return False
+        
+        # Thread-safe check if port is already in use
+        with self._active_ports_lock:
+            if self._port_name in self._active_ports:
+                self._emit_error(tr("error_port_in_use", "Port already in use"))
+                return False
+        
+        # Attempt connection with retry
+        from PySide6.QtCore import QTimer
+        
+        def attempt_connection(attempt: int, backoff_ms: int) -> bool:
+            if attempt >= max_attempts:
+                self._emit_error(tr("error_connection_failed", "Connection failed after {attempts} attempts").format(attempts=max_attempts))
+                self._set_state(PortConnectionState.ERROR)
+                return False
+            
+            self._set_state(PortConnectionState.CONNECTING)
+            
+            # Create worker running in its own QThread
+            self._worker = SerialWorker(self._port_label)
+            self._worker.configure(self._port_name, self._baud_rate)
+            
+            # Thread-safe add to active ports
+            with self._active_ports_lock:
+                self._active_ports.add(self._port_name)
+            
+            # Connect signals directly to the worker thread
+            self._worker.rx.connect(self._on_data_received)
+            self._worker.error.connect(lambda msg: self._on_retry_error(msg, attempt + 1, backoff_ms * 2))
+            self._worker.status.connect(self._on_status_changed)
+            self._worker.finished.connect(self._on_worker_finished)
+            self._worker.finished.connect(self._worker.deleteLater)
+            
+            # Start worker thread
+            self._worker.start()
+            
+            logger.info(f"Connecting to {self._port_name} at {self._baud_rate} baud (attempt {attempt + 1}/{max_attempts})")
+            return True
+        
+        # Start first connection attempt
+        return attempt_connection(1, initial_backoff_ms)
+    
+    def _on_retry_error(self, port_label: str, error_message: str, next_attempt: int) -> None:
+        """Handle error with retry suggestion."""
+        if self._state == PortConnectionState.CONNECTING:
+            logger.warning(f"Connection error on attempt {next_attempt}: {error_message}")
+            # Connection will be cleaned up by _on_worker_finished
+    
     def disconnect(self) -> None:
         """Disconnect from the serial port."""
         if self._state == PortConnectionState.DISCONNECTED:
@@ -206,8 +289,10 @@ class ComPortViewModel(QObject):
 
         self._safe_stop_worker()
 
-        if self._port_name in self._active_ports:
-            self._active_ports.remove(self._port_name)
+        # Thread-safe remove from active ports
+        with self._active_ports_lock:
+            if self._port_name in self._active_ports:
+                self._active_ports.remove(self._port_name)
 
         self._set_state(PortConnectionState.DISCONNECTED)
         logger.info(f"Disconnected from {self._port_label}")
@@ -340,7 +425,6 @@ class ComPortViewModel(QObject):
         Returns:
             HTML formatted string for display
         """
-        import html
         from PySide6.QtCore import QDateTime
         
         timestamp = QDateTime.currentDateTime().toString('hh:mm:ss')
@@ -362,7 +446,6 @@ class ComPortViewModel(QObject):
         Returns:
             HTML formatted string for display
         """
-        import html
         from PySide6.QtCore import QDateTime
         
         timestamp = QDateTime.currentDateTime().toString('hh:mm:ss')
@@ -393,15 +476,19 @@ class ComPortViewModel(QObject):
         """Clean shutdown of the port and worker."""
         self._safe_stop_worker()
         
-        if self._port_name in self._active_ports:
-            self._active_ports.remove(self._port_name)
+        # Thread-safe remove from active ports
+        with self._active_ports_lock:
+            if self._port_name in self._active_ports:
+                self._active_ports.remove(self._port_name)
 
         self._set_state(PortConnectionState.DISCONNECTED)
         logger.info(f"Shutdown complete for {self._port_label}")
 
     def _on_worker_finished(self) -> None:
-        if self._port_name in self._active_ports:
-            self._active_ports.remove(self._port_name)
+        # Thread-safe remove from active ports
+        with self._active_ports_lock:
+            if self._port_name in self._active_ports:
+                self._active_ports.remove(self._port_name)
         self._worker = None
         # Return to disconnected state if we were connecting
         if self._state == PortConnectionState.CONNECTING:

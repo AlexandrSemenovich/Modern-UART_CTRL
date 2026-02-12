@@ -8,11 +8,13 @@ from PySide6.QtCore import Signal, Qt, QTimer
 from typing import Optional, Dict, List, Callable
 import html
 
+# Maximum HTML content length to prevent performance issues
+_MAX_HTML_LENGTH: int = 10000
+
 from src.utils.translator import tr, translator
 from src.styles.constants import Fonts, Sizes
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
-import html
 
 
 class LogWidget:
@@ -237,6 +239,25 @@ class ConsolePanelView(QtWidgets.QWidget):
         label = QtWidgets.QLabel(port_label)
         return label
     
+    def _truncate_html(self, html_content: str) -> str:
+        """
+        Truncate HTML content to prevent performance issues with very long lines.
+        
+        Args:
+            html_content: HTML formatted content
+            
+        Returns:
+            Truncated HTML content with ellipsis indicator
+        """
+        if len(html_content) <= _MAX_HTML_LENGTH:
+            return html_content
+        
+        # Truncate and add indicator
+        truncated = html_content[:_MAX_HTML_LENGTH]
+        # Close any unclosed tags at the end
+        truncated += "...<span style='color:gray'> [truncated]</span>"
+        return truncated
+    
     def append_log(self, port_label: str, html_content: str, plain_text: str) -> None:
         """
         Append log content to a specific port's log.
@@ -261,7 +282,9 @@ class ConsolePanelView(QtWidgets.QWidget):
         if port_label in self._log_widgets:
             widget = self._log_widgets[port_label]
             if widget.text_edit:
-                widget.text_edit.append(html_content)
+                # Truncate HTML to prevent performance issues
+                truncated_html = self._truncate_html(html_content)
+                widget.text_edit.append(truncated_html)
     
     def append_rx(self, port_label: str, data: str) -> None:
         """

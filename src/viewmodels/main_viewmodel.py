@@ -6,6 +6,7 @@ Handles logging, filtering, formatting of console output from multiple serial po
 from PySide6 import QtCore
 from PySide6.QtCore import Signal, Qt
 from html import escape
+from collections import deque
 import re
 
 from src.utils.config_loader import config_loader
@@ -180,6 +181,7 @@ class MainViewModel(QtCore.QObject):
     def cache_log_line(self, cache_key: str, html: str, plain: str) -> None:
         """
         Cache a log line for filtering support with size limit.
+        Uses deque with maxlen for O(1) append operations.
         
         Args:
             cache_key (str): Widget identifier (e.g., 'cpu1', 'cpu2', 'all')
@@ -187,20 +189,14 @@ class MainViewModel(QtCore.QObject):
             plain (str): Plain text version (for filtering)
         """
         if cache_key not in self.log_cache:
-            self.log_cache[cache_key] = {'html': [], 'plain': []}
+            # Use deque with maxlen for automatic size limiting (O(1) operation)
+            self.log_cache[cache_key] = {
+                'html': deque(maxlen=self.MAX_CACHE_LINES),
+                'plain': deque(maxlen=self.MAX_CACHE_LINES)
+            }
         
         self.log_cache[cache_key]['html'].append(html)
         self.log_cache[cache_key]['plain'].append(plain)
-        
-        # Limit cache size to prevent memory issues
-        max_lines = self.MAX_CACHE_LINES
-        html_list = self.log_cache[cache_key]['html']
-        plain_list = self.log_cache[cache_key]['plain']
-        
-        if len(html_list) > max_lines:
-            # Keep only the most recent lines
-            self.log_cache[cache_key]['html'] = html_list[-max_lines:]
-            self.log_cache[cache_key]['plain'] = plain_list[-max_lines:]
     
     def clear_cache(self) -> None:
         """Clear all cached logs."""

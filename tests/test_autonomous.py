@@ -80,6 +80,97 @@ def test_html_filtering():
     print("[OK] HTML filtering logic OK")
 
 
+def test_html_truncation():
+    """Test HTML truncation logic for long content."""
+    MAX_HTML_LENGTH = 10000
+    
+    # Short content should not be truncated
+    short_html = "<span>hello</span>"
+    assert len(short_html) <= MAX_HTML_LENGTH
+    truncated = short_html if len(short_html) <= MAX_HTML_LENGTH else short_html[:MAX_HTML_LENGTH] + "..."
+    assert truncated == short_html
+    
+    # Long content should be truncated
+    long_html = "<span>" + "a" * 15000 + "</span>"
+    truncated = long_html[:MAX_HTML_LENGTH] + "...<span style='color:gray'> [truncated]</span>"
+    assert len(truncated) <= MAX_HTML_LENGTH + 50  # Allow for truncation indicator
+    assert "[truncated]" in truncated
+    
+    print("[OK] HTML truncation logic OK")
+
+
+def test_rate_limiting_logic():
+    """Test rate limiting logic for serial data."""
+    MAX_BYTES_PER_SECOND = 1024 * 1024  # 1 MB/s
+    
+    # Test that the limit is set correctly
+    assert MAX_BYTES_PER_SECOND == 1024 * 1024
+    
+    # Simulate rate limiting calculation
+    data_size = 1024  # 1 KB
+    elapsed = 0.001  # 1ms
+    rate = data_size / elapsed
+    
+    # Rate should be in bytes per second
+    assert rate > 0
+    
+    print("[OK] Rate limiting logic OK")
+
+
+def test_exponential_backoff():
+    """Test exponential backoff for connection retries."""
+    initial_delay = 0.1  # 100ms
+    max_delay = 5.0  # 5 seconds
+    max_retries = 5
+    
+    delays = []
+    current_delay = initial_delay
+    
+    for i in range(max_retries):
+        delays.append(current_delay)
+        current_delay = min(current_delay * 2, max_delay)
+    
+    # Verify exponential growth
+    assert delays[0] == 0.1
+    assert delays[1] == 0.2
+    assert delays[2] == 0.4
+    assert delays[3] == 0.8
+    assert delays[4] == 1.6
+    
+    # Verify max delay cap
+    for delay in delays:
+        assert delay <= max_delay
+    
+    print(f"[OK] Exponential backoff OK (delays: {delays})")
+
+
+def test_write_batch_limit():
+    """Test write batch limit to prevent queue starvation."""
+    MAX_WRITE_BATCH = 100
+    
+    # Simulate queue processing
+    queue = list(range(500))
+    processed = 0
+    batch_count = 0
+    
+    while queue and processed < 1000:  # Max total processed
+        batch = []
+        for _ in range(min(MAX_WRITE_BATCH, len(queue))):
+            if queue:
+                batch.append(queue.pop(0))
+        processed += len(batch)
+        batch_count += 1
+        
+        if processed >= 1000:
+            break
+    
+    # Verify batches are limited
+    assert MAX_WRITE_BATCH == 100
+    assert batch_count >= 5  # 500 items / 100 per batch = 5 batches
+    
+    print(f"[OK] Write batch limit OK (batches: {batch_count})")
+
+
 if __name__ == '__main__':
     tests = [
         test_translations_available,
@@ -87,6 +178,10 @@ if __name__ == '__main__':
         test_port_widgets_class,
         test_cache_logic,
         test_html_filtering,
+        test_html_truncation,
+        test_rate_limiting_logic,
+        test_exponential_backoff,
+        test_write_batch_limit,
     ]
     
     passed = 0

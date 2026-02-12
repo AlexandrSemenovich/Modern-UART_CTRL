@@ -59,7 +59,14 @@ class ConfigLoader:
         self._config = configparser.ConfigParser()
         root = Path(__file__).resolve().parents[1]
         default_path = root / "config" / "config.ini"
-        self._config.read(config_path or default_path, encoding="utf-8")
+        
+        # Error handling for config parsing with fallback to defaults
+        try:
+            self._config.read(config_path or default_path, encoding="utf-8")
+        except (configparser.Error, OSError) as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to parse config file: {e}. Using default values.")
 
         # defaults
         self._default_colors = {

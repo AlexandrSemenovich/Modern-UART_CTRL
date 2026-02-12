@@ -18,6 +18,12 @@ class Colors:
         if theme not in self._cache:
             self._cache[theme] = config_loader.get_colors(theme)
         return self._cache[theme]
+    
+    # Common color constants for backwards compatibility
+    DARK_BG = "#1e1e1e"
+    LIGHT_BG = "#f5f5f5"
+    DARK_TEXT = "#ffffff"
+    LIGHT_TEXT = "#000000"
 
 
 # ==================== Fonts ====================

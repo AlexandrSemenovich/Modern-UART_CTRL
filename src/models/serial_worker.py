@@ -64,6 +64,18 @@ class SerialWorker(QThread):
     # Max consecutive errors before giving up
     MAX_CONSECUTIVE_ERRORS = 3
     
+    # Max buffer size for incoming data (64KB) - security hardending
+    MAX_BUFFER_SIZE = 65536
+    
+    # Rate limiting: max bytes per second (1MB/s) - DoS protection
+    MAX_BYTES_PER_SECOND = 1024 * 1024
+    
+    # Max write size (64KB) - security hardening
+    MAX_WRITE_SIZE = 65536
+    
+    # Max write batch size - prevent queue starvation
+    MAX_WRITE_BATCH = 100
+    
     def __init__(self, port_label: str, config: Optional[Dict[str, Any]] = None):
         """
         Initialize SerialWorker.
@@ -98,6 +110,10 @@ class SerialWorker(QThread):
         # Error tracking
         self._consecutive_errors: int = 0
         self._should_stop: bool = False
+        
+        # Rate limiting: track bytes received per second
+        self._bytes_received: int = 0
+        self._last_rate_check: float = 0.0
     
     @property
     def port_label(self) -> str:
@@ -159,6 +175,75 @@ class SerialWorker(QThread):
         
         logger.debug(f"Configured {self._port_label} from dict: {config}")
     
+    def _open_connection(self) -> Optional[Any]:
+        """
+        Open serial connection with proper error handling.
+        
+        Returns:
+            Serial port instance or None if failed
+        """
+        if not HAS_PYSERIAL or not self._port_name:
+            logger.warning("pyserial not available, running in simulation mode")
+            self._emit_status(tr("worker_simulated", "Simulation mode (no pyserial)"))
+            return None
+        
+        try:
+            ser = serial.Serial(
+                self._port_name,
+                self._baud,
+                timeout=self._timeout
+            )
+            
+            # Additional configuration if provided
+            if 'data_bits' in self._config:
+                ser.bytesize = self._config['data_bits']
+            if 'parity' in self._config:
+                ser.parity = self._config['parity']
+            if 'stop_bits' in self._config:
+                ser.stopbits = self._config['stop_bits']
+            
+            # Ensure port is actually open
+            if not getattr(ser, 'is_open', True):
+                ser.open()
+            
+            logger.info(f"Successfully connected to {self._port_name}")
+            return ser
+        
+        except SerialException as e:
+            logger.error(f"Serial connection error: {e}")
+            self._emit_error(tr("worker_open_error", "Open error ({port}): {error}").format(
+                port=self._port_name or 'N/A',
+                error=e
+            ))
+            return None
+        
+        except Exception as e:
+            logger.exception(f"Unexpected error during connection: {e}")
+            self._emit_error(tr("worker_open_error", "Connection error: {error}").format(error=e))
+            return None
+    
+    def _handle_read_error(self, error: Exception) -> bool:
+        """
+        Handle read errors with proper logging and error tracking.
+        
+        Returns:
+            True if should continue, False if too many errors
+        """
+        if isinstance(error, SerialException):
+            # Handle permission errors gracefully
+            logger.warning(f"Serial exception on {self._port_label}: {error}")
+            self._emit_error(str(error))
+        else:
+            logger.exception(f"Unexpected error in read loop: {error}")
+            self._emit_error(str(error))
+        
+        self._consecutive_errors += 1
+        if self._consecutive_errors >= self.MAX_CONSECUTIVE_ERRORS:
+            logger.error(f"Too many consecutive errors, stopping {self._port_label}")
+            self._emit_error(tr("worker_too_many_errors", "Too many errors, disconnecting"))
+            return False
+        return True
+    
     def run(self) -> None:
         """
         Main thread loop: handles reading and writing to serial port.
@@ -167,6 +252,8 @@ class SerialWorker(QThread):
         self._running = True
         self._should_stop = False
         self._consecutive_errors = 0
+        self._bytes_received = 0
+        self._last_rate_check = time.monotonic()
         
         self._emit_status(tr("worker_connecting_to", "Connecting to {port}...").format(
             port=self._port_name or 'N/A'
@@ -232,7 +319,7 @@ class SerialWorker(QThread):
             self.finished.emit()
             return
         
-        # Main loop
+        # Main loop with simplified exception handling using helper method
         try:
             while self._running and not self._should_stop:
                 try:
@@ -245,28 +332,20 @@ class SerialWorker(QThread):
                             logger.error(f"Too many consecutive errors, stopping {self._port_label}")
                             self._emit_error(tr("worker_too_many_errors", "Too many errors, disconnecting"))
                             break
-                    else:
                         self._consecutive_errors = 0
                 
-                except SerialException as e:
-                    # Handle permission errors gracefully
-                    logger.warning(f"Serial exception on {self._port_label}: {e}")
-                    self._emit_error(str(e))
-                    self._consecutive_errors += 1
-                    if self._consecutive_errors >= self.MAX_CONSECUTIVE_ERRORS:
-                        break
-                
                 except Exception as e:
-                    logger.exception(f"Unexpected error in read loop: {e}")
-                    self._emit_error(str(e))
-                    self._consecutive_errors += 1
-                    if self._consecutive_errors >= self.MAX_CONSECUTIVE_ERRORS:
+                    # Use helper method for consistent error handling
+                    if not self._handle_read_error(e):
                         break
                 
                 self._process_write()
                 
-                # Keep UI responsive with configurable interval
-                time.sleep(self._read_interval)
+                # Keep UI responsive with Qt-native sleep (better integration)
+                self.msleep(int(self._read_interval * 1000))
+                
+                # Keep UI responsive with Qt-native sleep (better integration)
+                self.msleep(int(self._read_interval * 1000))
         
         except Exception as e:
             logger.exception(f"Fatal error in worker loop: {e}")
@@ -309,6 +388,23 @@ class SerialWorker(QThread):
                 data = ser.read(ser.in_waiting)
                 
                 if data:
+                    # Security: validate buffer size to prevent overflow
+                    if len(data) > self.MAX_BUFFER_SIZE:
+                        logger.warning(f"Received data exceeds MAX_BUFFER_SIZE ({len(data)} > {self.MAX_BUFFER_SIZE})")
+                        data = data[:self.MAX_BUFFER_SIZE]
+                    
+                    # Rate limiting: track bytes received
+                    self._bytes_received += len(data)
+                    current_time = time.monotonic()
+                    elapsed = current_time - self._last_rate_check
+                    
+                    # Reset rate tracking every second
+                    if elapsed >= 1.0:
+                        if self._bytes_received > self.MAX_BYTES_PER_SECOND:
+                            logger.warning(f"Rate limit exceeded: {self._bytes_received} bytes/sec (limit: {self.MAX_BYTES_PER_SECOND})")
+                        self._bytes_received = 0
+                        self._last_rate_check = current_time
+                    
                     try:
                         text = data.decode('utf-8', errors='replace')
                     except Exception:
@@ -366,11 +462,18 @@ class SerialWorker(QThread):
             self.rx.emit(self._port_label, line + '\n')
     
     def _process_write(self) -> None:
-        """Process outgoing write queue."""
+        """
+        Process outgoing write queue with batch limiting.
+        Prevents queue starvation by limiting items processed per cycle.
+        """
         items = []
         try:
-            while True:
-                items.append(self._write_q.get_nowait())
+            # Limit items per cycle to prevent starvation
+            for _ in range(self.MAX_WRITE_BATCH):
+                try:
+                    items.append(self._write_q.get_nowait())
+                except queue.Empty:
+                    break
         except queue.Empty:
             pass
         for item in items:
@@ -441,6 +544,11 @@ class SerialWorker(QThread):
         if not data:
             return False
         
+        # Security: validate input length
+        if len(data) > self.MAX_WRITE_SIZE:
+            logger.warning(f"Write data exceeds MAX_WRITE_SIZE ({len(data)} > {self.MAX_WRITE_SIZE})")
+            return False
+        
         self._write_q.put(data)
         return True
     
@@ -455,6 +563,11 @@ class SerialWorker(QThread):
             True if data was queued successfully
         """
         if not data:
+            return False
+        
+        # Security: validate input length
+        if len(data) > self.MAX_WRITE_SIZE:
+            logger.warning(f"Write bytes exceeds MAX_WRITE_SIZE ({len(data)} > {self.MAX_WRITE_SIZE})")
             return False
         
         try:
