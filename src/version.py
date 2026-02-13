@@ -1,19 +1,15 @@
 """
-Project version helper. Reads the latest git tag (strips leading 'v')
-and exposes `__version__`.
+Project version helper.
+
+Версия берётся из конфигурации приложения ([app] section в config.ini),
+что делает запуск независимым от наличия git и ускоряет холодный старт.
 """
-import os
-import subprocess
 
-def _get_git_tag():
-    try:
-        root = os.path.dirname(os.path.dirname(__file__))
-        tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0'], cwd=root, stderr=subprocess.DEVNULL)
-        return tag.decode().strip().lstrip('v')
-    except Exception:
-        return None
+from src.utils.config_loader import config_loader
 
-__version__ = _get_git_tag() or '0.0.0'
+__version__ = config_loader.get_app_version()
 
-def get_version():
+
+def get_version() -> str:
+    """Return application version string."""
     return __version__

@@ -1,25 +1,20 @@
 import json
-import os
+import logging
 from typing import Dict
 
-SETTINGS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'config', 'transmission_settings.json')
+from src.utils.paths import get_config_file, ensure_dir
 
-def _ensure_config_dir(path: str):
-    dirpath = os.path.dirname(path)
-    if not os.path.exists(dirpath):
-        os.makedirs(dirpath, exist_ok=True)
+_logger = logging.getLogger(__name__)
 
 def load_settings() -> Dict:
     """Load transmission settings from JSON file."""
-    # fallback path inside project config
-    project_root = os.path.dirname(os.path.dirname(__file__))
-    cfg_path = os.path.join(project_root, 'config', 'transmission_settings.json')
+    cfg_path = get_config_file("transmission_settings.json")
     try:
-        if os.path.exists(cfg_path):
-            with open(cfg_path, 'r', encoding='utf-8') as f:
+        if cfg_path.exists():
+            with cfg_path.open('r', encoding='utf-8') as f:
                 return json.load(f)
-    except Exception:
-        pass
+    except Exception as exc:  # pragma: no cover - защита на случай повреждённого файла
+        _logger.warning("Failed to load transmission settings from %s: %s", cfg_path, exc)
     # defaults
     return {
         'autoscroll': True,
@@ -31,14 +26,14 @@ def load_settings() -> Dict:
 
 def save_settings(settings: Dict):
     """Save transmission settings to JSON file."""
-    project_root = os.path.dirname(os.path.dirname(__file__))
-    cfg_path = os.path.join(project_root, 'config', 'transmission_settings.json')
+    cfg_path = get_config_file("transmission_settings.json")
     try:
-        _ensure_config_dir(cfg_path)
-        with open(cfg_path, 'w', encoding='utf-8') as f:
+        ensure_dir(cfg_path)
+        with cfg_path.open('w', encoding='utf-8') as f:
             json.dump(settings, f, ensure_ascii=False, indent=2)
         return True
-    except Exception:
+    except Exception as exc:  # pragma: no cover
+        _logger.error("Failed to save transmission settings to %s: %s", cfg_path, exc)
         return False
 
 def add_history_entry(entry: str, max_items: int = 50):
@@ -52,7 +47,8 @@ def add_history_entry(entry: str, max_items: int = 50):
         settings['history'] = history
         save_settings(settings)
         return True
-    except Exception:
+    except Exception as exc:  # pragma: no cover
+        _logger.error("Failed to add history entry to transmission settings: %s", exc)
         return False
 
 def clear_history():
@@ -61,5 +57,6 @@ def clear_history():
         settings['history'] = []
         save_settings(settings)
         return True
-    except Exception:
+    except Exception as exc:  # pragma: no cover
+        _logger.error("Failed to clear transmission history: %s", exc)
         return False

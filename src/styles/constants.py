@@ -119,7 +119,13 @@ class SerialPorts:
 
 class ConsoleLimits:
     """Constraints for console widgets to prevent memory bloat."""
+    _cfg = config_loader.get_console_config()
 
-    MAX_HTML_LENGTH = 10_000
-    MAX_DOCUMENT_LINES = 1_000
-    TRIM_CHUNK_SIZE = 500
+    # Maximum HTML length for a single log chunk
+    MAX_HTML_LENGTH = _cfg.max_html_length
+    # Maximum number of lines in QTextEdit document
+    MAX_DOCUMENT_LINES = _cfg.max_document_lines
+    # Chunk size when trimming old lines
+    TRIM_CHUNK_SIZE = _cfg.trim_chunk_size
+    # Maximum number of cached log lines per port
+    MAX_CACHE_LINES = _cfg.max_cache_lines

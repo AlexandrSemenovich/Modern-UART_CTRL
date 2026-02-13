@@ -3,13 +3,14 @@ Theme Manager - handles application theme switching.
 Supports light and dark themes with QSettings persistence.
 """
 
-import os
+import logging
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, Signal, QSettings
 from PySide6.QtGui import QPalette, QColor
 
 from src.utils.config_loader import config_loader
+from src.utils.paths import get_stylesheet_path
 
 
 class ThemeManager(QObject):
@@ -23,11 +24,8 @@ class ThemeManager(QObject):
         self.settings = QSettings("UART_CTRL", "ThemeSettings")
         self._stylesheet_cache: str | None = None
         self._last_modified: float = 0.0
-        self._qss_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "styles",
-            "app.qss",
-        )
+        self._qss_path = str(get_stylesheet_path("app.qss"))
+        self._logger = logging.getLogger(__name__)
         self.load_theme()
     
     def load_theme(self):
@@ -95,6 +93,8 @@ class ThemeManager(QObject):
         """Ensure the global QSS is loaded and applied with cache invalidation."""
         # Check if stylesheet file has been modified
         try:
+            import os
+
             current_modified = os.path.getmtime(self._qss_path)
         except OSError:
             current_modified = 0.0
@@ -116,7 +116,10 @@ class ThemeManager(QObject):
         try:
             with open(self._qss_path, "r", encoding="utf-8") as handle:
                 return handle.read()
-        except OSError:
+        except OSError as exc:
+            self._logger.warning(
+                "Failed to load stylesheet from %s: %s", self._qss_path, exc
+            )
             return ""
 
     def _format_stylesheet(self, template: str) -> str:

@@ -703,6 +703,14 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Handle close event - shutdown all ports."""
+        # Flush command history to disk before shutting down
+        try:
+            if hasattr(self, "_history_model") and self._history_model is not None:
+                self._history_model.flush()
+        except Exception:
+            # Закрытие окна не должно срываться из‑за ошибок записи истории
+            pass
+
         # Shutdown all port ViewModels
         for viewmodel in self._port_viewmodels.values():
             viewmodel.shutdown()

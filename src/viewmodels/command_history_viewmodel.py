@@ -8,8 +8,11 @@ from typing import List, Iterable
 import json
 import datetime
 import configparser
+import logging
 
 from PySide6 import QtCore
+
+from src.utils.paths import get_config_file
 
 
 @dataclass
@@ -35,20 +38,31 @@ class CommandHistoryModel(QtCore.QObject):
         self._entries: List[CommandHistoryEntry] = []
         self._storage_path = self._resolve_storage_path()
         self._max_items = self._load_max_items()
+        self._logger = logging.getLogger(__name__)
+
+        # Отложенное сохранение на диск
+        self._dirty: bool = False
+        self._save_interval_ms: int = 800
+        self._save_timer = QtCore.QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.timeout.connect(self._flush_if_dirty)
+
         self.load()
 
     @staticmethod
     def _resolve_storage_path() -> Path:
-        root = Path(__file__).resolve().parents[2]
-        return root / "config" / "command_history.json"
+        return get_config_file("command_history.json")
 
     def _load_max_items(self) -> int:
-        config_path = Path(__file__).resolve().parents[2] / "config" / "config.ini"
+        config_path = get_config_file("config.ini")
         parser = configparser.ConfigParser()
         try:
             parser.read(config_path, encoding="utf-8")
             return parser.getint("ui", "max_history_items", fallback=200)
-        except Exception:
+        except Exception as exc:  # pragma: no cover - защита от редких ошибок
+            logging.getLogger(__name__).warning(
+                "Failed to read max_history_items from %s: %s", config_path, exc
+            )
             return 200
 
     def load(self) -> None:
@@ -57,7 +71,12 @@ class CommandHistoryModel(QtCore.QObject):
         try:
             with self._storage_path.open("r", encoding="utf-8") as handle:
                 raw_items = json.load(handle)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError) as exc:
+            self._logger.warning(
+                "Failed to load command history from %s: %s",
+                self._storage_path,
+                exc,
+            )
             return
         self._entries = [
             CommandHistoryEntry(
@@ -72,13 +91,28 @@ class CommandHistoryModel(QtCore.QObject):
         self.entries_changed.emit()
 
     def save(self) -> None:
+        """
+        Немедленное синхронное сохранение истории на диск.
+
+        Используется редко (например, в тестах или при явном запросе),
+        основной путь — отложенное сохранение через таймер.
+        """
+        self._dirty = False
+        self._write_to_disk()
+
+    def _write_to_disk(self) -> None:
+        """Внутренний метод синхронной записи истории на диск."""
         self._storage_path.parent.mkdir(parents=True, exist_ok=True)
         data = [asdict(entry) for entry in self._entries[: self._max_items]]
         try:
             with self._storage_path.open("w", encoding="utf-8") as handle:
                 json.dump(data, handle, ensure_ascii=False, indent=2)
-        except OSError:
-            pass
+        except OSError as exc:
+            self._logger.error(
+                "Failed to save command history to %s: %s",
+                self._storage_path,
+                exc,
+            )
 
     def entries(self) -> List[CommandHistoryEntry]:
         return list(self._entries)
@@ -95,7 +129,7 @@ class CommandHistoryModel(QtCore.QObject):
         self._entries.insert(0, entry)
         self._entries = self._entries[: self._max_items]
         self.entries_changed.emit()
-        self.save()
+        self._schedule_save()
 
     def remove_indices(self, indices: Iterable[int]) -> None:
         sorted_indices = sorted(set(idx for idx in indices if 0 <= idx < len(self._entries)), reverse=True)
@@ -104,14 +138,37 @@ class CommandHistoryModel(QtCore.QObject):
         for idx in sorted_indices:
             self._entries.pop(idx)
         self.entries_changed.emit()
-        self.save()
+        self._schedule_save()
 
     def clear(self) -> None:
         if not self._entries:
             return
         self._entries.clear()
         self.entries_changed.emit()
-        self.save()
+        self._schedule_save()
+
+    def _schedule_save(self) -> None:
+        """Запланировать сохранение истории на диск с небольшим отложением."""
+        self._dirty = True
+        if not self._save_timer.isActive():
+            self._save_timer.start(self._save_interval_ms)
+
+    def _flush_if_dirty(self) -> None:
+        """Выполнить сохранение, если есть несохранённые изменения."""
+        if not self._dirty:
+            return
+        self._dirty = False
+        self._write_to_disk()
+
+    def flush(self) -> None:
+        """
+        Принудительно сохранить историю, если есть несохранённые изменения.
+
+        Вызывается, например, при закрытии главного окна.
+        """
+        if self._save_timer.isActive():
+            self._save_timer.stop()
+        self._flush_if_dirty()
 
     def export_to_file(self, path: Path) -> bool:
         try:

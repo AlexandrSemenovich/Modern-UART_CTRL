@@ -32,7 +32,9 @@ class MainViewModel(QtCore.QObject):
     counters_changed = Signal(int, int, int)  # cpu1_rx, cpu1_tx, etc
     
     # Maximum number of log lines to keep in cache per widget
-    MAX_CACHE_LINES = 10000
+    # Значение берётся из конфигурации консоли (ConsoleLimits)
+    from src.styles.constants import ConsoleLimits as _ConsoleLimits  # local import to avoid cycles
+    MAX_CACHE_LINES = _ConsoleLimits.MAX_CACHE_LINES
     
     def __init__(self):
         super().__init__()

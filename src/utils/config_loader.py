@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
+from src.utils.paths import get_config_file
+
 
 @dataclass
 class ThemeColors:
@@ -71,13 +73,23 @@ class SizeConfig:
     search_field_max_width: int
 
 
+@dataclass
+class ConsoleConfig:
+    """Конфигурация консоли/логов."""
+
+    max_html_length: int
+    max_document_lines: int
+    trim_chunk_size: int
+    max_cache_lines: int
+
+
 class ConfigLoader:
     """Loads application settings from config/config.ini with defaults."""
 
     def __init__(self, config_path: Optional[Path] = None) -> None:
         self._config = configparser.ConfigParser()
-        root = Path(__file__).resolve().parents[1]
-        default_path = root / "config" / "config.ini"
+        # Единая точка входа для конфигурации
+        default_path = get_config_file("config.ini")
         
         # Error handling for config parsing with fallback to defaults
         try:
@@ -227,6 +239,41 @@ class ConfigLoader:
 
     def get_serial_config(self) -> Dict[str, str]:
         return self._get_section("serial_config")
+
+    def get_console_config(self) -> ConsoleConfig:
+        """
+        Console / log configuration.
+
+        Values are taken from [console] section with safe defaults.
+        """
+        section = self._get_section("console")
+        get_int = lambda key, default: int(section.get(key, default))
+        return ConsoleConfig(
+            max_html_length=get_int("max_html_length", 10_000),
+            max_document_lines=get_int("max_document_lines", 1_000),
+            trim_chunk_size=get_int("trim_chunk_size", 500),
+            max_cache_lines=get_int("max_cache_lines", 10_000),
+        )
+
+    def get_app_version(self) -> str:
+        """Get application version from [app] section."""
+        section = self._get_section("app")
+        return section.get("version", "0.0.0")
+
+    def get_console_config(self) -> ConsoleConfig:
+        """
+        Лимиты консоли/логов.
+
+        Берутся из секции [console], при отсутствии — используются безопасные значения по умолчанию.
+        """
+        section = self._get_section("console")
+        get_int = lambda key, default: int(section.get(key, default))
+        return ConsoleConfig(
+            max_html_length=get_int("max_html_length", 10_000),
+            max_document_lines=get_int("max_document_lines", 1_000),
+            trim_chunk_size=get_int("trim_chunk_size", 500),
+            max_cache_lines=get_int("max_cache_lines", 10_000),
+        )
 
 
 config_loader = ConfigLoader()

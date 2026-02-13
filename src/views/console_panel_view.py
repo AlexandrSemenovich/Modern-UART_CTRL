@@ -62,7 +62,9 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._log_widgets: Dict[str, LogWidget] = {}
         self._combined_log_widgets: Dict[str, QtWidgets.QTextEdit] = {}
         self._log_cache: Dict[str, List[str]] = {}
-        self._max_lines: int = self._config.get('max_lines', 10000)
+        # Максимальное количество строк в кэше для одного порта
+        from src.styles.constants import ConsoleLimits as _ConsoleLimits  # локальный импорт для избежания циклов
+        self._max_lines: int = int(self._config.get('max_lines', _ConsoleLimits.MAX_CACHE_LINES))
         
         # Display options
         self._show_time: bool = True
