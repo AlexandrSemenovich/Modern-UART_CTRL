@@ -94,9 +94,33 @@ class ConsolePanelView(QtWidgets.QWidget):
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
         )
         
-        # Toolbar
+        # Toolbar в отдельном контейнере для стилизации
+        self._toolbar_container = QtWidgets.QWidget()
+        self._toolbar_container.setObjectName("console_toolbar_container")
+        self._toolbar_container.setMinimumHeight(50)  # Минимальная высота для правильного центрирования
+        self._toolbar_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+        self._toolbar_container.setProperty("themeClass", theme_class)
+        
+        toolbar_layout = QtWidgets.QVBoxLayout(self._toolbar_container)
+        toolbar_layout.setContentsMargins(10, 0, 10, 8)
+        toolbar_layout.setSpacing(0)
+        
+        # Создаем виджет-обертку для toolbar layout
+        toolbar_widget = QtWidgets.QWidget()
+        toolbar_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Minimum,
+        )
+        toolbar_widget.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+
         toolbar = self._create_toolbar()
-        layout.addLayout(toolbar)
+        toolbar_widget.setLayout(toolbar)
+        
+        # Добавляем toolbar widget с центрированием по вертикали без лишних отступов
+        toolbar_layout.addWidget(toolbar_widget, 0, Qt.AlignVCenter)
+        
+        layout.addWidget(self._toolbar_container)
         
         # Tab widget for different log views
         self._tab_widget = QtWidgets.QTabWidget()
@@ -115,49 +139,57 @@ class ConsolePanelView(QtWidgets.QWidget):
         """Create toolbar with search and action buttons."""
         toolbar = QtWidgets.QHBoxLayout()
         toolbar.setSpacing(Sizes.TOOLBAR_SPACING)
-        toolbar.setContentsMargins(
-            Sizes.TOOLBAR_MARGIN, Sizes.TOOLBAR_MARGIN,
-            Sizes.TOOLBAR_MARGIN, Sizes.TOOLBAR_MARGIN
-        )
+        toolbar.setContentsMargins(0, 0, 0, 0)  # отступы задаются контейнером
+        toolbar.setAlignment(Qt.AlignVCenter)  # центрирование только по вертикали
+        control_height = Sizes.INPUT_MIN_HEIGHT
         
         # Search field
         self._search_label = QtWidgets.QLabel(tr("search", "Search:"))
-        toolbar.addWidget(self._search_label)
+        self._search_label.setAlignment(Qt.AlignVCenter)
+        self._search_label.setFixedHeight(control_height)
+        toolbar.addWidget(self._search_label, 0, Qt.AlignVCenter)
 
         self._search_edit = QtWidgets.QLineEdit()
         self._search_edit.setPlaceholderText(tr("search_logs", "Search logs..."))
         self._search_edit.setMaximumWidth(Sizes.SEARCH_FIELD_MAX_WIDTH)
+        self._search_edit.setFixedHeight(control_height)
         self._search_edit.textChanged.connect(self._on_search_changed)
-        toolbar.addWidget(self._search_edit)
+        toolbar.addWidget(self._search_edit, 0, Qt.AlignVCenter)
         
         # Display options
         self._show_label = QtWidgets.QLabel(tr("show", "Show:"))
-        toolbar.addWidget(self._show_label)
+        self._show_label.setAlignment(Qt.AlignVCenter)
+        self._show_label.setFixedHeight(control_height)
+        toolbar.addWidget(self._show_label, 0, Qt.AlignVCenter)
 
         self._chk_time = QtWidgets.QCheckBox(tr("time", "Time"))
         self._chk_time.setChecked(True)
+        self._chk_time.setFixedHeight(control_height)
         self._chk_time.stateChanged.connect(self._on_display_option_changed)
-        toolbar.addWidget(self._chk_time)
-        
+        toolbar.addWidget(self._chk_time, 0, Qt.AlignVCenter)
+
         self._chk_source = QtWidgets.QCheckBox(tr("source", "Source"))
         self._chk_source.setChecked(True)
+        self._chk_source.setFixedHeight(control_height)
         self._chk_source.stateChanged.connect(self._on_display_option_changed)
-        toolbar.addWidget(self._chk_source)
+        toolbar.addWidget(self._chk_source, 0, Qt.AlignVCenter)
         
         toolbar.addStretch()
         
-        # Action buttons
+        # Action buttons - компактные для toolbar
         self._btn_clear = QtWidgets.QPushButton(tr("clear", "Clear"))
         self._btn_clear.setMaximumWidth(Sizes.BUTTON_CLEAR_MAX_WIDTH)
+        self._btn_clear.setFixedHeight(control_height)
         self._register_button(self._btn_clear, "danger")
         self._btn_clear.clicked.connect(self.clear_requested.emit)
-        toolbar.addWidget(self._btn_clear)
+        toolbar.addWidget(self._btn_clear, 0, Qt.AlignVCenter)
 
         self._btn_save = QtWidgets.QPushButton(tr("save", "Save"))
         self._btn_save.setMaximumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH)
+        self._btn_save.setFixedHeight(control_height)
         self._register_button(self._btn_save, "primary")
         self._btn_save.clicked.connect(self.save_requested.emit)
-        toolbar.addWidget(self._btn_save)
+        toolbar.addWidget(self._btn_save, 0, Qt.AlignVCenter)
         
         return toolbar
     
@@ -450,6 +482,13 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _on_theme_changed(self, theme: str) -> None:
         self._colors = config_loader.get_colors(theme)
         self._apply_theme_to_buttons()
+        # Применяем тему к контейнеру toolbar
+        if hasattr(self, '_toolbar_container'):
+            theme_class = "light" if theme_manager.is_light_theme() else "dark"
+            self._toolbar_container.setProperty("themeClass", theme_class)
+            self._toolbar_container.style().unpolish(self._toolbar_container)
+            self._toolbar_container.style().polish(self._toolbar_container)
+            self._toolbar_container.update()
     
     def _on_search_changed(self, text: str) -> None:
         """Handle search text change."""

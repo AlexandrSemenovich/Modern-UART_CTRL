@@ -31,13 +31,19 @@ def main():
     # Установка стиля приложения
     app.setStyle('Fusion')
     
-    # Определяем текущую тему и язык
-    is_dark = theme_manager.is_dark_theme()
-    theme_mode = "dark" if is_dark else "light"
+    # Убеждаемся, что тема загружена и применена ПЕРЕД созданием splash
+    # Это важно для правильного определения системной темы
+    # При первом запуске применяем тему принудительно
+    theme_manager.apply_theme(force=True)
+    
+    # Определяем текущую тему и язык (после применения темы)
+    effective_theme = theme_manager._get_effective_theme() if hasattr(theme_manager, '_get_effective_theme') else (
+        "dark" if theme_manager.is_dark_theme() else "light"
+    )
     language = translator.get_language()
     
-    # Создание modern splash screen
-    splash = ModernSplashScreen(theme_mode=theme_mode, language=language)
+    # Создание modern splash screen с правильной темой
+    splash = ModernSplashScreen(theme_mode=effective_theme, language=language)
     splash.show()
     app.processEvents()  # Обработка событий для отображения splash
     
@@ -59,6 +65,9 @@ def main():
     def on_splash_finished():
         global main_window_ref
         splash.close()
+        
+        # Убеждаемся, что тема применена перед созданием MainWindow
+        theme_manager.apply_theme(force=True)
         
         main_window_ref = MainWindow()
         main_window_ref.show()

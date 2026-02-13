@@ -163,6 +163,30 @@ class ConfigLoader:
             return dict(self._config[section])
         return {}
 
+    @staticmethod
+    def _parse_int_value(value: object, default: int) -> int:
+        """Convert config values to int while ignoring inline comments and spaces."""
+        if isinstance(value, int):
+            return value
+        if value is None:
+            return default
+        if isinstance(value, str):
+            cleaned = value.strip()
+            for comment in (";", "#"):
+                if comment in cleaned:
+                    cleaned = cleaned.split(comment, 1)[0].strip()
+            cleaned = cleaned.replace(" ", "").replace("\t", "").replace("_", "")
+            if not cleaned:
+                return default
+            try:
+                return int(cleaned)
+            except ValueError:
+                return default
+        return default
+
+    def _get_int(self, section: Dict[str, str], key: str, default: int) -> int:
+        return self._parse_int_value(section.get(key, default), default)
+
     def get_colors(self, theme: str) -> ThemeColors:
         section = self._get_section(f"colors.{theme}")
         defaults = self._default_colors["dark" if theme not in self._default_colors else theme]
@@ -205,20 +229,20 @@ class ConfigLoader:
         section = self._get_section("fonts")
         return FontConfig(
             default_family=section.get("default_family", "Segoe UI"),
-            default_size=int(section.get("default_size", 10)),
-            title_size=int(section.get("title_size", 14)),
-            button_size=int(section.get("button_size", 10)),
+            default_size=self._get_int(section, "default_size", 10),
+            title_size=self._get_int(section, "title_size", 14),
+            button_size=self._get_int(section, "button_size", 10),
             monospace_family=section.get("monospace_family", "Courier New"),
-            monospace_size=int(section.get("monospace_size", 9)),
+            monospace_size=self._get_int(section, "monospace_size", 9),
         )
 
     def get_sizes(self) -> SizeConfig:
         section = self._get_section("sizes")
-        get_int = lambda key, default: int(section.get(key, default))
+        get_int = lambda key, default: self._get_int(section, key, default)
         return SizeConfig(
             window_min_width=get_int("window_min_width", 800),
             window_min_height=get_int("window_min_height", 600),
-            window_default_width=get_int("window_default_width", 1200),
+            window_default_width=get_int("window_default_width", 1_200),
             window_default_height=get_int("window_default_height", 800),
             left_panel_min_width=get_int("left_panel_min_width", 320),
             left_panel_max_width=get_int("left_panel_max_width", 380),
@@ -240,25 +264,31 @@ class ConfigLoader:
     def get_serial_config(self) -> Dict[str, str]:
         return self._get_section("serial_config")
 
-    def get_console_config(self) -> ConsoleConfig:
-        """
-        Console / log configuration.
-
-        Values are taken from [console] section with safe defaults.
-        """
-        section = self._get_section("console")
-        get_int = lambda key, default: int(section.get(key, default))
-        return ConsoleConfig(
-            max_html_length=get_int("max_html_length", 10_000),
-            max_document_lines=get_int("max_document_lines", 1_000),
-            trim_chunk_size=get_int("trim_chunk_size", 500),
-            max_cache_lines=get_int("max_cache_lines", 10_000),
-        )
-
     def get_app_version(self) -> str:
         """Get application version from [app] section."""
         section = self._get_section("app")
         return section.get("version", "0.0.0")
+
+    def get_default_theme(self) -> str:
+        """
+        Get default theme from [default_theme] section with validation
+        against [themes].supported when available.
+        """
+        default_section = self._get_section("default_theme")
+        theme = default_section.get("theme", "dark").strip()
+
+        themes_section = self._get_section("themes")
+        supported_raw = themes_section.get("supported", "")
+
+        if supported_raw:
+            supported = {item.strip() for item in supported_raw.split(",") if item.strip()}
+            if theme not in supported and supported:
+                # Fallback order: system -> dark -> light -> first supported
+                for candidate in ("system", "dark", "light"):
+                    if candidate in supported:
+                        return candidate
+                return next(iter(supported))
+        return theme
 
     def get_console_config(self) -> ConsoleConfig:
         """
@@ -267,7 +297,7 @@ class ConfigLoader:
         Берутся из секции [console], при отсутствии — используются безопасные значения по умолчанию.
         """
         section = self._get_section("console")
-        get_int = lambda key, default: int(section.get(key, default))
+        get_int = lambda key, default: self._get_int(section, key, default)
         return ConsoleConfig(
             max_html_length=get_int("max_html_length", 10_000),
             max_document_lines=get_int("max_document_lines", 1_000),

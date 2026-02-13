@@ -20,6 +20,17 @@ import sys
 import time
 import datetime
 
+# Windows API для кастомного title bar
+if sys.platform == "win32":
+    try:
+        import ctypes
+        from ctypes import wintypes
+        HAS_WIN32_API = True
+    except ImportError:
+        HAS_WIN32_API = False
+else:
+    HAS_WIN32_API = False
+
 from src.utils.theme_manager import theme_manager
 from src.utils.translator import translator, tr
 from src.styles.constants import Fonts, Sizes, SerialConfig
@@ -63,7 +74,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Connect theme changes
         theme_manager.theme_changed.connect(self._on_theme_changed)
-        theme_manager.apply_theme()
+        # Тема уже применена в main.py, не применяем повторно
         
         # Connect language changes
         translator.language_changed.connect(self._on_language_changed)
@@ -77,6 +88,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setGeometry(100, 100, Sizes.WINDOW_DEFAULT_WIDTH, Sizes.WINDOW_DEFAULT_HEIGHT)
         self.setMinimumSize(Sizes.WINDOW_MIN_WIDTH, Sizes.WINDOW_MIN_HEIGHT)
         self._set_window_icon()
+        
+        # Настройка кастомного title bar через Windows API (если доступно)
+        self._setup_custom_title_bar()
     
     def _set_window_icon(self) -> None:
         """Set window icon from assets."""
@@ -94,6 +108,55 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.setWindowIcon(QIcon(full_path))
                 break
     
+    def _setup_custom_title_bar(self) -> None:
+        """Настройка кастомного title bar для Windows 11+ через DWM API."""
+        if not HAS_WIN32_API:
+            return
+        
+        try:
+            # Windows API константы
+            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            
+            # Получаем HWND окна (после показа окна)
+            def apply_title_bar_theme():
+                try:
+                    hwnd = int(self.winId())
+                    if hwnd:
+                        # Включаем тёмный режим для title bar
+                        value = ctypes.c_int(1 if theme_manager.is_dark_theme() else 0)
+                        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                            wintypes.HWND(hwnd),
+                            DWMWA_USE_IMMERSIVE_DARK_MODE,
+                            ctypes.byref(value),
+                            ctypes.sizeof(value)
+                        )
+                        
+                        # Пытаемся установить цвет caption (Windows 11 22H2+)
+                        try:
+                            DWMWA_CAPTION_COLOR = 35
+                            if theme_manager.is_dark_theme():
+                                caption_color = 0x020617  # наш тёмно-синий цвет
+                            else:
+                                caption_color = 0xf4f6fb  # наш светлый цвет
+                            color_value = wintypes.DWORD(caption_color)
+                            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                                wintypes.HWND(hwnd),
+                                DWMWA_CAPTION_COLOR,
+                                ctypes.byref(color_value),
+                                ctypes.sizeof(color_value)
+                            )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            
+            # Применяем после показа окна
+            QTimer.singleShot(100, apply_title_bar_theme)
+            # Также применяем при смене темы
+            theme_manager.theme_changed.connect(lambda: QTimer.singleShot(100, apply_title_bar_theme))
+        except Exception:
+            pass
+    
     def _setup_ui(self) -> None:
         """Initialize main UI components."""
         central_widget = QtWidgets.QWidget()
@@ -107,17 +170,20 @@ class MainWindow(QtWidgets.QMainWindow):
         left_panel = self._create_left_panel()
         left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
         left_panel.setMaximumWidth(Sizes.LEFT_PANEL_MAX_WIDTH)
+        left_panel.setObjectName("left_panel")
         hsplit.addWidget(left_panel)
         
         # CENTER PANEL: Console logs
         self._console_panel = ConsolePanelView()
         self._console_panel.setMinimumWidth(Sizes.CENTER_PANEL_MIN_WIDTH)
+        self._console_panel.setObjectName("console_panel")
         hsplit.addWidget(self._console_panel)
         
         # RIGHT PANEL: Counters
         right_panel = self._create_right_panel()
         right_panel.setMinimumWidth(Sizes.RIGHT_PANEL_MIN_WIDTH)
         right_panel.setMaximumWidth(Sizes.RIGHT_PANEL_MAX_WIDTH)
+        right_panel.setObjectName("right_panel")
         hsplit.addWidget(right_panel)
         
         # Set stretch factors
@@ -128,6 +194,9 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout.addWidget(hsplit)
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
+
+        # Apply current theme classes to all widgets in the hierarchy
+        self._apply_theme_to_hierarchy()
         
         # Connect console signals
         self._console_panel.clear_requested.connect(self._clear_all_logs)
@@ -639,7 +708,8 @@ class MainWindow(QtWidgets.QMainWindow):
             tr("theme_changed", "Theme changed to {theme}").format(theme=theme),
             2000
         )
-        self._apply_theme_to_buttons()
+        # Re-apply theme-specific properties to the whole widget tree
+        self._apply_theme_to_hierarchy()
     
     def _on_language_changed(self, language: str) -> None:
         """Handle language change."""
@@ -699,7 +769,8 @@ class MainWindow(QtWidgets.QMainWindow):
             tr("language_changed", "Language changed to {lang}").format(lang=language),
             2000
         )
-        self._apply_theme_to_buttons()
+        # Language change can recreate menus/toolbars – re-apply theme to hierarchy
+        self._apply_theme_to_hierarchy()
     
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Handle close event - shutdown all ports."""
@@ -765,3 +836,26 @@ class MainWindow(QtWidgets.QMainWindow):
         widget.style().unpolish(widget)
         widget.style().polish(widget)
         widget.update()
+
+    def _apply_theme_to_hierarchy(self) -> None:
+        """
+        Apply current themeClass property to all widgets in the window.
+
+        This makes QSS selectors like QWidget[themeClass=\"dark\"] /
+        QLineEdit[themeClass=\"light\"] work consistently across the UI,
+        not только для вручную зарегистрированных кнопок.
+        """
+        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+
+        # Include the window itself and all child widgets
+        widgets: list[QtWidgets.QWidget] = [self]
+        widgets.extend(self.findChildren(QtWidgets.QWidget))
+
+        for w in widgets:
+            w.setProperty("themeClass", theme_class)
+            self._refresh_widget_style(w)
+        
+        # Специально применяем к панелям для правильного отображения границ
+        if hasattr(self, '_console_panel') and self._console_panel:
+            self._console_panel.setProperty("themeClass", theme_class)
+            self._refresh_widget_style(self._console_panel)

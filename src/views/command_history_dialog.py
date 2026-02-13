@@ -14,6 +14,7 @@ from src.viewmodels.command_history_viewmodel import (
 )
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
+from src.styles.constants import Sizes
 
 
 class CommandHistoryDialog(QtWidgets.QDialog):
@@ -37,43 +38,92 @@ class CommandHistoryDialog(QtWidgets.QDialog):
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(6)
+        layout.setContentsMargins(
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+        )
+        layout.setSpacing(Sizes.LAYOUT_SPACING)
 
+        # Compact toolbar with icon-only actions
         self._toolbar = QtWidgets.QToolBar()
         self._toolbar.setIconSize(QtCore.QSize(18, 18))
+        self._toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         layout.addWidget(self._toolbar)
 
-        self._act_send = self._toolbar.addAction(QtGui.QIcon("assets/icons/fa/paper-plane.svg"), tr("history_send", "Send"))
-        self._act_edit = self._toolbar.addAction(QtGui.QIcon("assets/icons/fa/floppy-disk.svg"), tr("history_edit", "Insert"))
-        self._act_delete = self._toolbar.addAction(QtGui.QIcon("assets/icons/fa/trash.svg"), tr("history_delete", "Delete"))
-        self._act_clear = self._toolbar.addAction(QtGui.QIcon("assets/icons/fa/clock-rotate-left.svg"), tr("history_clear_all", "Clear All"))
-        self._act_export = self._toolbar.addAction(QtGui.QIcon("assets/icons/fa/floppy-disk_light.svg"), tr("history_export", "Export"))
-
+        self._act_send = self._toolbar.addAction(
+            QtGui.QIcon("assets/icons/fa/paper-plane.svg"),
+            tr("history_send", "Send"),
+        )
+        self._act_edit = self._toolbar.addAction(
+            QtGui.QIcon("assets/icons/fa/floppy-disk.svg"),
+            tr("history_edit", "Insert"),
+        )
+        self._act_delete = self._toolbar.addAction(
+            QtGui.QIcon("assets/icons/fa/trash.svg"),
+            tr("history_delete", "Delete"),
+        )
         self._toolbar.addSeparator()
+        self._act_clear = self._toolbar.addAction(
+            QtGui.QIcon("assets/icons/fa/clock-rotate-left.svg"),
+            tr("history_clear_all", "Clear All"),
+        )
+        self._act_export = self._toolbar.addAction(
+            QtGui.QIcon("assets/icons/fa/floppy-disk_light.svg"),
+            tr("history_export", "Export"),
+        )
+
+        # Use action texts as tooltips in icon-only mode
+        for act in (
+            self._act_send,
+            self._act_edit,
+            self._act_delete,
+            self._act_clear,
+            self._act_export,
+        ):
+            act.setToolTip(act.text())
+
+        # Search row
         self._search = QtWidgets.QLineEdit()
-        self._search.setPlaceholderText(tr("history_search_placeholder", "Search..."))
+        self._search.setPlaceholderText(
+            tr("history_search_placeholder", "Search...")
+        )
+        self._search.setMaximumWidth(Sizes.SEARCH_FIELD_MAX_WIDTH)
+
         search_widget = QtWidgets.QWidget()
         search_layout = QtWidgets.QHBoxLayout(search_widget)
         search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.setSpacing(Sizes.LAYOUT_SPACING)
         search_layout.addWidget(self._search)
         layout.addWidget(search_widget)
 
+        # Table
         self._table = QtWidgets.QTableView()
         self._table.setModel(self._proxy_model)
         self._table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self._table.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self._table.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
         self._table.setAlternatingRowColors(True)
         header = self._table.horizontalHeader()
         header.setStretchLastSection(True)
         header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         layout.addWidget(self._table)
 
+        # Summary + close aligned to the right
+        bottom_row = QtWidgets.QHBoxLayout()
+        bottom_row.setContentsMargins(0, 0, 0, 0)
+        bottom_row.setSpacing(Sizes.LAYOUT_SPACING)
+
         self._lbl_summary = QtWidgets.QLabel()
-        layout.addWidget(self._lbl_summary)
+        bottom_row.addWidget(self._lbl_summary)
+        bottom_row.addStretch(1)
 
         self._btn_close = QtWidgets.QPushButton(tr("history_close", "Close"))
-        layout.addWidget(self._btn_close)
+        bottom_row.addWidget(self._btn_close)
+
+        layout.addLayout(bottom_row)
 
         self._update_summary()
 

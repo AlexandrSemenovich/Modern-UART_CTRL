@@ -3,10 +3,12 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect
 )
 from PySide6.QtCore import Qt, QTimer, QElapsedTimer, QObject, Signal
-from PySide6.QtGui import QPixmap, QColor, QFont
+from PySide6.QtGui import QPixmap, QColor
 import os
 
 from src.utils.translator import tr, translator
+from src.utils.theme_manager import theme_manager
+from src.styles.constants import Fonts
 
 
 class ModernSplashScreen(QWidget):
@@ -39,9 +41,6 @@ class ModernSplashScreen(QWidget):
         shadow.setColor(QColor(0, 0, 0, 200))
         self.background.setGraphicsEffect(shadow)
         
-        # Применяем стиль фона в зависимости от темы
-        self._apply_theme()
-        
         # Иконка
         self.lbl_icon = QLabel(self.background)
         self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -54,21 +53,25 @@ class ModernSplashScreen(QWidget):
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_title.setGeometry(0, 200, 380, 40)
         self.lbl_title.setObjectName("SplashTitle")
-        self.lbl_title.setFont(QFont("Arial", 24, QFont.Weight.Bold))
+        title_font = Fonts.get_title_font()
+        title_font.setPointSize(24)
+        self.lbl_title.setFont(title_font)
         
         # Подзаголовок
         self.lbl_subtitle = QLabel(tr("splash_subtitle", "Modern COM Port Control"), self.background)
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setGeometry(0, 235, 380, 20)
         self.lbl_subtitle.setObjectName("SplashSubtitle")
-        self.lbl_subtitle.setFont(QFont("Arial", 11))
+        subtitle_font = Fonts.get_default_font()
+        subtitle_font.setPointSize(11)
+        self.lbl_subtitle.setFont(subtitle_font)
         
         # Статус загрузки
         self.lbl_status = QLabel(tr("loading", "Initializing..."), self.background)
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_status.setGeometry(0, 350, 380, 20)
         self.lbl_status.setObjectName("SplashStatus")
-        self.lbl_status.setFont(QFont("Arial", 10))
+        self.lbl_status.setFont(Fonts.get_default_font())
         
         # Прогресс-бар
         self.progress = QProgressBar(self.background)
@@ -76,74 +79,24 @@ class ModernSplashScreen(QWidget):
         self.progress.setTextVisible(False)
         self.progress.setRange(0, 100)
         self.progress.setObjectName("SplashProgress")
+
+        # Применяем стиль фона в зависимости от темы (после создания всех виджетов)
+        self._apply_theme()
         
     
     def _apply_theme(self):
-        """Применение темы к splash экрану"""
-        if self.theme_mode == "dark":
-            # Темная тема
-            self.background.setStyleSheet("""
-                QLabel#SplashCard {
-                    background: rgba(30, 30, 30, 0.95);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 15px;
-                }
-                QLabel#SplashIcon {
-                    color: #ffffff;
-                }
-                QLabel#SplashTitle {
-                    color: #ffffff;
-                    font-weight: bold;
-                }
-                QLabel#SplashSubtitle {
-                    color: #b0b0b0;
-                }
-                QLabel#SplashStatus {
-                    color: #ffffff;
-                }
-                QProgressBar#SplashProgress {
-                    background: rgba(255, 255, 255, 0.1);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    border-radius: 3px;
-                    height: 6px;
-                }
-                QProgressBar#SplashProgress::chunk {
-                    background: rgba(100, 150, 255, 0.8);
-                    border-radius: 3px;
-                }
-            """)
-        else:
-            # Светлая тема
-            self.background.setStyleSheet("""
-                QLabel#SplashCard {
-                    background: rgba(255, 255, 255, 0.95);
-                    border: 1px solid rgba(0, 0, 0, 0.1);
-                    border-radius: 15px;
-                }
-                QLabel#SplashIcon {
-                    color: #000000;
-                }
-                QLabel#SplashTitle {
-                    color: #000000;
-                    font-weight: bold;
-                }
-                QLabel#SplashSubtitle {
-                    color: #666666;
-                }
-                QLabel#SplashStatus {
-                    color: #000000;
-                }
-                QProgressBar#SplashProgress {
-                    background: rgba(0, 0, 0, 0.05);
-                    border: 1px solid rgba(0, 0, 0, 0.1);
-                    border-radius: 3px;
-                    height: 6px;
-                }
-                QProgressBar#SplashProgress::chunk {
-                    background: rgba(100, 150, 255, 0.8);
-                    border-radius: 3px;
-                }
-            """)
+        """Применение темы к splash экрану - использует общую систему стилей"""
+        # Используем theme_mode, переданный при создании splash screen
+        # Это гарантирует, что splash screen использует ту же тему, что и приложение
+        effective_theme = self.theme_mode
+        
+        # Устанавливаем themeClass для применения QSS
+        self.setProperty("themeClass", effective_theme)
+        self.background.setProperty("themeClass", effective_theme)
+        self.lbl_title.setProperty("themeClass", effective_theme)
+        self.lbl_subtitle.setProperty("themeClass", effective_theme)
+        self.lbl_status.setProperty("themeClass", effective_theme)
+        self.progress.setProperty("themeClass", effective_theme)
     
     def _set_icon(self):
         """Установка иконки splash экрана в зависимости от темы"""
@@ -169,7 +122,9 @@ class ModernSplashScreen(QWidget):
         
         # Если иконки нет, показываем логотип текстом
         self.lbl_icon.setText(tr("splash_logo_text", "UART"))
-        self.lbl_icon.setFont(QFont("Arial", 48, QFont.Weight.Bold))
+        logo_font = Fonts.get_title_font()
+        logo_font.setPointSize(48)
+        self.lbl_icon.setFont(logo_font)
     
     def update_progress(self, value: int, status_text: str = None):
         """Обновление прогресса и статуса"""
