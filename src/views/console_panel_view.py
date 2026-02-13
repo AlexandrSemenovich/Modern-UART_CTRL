@@ -60,6 +60,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._config = config or {}
         self._port_labels: List[str] = ['CPU1', 'CPU2', 'TLM']
         self._log_widgets: Dict[str, LogWidget] = {}
+        self._combined_log_widgets: Dict[str, QtWidgets.QTextEdit] = {}
         self._log_cache: Dict[str, List[str]] = {}
         self._max_lines: int = self._config.get('max_lines', 10000)
         
@@ -185,6 +186,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         cpu1_layout.addWidget(cpu1_label, 0)
         
         cpu1_log = self._create_log_edit()
+        self._combined_log_widgets['CPU1'] = cpu1_log
         cpu1_layout.addWidget(cpu1_log, 1)
         
         layout.addLayout(cpu1_layout, 1)
@@ -197,6 +199,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         cpu2_layout.addWidget(cpu2_label, 0)
         
         cpu2_log = self._create_log_edit()
+        self._combined_log_widgets['CPU2'] = cpu2_log
         cpu2_layout.addWidget(cpu2_log, 1)
         
         layout.addLayout(cpu2_layout, 1)
@@ -280,7 +283,16 @@ class ConsolePanelView(QtWidgets.QWidget):
                     widget.text_edit.append(truncated_html)
                     # Trim old content to prevent memory exhaustion
                     self._trim_document_if_needed(widget.text_edit)
+                    self._append_to_combined(port_label, truncated_html)
         self._pending_updates.clear()
+
+    def _append_to_combined(self, port_label: str, html_chunk: str) -> None:
+        """Mirror CPU1/CPU2 updates inside the combined tab."""
+        if port_label not in self._combined_log_widgets:
+            return
+        text_edit = self._combined_log_widgets[port_label]
+        text_edit.append(html_chunk)
+        self._trim_document_if_needed(text_edit)
     
     def _trim_document_if_needed(self, text_edit: QtWidgets.QTextEdit) -> None:
         """
@@ -452,9 +464,10 @@ class ConsolePanelView(QtWidgets.QWidget):
         for port_label, widget in self._log_widgets.items():
             if widget.text_edit:
                 widget.text_edit.clear()
+        for text_edit in self._combined_log_widgets.values():
+            text_edit.clear()
         
         self._log_cache.clear()
-        self.clear_requested.emit()
     
     def save_logs(self) -> None:
         """Request to save logs."""
