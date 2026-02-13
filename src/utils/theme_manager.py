@@ -9,6 +9,8 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, Signal, QSettings
 from PySide6.QtGui import QPalette, QColor
 
+from src.utils.config_loader import config_loader
+
 
 class ThemeManager(QObject):
     """Singleton manager for application themes."""
@@ -106,7 +108,8 @@ class ThemeManager(QObject):
             self._last_modified = current_modified
 
         if self._stylesheet_cache:
-            app.setStyleSheet(self._stylesheet_cache)
+            themed_stylesheet = self._format_stylesheet(self._stylesheet_cache)
+            app.setStyleSheet(themed_stylesheet)
 
     def _load_stylesheet(self) -> str:
         """Load application stylesheet from disk."""
@@ -115,6 +118,33 @@ class ThemeManager(QObject):
                 return handle.read()
         except OSError:
             return ""
+
+    def _format_stylesheet(self, template: str) -> str:
+        """Inject theme-specific color values into the stylesheet template."""
+        theme = "light" if self.current_theme == "light" else "dark"
+        button_colors = config_loader.get_button_colors(theme)
+        palette = {
+            "$command_combo_active": button_colors.command_combo_active,
+            "$command_combo_connecting": button_colors.command_combo_connecting,
+            "$command_combo_inactive": button_colors.command_combo_inactive,
+            "$command_cpu1_active": button_colors.command_cpu1_active,
+            "$command_cpu1_connecting": button_colors.command_cpu1_connecting,
+            "$command_cpu1_inactive": button_colors.command_cpu1_inactive,
+            "$command_cpu2_active": button_colors.command_cpu2_active,
+            "$command_cpu2_connecting": button_colors.command_cpu2_connecting,
+            "$command_cpu2_inactive": button_colors.command_cpu2_inactive,
+            "$command_tlm_active": button_colors.command_tlm_active,
+            "$command_tlm_connecting": button_colors.command_tlm_connecting,
+            "$command_tlm_inactive": button_colors.command_tlm_inactive,
+            "$command_text_active": button_colors.command_text_active,
+            "$command_text_connecting": button_colors.command_text_connecting,
+            "$command_text_inactive": button_colors.command_text_inactive,
+        }
+
+        themed = template
+        for token, value in palette.items():
+            themed = themed.replace(token, value)
+        return themed
 
     def is_dark_theme(self) -> bool:
         """Check if current theme is dark."""

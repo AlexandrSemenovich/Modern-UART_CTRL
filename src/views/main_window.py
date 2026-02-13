@@ -25,7 +25,7 @@ from src.utils.translator import translator, tr
 from src.styles.constants import Fonts, Sizes, SerialConfig
 from src.views.port_panel_view import PortPanelView
 from src.views.console_panel_view import ConsolePanelView
-from src.viewmodels.com_port_viewmodel import ComPortViewModel
+from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -40,6 +40,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Port ViewModels (one per port)
         self._port_viewmodels: Dict[int, ComPortViewModel] = {}
         self._port_views: Dict[int, PortPanelView] = {}
+        self._port_states: Dict[int, PortConnectionState] = {}
         self._error_dialogs: List[QtWidgets.QMessageBox] = []
         self._themed_buttons: List[QtWidgets.QPushButton] = []
         
@@ -158,7 +159,8 @@ class MainWindow(QtWidgets.QMainWindow):
             # Create ViewModel
             viewmodel = ComPortViewModel(port_label, port_num)
             self._port_viewmodels[port_num] = viewmodel
-            
+            self._port_states[port_num] = viewmodel.state
+             
             # Create View
             port_view = PortPanelView(viewmodel)
             self._port_views[port_num] = port_view
@@ -181,10 +183,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     tr(key, key.upper()), vm, msg
                 )
             )
-        
+            viewmodel.state_changed.connect(
+                lambda state, num=port_num: self._on_port_state_changed(num, state)
+            )
+
         # Command input section
         command_group = self._create_command_group()
         layout.addWidget(command_group)
+        self._update_command_controls()
 
         layout.addStretch()
         content.setLayout(layout)
@@ -227,6 +233,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Fixed,
         )
         self._register_button(self._btn_combo, "primary")
+        self._btn_combo.setProperty("semanticRole", "command_combo")
         self._btn_combo.clicked.connect(lambda: self._send_command(0))
         buttons_layout.addWidget(self._btn_combo, 0, 0)
 
@@ -238,6 +245,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Fixed,
         )
         self._register_button(self._btn_cpu1, "secondary")
+        self._btn_cpu1.setProperty("semanticRole", "command_cpu1")
         self._btn_cpu1.clicked.connect(lambda: self._send_command(1))
         buttons_layout.addWidget(self._btn_cpu1, 0, 1)
 
@@ -249,6 +257,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Fixed,
         )
         self._register_button(self._btn_cpu2, "secondary")
+        self._btn_cpu2.setProperty("semanticRole", "command_cpu2")
         self._btn_cpu2.clicked.connect(lambda: self._send_command(2))
         buttons_layout.addWidget(self._btn_cpu2, 1, 0)
 
@@ -260,6 +269,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Fixed,
         )
         self._register_button(self._btn_tlm, "secondary")
+        self._btn_tlm.setProperty("semanticRole", "command_tlm")
         self._btn_tlm.clicked.connect(lambda: self._send_command(3))
         buttons_layout.addWidget(self._btn_tlm, 1, 1)
         
@@ -559,6 +569,56 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self._history_index = new_index
         self._le_command.setText(self._command_history[new_index])
+
+    def _on_port_state_changed(self, port_num: int, state: str | PortConnectionState) -> None:
+        """Track port connection state and refresh command controls."""
+        normalized = self._normalize_state(state)
+        self._port_states[port_num] = normalized
+        self._update_command_controls()
+
+    def _normalize_state(self, state: str | PortConnectionState) -> PortConnectionState:
+        if isinstance(state, PortConnectionState):
+            return state
+        candidate = str(state).split('.')[-1].lower()
+        for option in PortConnectionState:
+            if option.value == candidate or option.name.lower() == candidate:
+                return option
+        return PortConnectionState.DISCONNECTED
+
+    def _update_command_controls(self) -> None:
+        """Enable send buttons only when their ports are connected."""
+        if not hasattr(self, "_btn_cpu1"):
+            return
+
+        cpu1_connected = self._port_states.get(1) == PortConnectionState.CONNECTED
+        cpu2_connected = self._port_states.get(2) == PortConnectionState.CONNECTED
+        tlm_connected = self._port_states.get(3) == PortConnectionState.CONNECTED
+        cpu1_connecting = self._port_states.get(1) == PortConnectionState.CONNECTING
+        cpu2_connecting = self._port_states.get(2) == PortConnectionState.CONNECTING
+        tlm_connecting = self._port_states.get(3) == PortConnectionState.CONNECTING
+
+        self._apply_command_button_state(self._btn_cpu1, cpu1_connected, cpu1_connecting)
+        self._apply_command_button_state(self._btn_cpu2, cpu2_connected, cpu2_connecting)
+        self._apply_command_button_state(self._btn_tlm, tlm_connected, tlm_connecting)
+        self._apply_command_button_state(
+            self._btn_combo,
+            cpu1_connected and cpu2_connected,
+            cpu1_connecting or cpu2_connecting,
+        )
+
+    def _apply_command_button_state(
+        self,
+        button: QtWidgets.QPushButton,
+        is_active: bool,
+        is_connecting: bool,
+    ) -> None:
+        button.setEnabled(is_active or is_connecting)
+        button.setProperty("dataActive", "true" if is_active else "false")
+        button.setProperty(
+            "dataState",
+            "connecting" if is_connecting and not is_active else "default",
+        )
+        self._refresh_widget_style(button)
     
     def _clear_all_logs(self) -> None:
         """Clear all console logs."""

@@ -208,6 +208,130 @@ QPushButton[class~="icon-only"] {
     padding: 4px 6px;
 }
 
+/* Command buttons */
+QPushButton[semanticRole="command_combo"][themeClass="dark"][dataActive="true"] {
+    background: $command_combo_active;
+    color: $command_text_active;
+    border: 1px solid $command_combo_active;
+}
+QPushButton[semanticRole="command_combo"][themeClass="dark"][dataState="connecting"] {
+    background: $command_combo_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_combo_connecting;
+}
+QPushButton[semanticRole="command_combo"][themeClass="dark"][dataActive="false"] {
+    background: $command_combo_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_combo_inactive;
+}
+QPushButton[semanticRole="command_cpu1"][themeClass="dark"][dataActive="true"] {
+    background: $command_cpu1_active;
+    color: $command_text_active;
+    border: 1px solid $command_cpu1_active;
+}
+QPushButton[semanticRole="command_cpu1"][themeClass="dark"][dataState="connecting"] {
+    background: $command_cpu1_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_cpu1_connecting;
+}
+QPushButton[semanticRole="command_cpu1"][themeClass="dark"][dataActive="false"] {
+    background: $command_cpu1_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_cpu1_inactive;
+}
+QPushButton[semanticRole="command_cpu2"][themeClass="dark"][dataActive="true"] {
+    background: $command_cpu2_active;
+    color: $command_text_active;
+    border: 1px solid $command_cpu2_active;
+}
+QPushButton[semanticRole="command_cpu2"][themeClass="dark"][dataState="connecting"] {
+    background: $command_cpu2_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_cpu2_connecting;
+}
+QPushButton[semanticRole="command_cpu2"][themeClass="dark"][dataActive="false"] {
+    background: $command_cpu2_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_cpu2_inactive;
+}
+QPushButton[semanticRole="command_tlm"][themeClass="dark"][dataActive="true"] {
+    background: $command_tlm_active;
+    color: $command_text_active;
+    border: 1px solid $command_tlm_active;
+}
+QPushButton[semanticRole="command_tlm"][themeClass="dark"][dataState="connecting"] {
+    background: $command_tlm_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_tlm_connecting;
+}
+QPushButton[semanticRole="command_tlm"][themeClass="dark"][dataActive="false"] {
+    background: $command_tlm_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_tlm_inactive;
+}
+
+/* Light theme overrides reuse same placeholders */
+QPushButton[semanticRole="command_combo"][themeClass="light"][dataActive="true"] {
+    background: $command_combo_active;
+    color: $command_text_active;
+    border: 1px solid $command_combo_active;
+}
+QPushButton[semanticRole="command_combo"][themeClass="light"][dataState="connecting"] {
+    background: $command_combo_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_combo_connecting;
+}
+QPushButton[semanticRole="command_combo"][themeClass="light"][dataActive="false"] {
+    background: $command_combo_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_combo_inactive;
+}
+QPushButton[semanticRole="command_cpu1"][themeClass="light"][dataActive="true"] {
+    background: $command_cpu1_active;
+    color: $command_text_active;
+    border: 1px solid $command_cpu1_active;
+}
+QPushButton[semanticRole="command_cpu1"][themeClass="light"][dataState="connecting"] {
+    background: $command_cpu1_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_cpu1_connecting;
+}
+QPushButton[semanticRole="command_cpu1"][themeClass="light"][dataActive="false"] {
+    background: $command_cpu1_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_cpu1_inactive;
+}
+QPushButton[semanticRole="command_cpu2"][themeClass="light"][dataActive="true"] {
+    background: $command_cpu2_active;
+    color: $command_text_active;
+    border: 1px solid $command_cpu2_active;
+}
+QPushButton[semanticRole="command_cpu2"][themeClass="light"][dataState="connecting"] {
+    background: $command_cpu2_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_cpu2_connecting;
+}
+QPushButton[semanticRole="command_cpu2"][themeClass="light"][dataActive="false"] {
+    background: $command_cpu2_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_cpu2_inactive;
+}
+QPushButton[semanticRole="command_tlm"][themeClass="light"][dataActive="true"] {
+    background: $command_tlm_active;
+    color: $command_text_active;
+    border: 1px solid $command_tlm_active;
+}
+QPushButton[semanticRole="command_tlm"][themeClass="light"][dataState="connecting"] {
+    background: $command_tlm_connecting;
+    color: $command_text_connecting;
+    border: 1px solid $command_tlm_connecting;
+}
+QPushButton[semanticRole="command_tlm"][themeClass="light"][dataActive="false"] {
+    background: $command_tlm_inactive;
+    color: $command_text_inactive;
+    border: 1px solid $command_tlm_inactive;
+}
+
 /* Line edits and combo boxes */
 QLineEdit, QComboBox {
     padding: 4px;

@@ -20,6 +20,25 @@ class ThemeColors:
 
 
 @dataclass
+class ButtonColors:
+    command_combo_active: str
+    command_combo_connecting: str
+    command_combo_inactive: str
+    command_cpu1_active: str
+    command_cpu1_connecting: str
+    command_cpu1_inactive: str
+    command_cpu2_active: str
+    command_cpu2_connecting: str
+    command_cpu2_inactive: str
+    command_tlm_active: str
+    command_tlm_connecting: str
+    command_tlm_inactive: str
+    command_text_active: str
+    command_text_connecting: str
+    command_text_inactive: str
+
+
+@dataclass
 class FontConfig:
     default_family: str
     default_size: int
@@ -90,6 +109,43 @@ class ConfigLoader:
             ),
         }
 
+        self._default_button_colors = {
+            "dark": ButtonColors(
+                command_combo_active="#8b5cf6",
+                command_combo_connecting="#a78bfa",
+                command_combo_inactive="#2b2440",
+                command_cpu1_active="#16a34a",
+                command_cpu1_connecting="#22c55e",
+                command_cpu1_inactive="#1f2d26",
+                command_cpu2_active="#0891b2",
+                command_cpu2_connecting="#22d3ee",
+                command_cpu2_inactive="#192a30",
+                command_tlm_active="#e11d48",
+                command_tlm_connecting="#fb7185",
+                command_tlm_inactive="#2f1d24",
+                command_text_active="#f8fafc",
+                command_text_connecting="#0f172a",
+                command_text_inactive="#7f8596",
+            ),
+            "light": ButtonColors(
+                command_combo_active="#5b21b6",
+                command_combo_connecting="#8b5cf6",
+                command_combo_inactive="#dcd5f7",
+                command_cpu1_active="#15803d",
+                command_cpu1_connecting="#34d399",
+                command_cpu1_inactive="#d6f2e3",
+                command_cpu2_active="#0f766e",
+                command_cpu2_connecting="#2dd4bf",
+                command_cpu2_inactive="#d3f3f0",
+                command_tlm_active="#be123c",
+                command_tlm_connecting="#fb7185",
+                command_tlm_inactive="#fdd8e1",
+                command_text_active="#ffffff",
+                command_text_connecting="#0b1120",
+                command_text_inactive="#4b5563",
+            ),
+        }
+
     def _get_section(self, section: str) -> Dict[str, str]:
         if self._config.has_section(section):
             return dict(self._config[section])
@@ -106,6 +162,31 @@ class ConfigLoader:
             tx_label=section.get("tx_label", defaults.tx_label),
             sys_text=section.get("sys_text", defaults.sys_text),
             sys_label=section.get("sys_label", defaults.sys_label),
+        )
+
+    def get_button_colors(self, theme: str) -> ButtonColors:
+        section = self._get_section(f"button_colors.{theme}")
+        defaults = self._default_button_colors["dark" if theme not in self._default_button_colors else theme]
+
+        def _get(key: str, fallback: str) -> str:
+            return section.get(key, fallback)
+
+        return ButtonColors(
+            command_combo_active=_get("command_combo_active", defaults.command_combo_active),
+            command_combo_connecting=_get("command_combo_connecting", defaults.command_combo_connecting),
+            command_combo_inactive=_get("command_combo_inactive", defaults.command_combo_inactive),
+            command_cpu1_active=_get("command_cpu1_active", defaults.command_cpu1_active),
+            command_cpu1_connecting=_get("command_cpu1_connecting", defaults.command_cpu1_connecting),
+            command_cpu1_inactive=_get("command_cpu1_inactive", defaults.command_cpu1_inactive),
+            command_cpu2_active=_get("command_cpu2_active", defaults.command_cpu2_active),
+            command_cpu2_connecting=_get("command_cpu2_connecting", defaults.command_cpu2_connecting),
+            command_cpu2_inactive=_get("command_cpu2_inactive", defaults.command_cpu2_inactive),
+            command_tlm_active=_get("command_tlm_active", defaults.command_tlm_active),
+            command_tlm_connecting=_get("command_tlm_connecting", defaults.command_tlm_connecting),
+            command_tlm_inactive=_get("command_tlm_inactive", defaults.command_tlm_inactive),
+            command_text_active=_get("command_text_active", defaults.command_text_active),
+            command_text_connecting=_get("command_text_connecting", defaults.command_text_connecting),
+            command_text_inactive=_get("command_text_inactive", defaults.command_text_inactive),
         )
 
     def get_fonts(self) -> FontConfig:
