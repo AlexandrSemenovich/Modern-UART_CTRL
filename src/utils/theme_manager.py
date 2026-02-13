@@ -137,39 +137,41 @@ class ThemeManager(QObject):
 
     def _apply_light_theme(self, app: QApplication) -> None:
         """Apply light theme palette: бело-синие аккуратные оттенки."""
+        colors = config_loader.get_palette_colors("light")
         palette = QPalette()
         # Основной фон окна и панелей
-        palette.setColor(QPalette.Window, QColor("#f4f6fb"))  # мягкий светлый синий/серый
-        palette.setColor(QPalette.Base, QColor("#ffffff"))    # фон полей ввода/текста
+        palette.setColor(QPalette.Window, QColor(colors.window))
+        palette.setColor(QPalette.Base, QColor(colors.base))
         # Текст
-        palette.setColor(QPalette.WindowText, QColor("#0f172a"))
-        palette.setColor(QPalette.Text, QColor("#0f172a"))
+        palette.setColor(QPalette.WindowText, QColor(colors.window_text))
+        palette.setColor(QPalette.Text, QColor(colors.text))
         # Кнопки
-        palette.setColor(QPalette.Button, QColor("#e3edff"))
-        palette.setColor(QPalette.ButtonText, QColor("#0f172a"))
+        palette.setColor(QPalette.Button, QColor(colors.button))
+        palette.setColor(QPalette.ButtonText, QColor(colors.button_text))
         # Ссылки и акцент
-        palette.setColor(QPalette.Link, QColor("#2563eb"))       # насыщенный синий
-        palette.setColor(QPalette.Highlight, QColor("#2563eb"))  # выбор/выделение
-        palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
+        palette.setColor(QPalette.Link, QColor(colors.link))
+        palette.setColor(QPalette.Highlight, QColor(colors.highlight))
+        palette.setColor(QPalette.HighlightedText, QColor(colors.highlighted_text))
 
         app.setPalette(palette)
 
     def _apply_dark_theme(self, app: QApplication) -> None:
         """Apply dark theme palette: темно-синий + чёрный."""
+        colors = config_loader.get_palette_colors("dark")
         palette = QPalette()
         # Глубокий тёмный фон с лёгким синим оттенком
-        palette.setColor(QPalette.Window, QColor("#020617"))  # почти чёрный синий
-        palette.setColor(QPalette.Base, QColor("#020617"))
+        palette.setColor(QPalette.Window, QColor(colors.window))
+        palette.setColor(QPalette.Base, QColor(colors.base))
         # Текст
-        palette.setColor(QPalette.WindowText, QColor("#e5e7eb"))
-        palette.setColor(QPalette.Text, QColor("#e5e7eb"))
+        palette.setColor(QPalette.WindowText, QColor(colors.window_text))
+        palette.setColor(QPalette.Text, QColor(colors.text))
         # Кнопки и вторичные поверхности
-        palette.setColor(QPalette.Button, QColor("#020617"))
-        palette.setColor(QPalette.ButtonText, QColor("#e5e7eb"))
+        palette.setColor(QPalette.Button, QColor(colors.button))
+        palette.setColor(QPalette.ButtonText, QColor(colors.button_text))
         # Ссылки и акцент
-        palette.setColor(QPalette.Link, QColor("#60a5fa"))
-        palette.setColor(QPalette.Highlight, QColor("#1d4ed8"))      # тёмный насыщенный синий
-        palette.setColor(QPalette.HighlightedText, QColor("#f9fafb"))
+        palette.setColor(QPalette.Link, QColor(colors.link))
+        palette.setColor(QPalette.Highlight, QColor(colors.highlight))
+        palette.setColor(QPalette.HighlightedText, QColor(colors.highlighted_text))
 
         app.setPalette(palette)
 

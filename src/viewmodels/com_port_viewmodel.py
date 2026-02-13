@@ -14,6 +14,8 @@ from enum import Enum
 from src.utils.translator import tr
 from src.models.serial_worker import SerialWorker
 from src.styles.constants import SerialConfig, SerialPorts
+from src.utils.config_loader import config_loader
+from src.utils.theme_manager import theme_manager
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,10 @@ class ComPortViewModel(QObject):
         
         # Available ports cache
         self._available_ports: list = []
+        
+        # Theme colors - load from config
+        self._colors = config_loader.get_colors(self._current_theme())
+        theme_manager.theme_changed.connect(self._on_theme_changed)
     
     @property
     def port_label(self) -> str:
@@ -134,6 +140,14 @@ class ComPortViewModel(QObject):
     def available_ports(self) -> list:
         """Get list of available COM ports."""
         return self._available_ports.copy()
+    
+    def _current_theme(self) -> str:
+        """Get current theme name."""
+        return "light" if theme_manager.is_light_theme() else "dark"
+    
+    def _on_theme_changed(self, theme: str) -> None:
+        """Handle theme change event."""
+        self._colors = config_loader.get_colors(theme)
     
     def set_port_name(self, port_name: str) -> None:
         """Set the COM port name to connect to."""
@@ -449,8 +463,8 @@ class ComPortViewModel(QObject):
         
         return (
             f"<span style='color:gray'>[{timestamp}]</span> "
-            f"<b style='color:green'>RX({self._port_label}):</b> "
-            f"<span style='color:#c7f0c7; white-space:pre'>{escaped_data}</span><br>"
+            f"<b style='color:{self._colors.rx_label}'>RX({self._port_label}):</b> "
+            f"<span style='color:{self._colors.rx_text}; white-space:pre'>{escaped_data}</span><br>"
         )
     
     def _format_tx_data(self, data: str) -> str:
@@ -470,8 +484,8 @@ class ComPortViewModel(QObject):
         
         return (
             f"<span style='color:gray'>[{timestamp}]</span> "
-            f"<b style='color:#ffdd57'>TX({self._port_label}):</b> "
-            f"<span style='color:#fff7d6; white-space:pre'>{escaped_data}</span><br>"
+            f"<b style='color:{self._colors.tx_label}'>TX({self._port_label}):</b> "
+            f"<span style='color:{self._colors.tx_text}; white-space:pre'>{escaped_data}</span><br>"
         )
     
     def _emit_error(self, message: str) -> None:

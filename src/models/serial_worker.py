@@ -22,6 +22,8 @@ import traceback
 from enum import Enum
 
 from src.utils.translator import tr
+from src.utils.config_loader import config_loader
+from src.styles.constants import CharsetConfig
 
 # Try to import pyserial, provide fallback
 try:
@@ -46,23 +48,6 @@ class LoggingLevel(Enum):
 
 # Default production logging level (WARNING to reduce noise)
 _DEFAULT_LOGGING_LEVEL = LoggingLevel.WARNING
-
-# Common charsets for serial data detection
-COMMON_CHARSETS = [
-    'utf-8',
-    'latin-1',
-    'cp1251',
-    'koi8-r',
-    'iso-8859-1',
-    'ascii',
-]
-
-# Auto-detect charset patterns (common serial data prefixes)
-CHARSET_PATTERNS = {
-    b'\xfe\xff': 'utf-16-be',
-    b'\xff\xfe': 'utf-16-le',
-    b'\xef\xbb\xbf': 'utf-8',
-}
 
 
 def _get_effective_logging_level() -> int:
@@ -113,24 +98,25 @@ class SerialWorker(QThread):
     error = Signal(str, str)       # port_label, error_message
     finished = Signal()            # Worker finished
     
-    # Configuration defaults
+    # Configuration defaults - load from config
+    _timing_config = config_loader.get_serial_timing()
     DEFAULT_TIMEOUT: float = 0.1   # seconds
-    READ_INTERVAL: float = 0.02   # seconds (20ms)
+    READ_INTERVAL: float = _timing_config["default_read_interval"]   # seconds
     DEFAULT_BAUD: int = 115200
     
     # Connection timeout (5 seconds)
-    CONNECTION_TIMEOUT: float = 5.0  # seconds
+    CONNECTION_TIMEOUT: float = _timing_config["connection_timeout"]  # seconds
     
     # Connection retry settings
-    MAX_CONNECTION_ATTEMPTS = 3
-    CONNECTION_RETRY_DELAY = 0.5  # seconds between retries
+    MAX_CONNECTION_ATTEMPTS = _timing_config["max_connection_attempts"]
+    CONNECTION_RETRY_DELAY = _timing_config["connection_retry_delay"]  # seconds between retries
     
     # Charset detection settings
     CHARSET_AUTO_DETECT = True
     CHARSET_DETECTION_LENGTH = 1024  # bytes to sample for auto-detection
     
     # Max consecutive errors before giving up
-    MAX_CONSECUTIVE_ERRORS = 3
+    MAX_CONSECUTIVE_ERRORS = _timing_config["max_consecutive_errors"]
     
     # Max buffer size for incoming data (64KB) - security hardending
     MAX_BUFFER_SIZE = 65536
@@ -301,14 +287,14 @@ class SerialWorker(QThread):
             Detected charset name or None if detection fails
         """
         # Check for BOM patterns first
-        for pattern, charset in CHARSET_PATTERNS.items():
+        for pattern, charset in CharsetConfig.CHARSET_PATTERNS.items():
             if data.startswith(pattern):
                 logger.debug(f"Detected charset '{charset}' from BOM pattern")
                 return charset
         
         # Try to decode with common charsets to find best match
         sample = data[:self.CHARSET_DETECTION_LENGTH]
-        for charset in COMMON_CHARSETS:
+        for charset in CharsetConfig.COMMON_CHARSETS:
             try:
                 sample.decode(charset, errors='strict')
                 # This charset works, but prefer UTF-8 if valid

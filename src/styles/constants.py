@@ -113,8 +113,9 @@ class SerialConfig:
 class SerialPorts:
     """Common serial port definitions and restrictions."""
 
+    _cfg = config_loader.get_ports_config()
     # Reserved system ports that must not be used by the application
-    SYSTEM_PORTS = {"COM1", "COM2"}
+    SYSTEM_PORTS = set(p.strip().upper() for p in _cfg.get("system_ports", "COM1,COM2").split(","))
 
 
 class ConsoleLimits:
@@ -129,3 +130,25 @@ class ConsoleLimits:
     TRIM_CHUNK_SIZE = _cfg.trim_chunk_size
     # Maximum number of cached log lines per port
     MAX_CACHE_LINES = _cfg.max_cache_lines
+
+
+# ==================== Charset Detection ====================
+class CharsetConfig:
+    """Charset detection configuration for serial data."""
+
+    # Common charsets for serial data detection
+    COMMON_CHARSETS = [
+        'utf-8',
+        'latin-1',
+        'cp1251',
+        'koi8-r',
+        'iso-8859-1',
+        'ascii',
+    ]
+
+    # Auto-detect charset patterns (common serial data prefixes)
+    CHARSET_PATTERNS = {
+        b'\xfe\xff': 'utf-16-be',
+        b'\xff\xfe': 'utf-16-le',
+        b'\xef\xbb\xbf': 'utf-8',
+    }

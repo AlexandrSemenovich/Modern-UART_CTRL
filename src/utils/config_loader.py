@@ -74,6 +74,21 @@ class SizeConfig:
 
 
 @dataclass
+class PaletteColors:
+    """QPalette colors for theme application."""
+
+    window: str
+    base: str
+    window_text: str
+    text: str
+    button: str
+    button_text: str
+    link: str
+    highlight: str
+    highlighted_text: str
+
+
+@dataclass
 class ConsoleConfig:
     """Конфигурация консоли/логов."""
 
@@ -158,6 +173,32 @@ class ConfigLoader:
             ),
         }
 
+        # Default QPalette colors for theme application
+        self._default_palette_colors = {
+            "dark": PaletteColors(
+                window="#020617",
+                base="#020617",
+                window_text="#e5e7eb",
+                text="#e5e7eb",
+                button="#020617",
+                button_text="#e5e7eb",
+                link="#60a5fa",
+                highlight="#1d4ed8",
+                highlighted_text="#f9fafb",
+            ),
+            "light": PaletteColors(
+                window="#f4f6fb",
+                base="#ffffff",
+                window_text="#0f172a",
+                text="#0f172a",
+                button="#e3edff",
+                button_text="#0f172a",
+                link="#2563eb",
+                highlight="#2563eb",
+                highlighted_text="#ffffff",
+            ),
+        }
+
     def _get_section(self, section: str) -> Dict[str, str]:
         if self._config.has_section(section):
             return dict(self._config[section])
@@ -225,6 +266,26 @@ class ConfigLoader:
             command_text_inactive=_get("command_text_inactive", defaults.command_text_inactive),
         )
 
+    def get_palette_colors(self, theme: str) -> PaletteColors:
+        """Get QPalette colors for theme application."""
+        section = self._get_section(f"palette.{theme}")
+        defaults = self._default_palette_colors["dark" if theme not in self._default_palette_colors else theme]
+
+        def _get(key: str, fallback: str) -> str:
+            return section.get(key, fallback)
+
+        return PaletteColors(
+            window=_get("window", defaults.window),
+            base=_get("base", defaults.base),
+            window_text=_get("window_text", defaults.window_text),
+            text=_get("text", defaults.text),
+            button=_get("button", defaults.button),
+            button_text=_get("button_text", defaults.button_text),
+            link=_get("link", defaults.link),
+            highlight=_get("highlight", defaults.highlight),
+            highlighted_text=_get("highlighted_text", defaults.highlighted_text),
+        )
+
     def get_fonts(self) -> FontConfig:
         section = self._get_section("fonts")
         return FontConfig(
@@ -263,6 +324,20 @@ class ConfigLoader:
 
     def get_serial_config(self) -> Dict[str, str]:
         return self._get_section("serial_config")
+
+    def get_ports_config(self) -> Dict[str, str]:
+        return self._get_section("ports")
+
+    def get_serial_timing(self) -> Dict[str, float]:
+        """Get serial worker timing settings."""
+        section = self._get_section("serial")
+        return {
+            "default_read_interval": float(section.get("default_read_interval", "0.02")),
+            "connection_timeout": float(section.get("connection_timeout", "5.0")),
+            "connection_retry_delay": float(section.get("connection_retry_delay", "0.5")),
+            "max_connection_attempts": int(section.get("max_connection_attempts", "3")),
+            "max_consecutive_errors": int(section.get("max_consecutive_errors", "3")),
+        }
 
     def get_app_version(self) -> str:
         """Get application version from [app] section."""
