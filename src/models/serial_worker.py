@@ -660,13 +660,20 @@ class SerialWorker(QThread):
         """
         try:
             if self._ser is not None:
-                # Security: Validate data to prevent CRLF injection
-                # Reject data containing embedded newlines (could inject multiple commands)
-                if '\n' in data or '\r' in data:
+                # Normalize trailing end-of-line characters added by callers
+                sanitized_data = data.rstrip('\r\n')
+
+                if not sanitized_data:
+                    logger.warning(f"Rejected empty data for {self._port_label} after trimming line endings")
+                    self._emit_error(tr("worker_invalid_data", "Invalid data: empty payload"))
+                    return False
+
+                # Security: Validate data to prevent CRLF injection within payload
+                if '\n' in sanitized_data or '\r' in sanitized_data:
                     logger.warning(f"Rejected data with embedded newlines for {self._port_label}")
                     self._emit_error(tr("worker_invalid_data", "Invalid data: newlines not allowed"))
                     return False
-                
+                 
                 # TX rate limiting check
                 current_time = time.monotonic()
                 elapsed = current_time - self._last_tx_rate_check
@@ -678,8 +685,8 @@ class SerialWorker(QThread):
                     self._bytes_sent = 0
                     self._last_tx_rate_check = current_time
                 
-                # Add CR+LF to the outgoing data
-                data_to_send = data + '\r\n'
+                # Add CR+LF to the outgoing data once sanitized
+                data_to_send = sanitized_data + '\r\n'
                 data_bytes = len(data_to_send.encode())
                 
                 # Check if adding this data would exceed rate limit
@@ -696,15 +703,15 @@ class SerialWorker(QThread):
                 except SerialException as e:
                     raise
                 
-                self._emit_status(tr("worker_tx_message", "TX: {data}").format(data=data))
+                self._emit_status(tr("worker_tx_message", "TX: {data}").format(data=sanitized_data))
                 
                 # Echo for simulation mode
                 if self._ser is None:
                     self.rx.emit(self._port_label, tr(
                         "worker_simulated_echo", 
                         "(simulated echo) {data}"
-                    ).format(data=data))
-                
+                    ).format(data=sanitized_data))
+
                 return True
             else:
                 # Not connected
