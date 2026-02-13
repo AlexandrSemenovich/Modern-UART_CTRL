@@ -558,6 +558,10 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Порт уже используется",
         "en": "Port already in use",
     },
+    "error_connection_failed": {
+        "ru": "Не удалось подключиться после {attempts} попыток",
+        "en": "Connection failed after {attempts} attempts",
+    },
     "information": {
         "ru": "Информация",
         "en": "Information",

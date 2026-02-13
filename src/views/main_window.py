@@ -453,6 +453,9 @@ class MainWindow(QtWidgets.QMainWindow):
         theme_menu.addAction(tr("system_theme", "System"), 
                             lambda: theme_manager.set_theme("system"))
 
+    # Maximum number of error dialogs to keep
+    _MAX_ERROR_DIALOGS = 5
+    
     def _handle_port_error(self, port_label: str, viewmodel: ComPortViewModel, message: str) -> None:
         plain_msg = message
         if '<' in message:
@@ -460,6 +463,14 @@ class MainWindow(QtWidgets.QMainWindow):
             plain_msg = re.sub('<.*?>', '', message)
         if self._console_panel:
             self._console_panel.append_system(port_label, plain_msg)
+        
+        # Limit number of dialogs to prevent memory leaks
+        if len(self._error_dialogs) >= self._MAX_ERROR_DIALOGS:
+            # Close oldest dialog
+            oldest = self._error_dialogs.pop(0)
+            oldest.close()
+            oldest.deleteLater()
+        
         dialog = QtWidgets.QMessageBox(
             QtWidgets.QMessageBox.Critical,
             tr("error", "Error"),
@@ -467,8 +478,17 @@ class MainWindow(QtWidgets.QMainWindow):
             parent=self,
         )
         dialog.setWindowTitle(tr("error", "Error"))
+        
+        # Auto-cleanup when dialog is closed
+        dialog.finished.connect(lambda _: self._cleanup_error_dialog(dialog))
         dialog.show()
         self._error_dialogs.append(dialog)
+    
+    def _cleanup_error_dialog(self, dialog: QtWidgets.QMessageBox) -> None:
+        """Remove closed dialog from tracking list."""
+        if dialog in self._error_dialogs:
+            self._error_dialogs.remove(dialog)
+            dialog.deleteLater()
     
     def _setup_shortcuts(self) -> None:
         """Setup keyboard shortcuts."""

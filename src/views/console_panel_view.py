@@ -7,12 +7,10 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Signal, Qt, QTimer
 from typing import Optional, Dict, List, Callable
 import html
-
-# Maximum HTML content length to prevent performance issues
-_MAX_HTML_LENGTH: int = 10000
+import re
 
 from src.utils.translator import tr, translator
-from src.styles.constants import Fonts, Sizes
+from src.styles.constants import Fonts, Sizes, ConsoleLimits
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
 
@@ -72,11 +70,17 @@ class ConsolePanelView(QtWidgets.QWidget):
         # Search filter
         self._search_text: str = ""
         
+        # Throttled update state
+        self._pending_updates: Dict[str, List[tuple]] = {}
+        self._update_timer: Optional[QTimer] = None
+        self._update_interval_ms: int = 50  # Batch updates every 50ms
+        
         self._themed_buttons: List[QtWidgets.QPushButton] = []
         self._setup_ui()
         translator.language_changed.connect(self.retranslate_ui)
         theme_manager.theme_changed.connect(self._on_theme_changed)
         self._colors = config_loader.get_colors(self._current_theme())
+        self._init_update_timer()
     
     def _setup_ui(self) -> None:
         """Create and arrange UI elements."""
@@ -249,25 +253,65 @@ class ConsolePanelView(QtWidgets.QWidget):
         Returns:
             Truncated HTML content with ellipsis indicator
         """
-        if len(html_content) <= _MAX_HTML_LENGTH:
+        if len(html_content) <= ConsoleLimits.MAX_HTML_LENGTH:
             return html_content
         
         # Truncate and add indicator
-        truncated = html_content[:_MAX_HTML_LENGTH]
+        truncated = html_content[:ConsoleLimits.MAX_HTML_LENGTH]
         # Close any unclosed tags at the end
         truncated += "...<span style='color:gray'> [truncated]</span>"
         return truncated
     
+    def _init_update_timer(self) -> None:
+        """Initialize the throttled update timer."""
+        self._update_timer = QTimer(self)
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self._flush_pending_updates)
+    
+    def _flush_pending_updates(self) -> None:
+        """Flush all pending log updates to UI."""
+        for port_label, updates in self._pending_updates.items():
+            if port_label in self._log_widgets:
+                widget = self._log_widgets[port_label]
+                if widget.text_edit:
+                    # Batch all updates for this port
+                    combined_html = "".join([u[0] for u in updates])
+                    truncated_html = self._truncate_html(combined_html)
+                    widget.text_edit.append(truncated_html)
+                    # Trim old content to prevent memory exhaustion
+                    self._trim_document_if_needed(widget.text_edit)
+        self._pending_updates.clear()
+    
+    def _trim_document_if_needed(self, text_edit: QtWidgets.QTextEdit) -> None:
+        """
+        Trim document content if it exceeds MAX_DOCUMENT_LINES.
+        Uses chunked removal to minimize UI updates.
+        """
+        doc = text_edit.document()
+        if doc.lineCount() > ConsoleLimits.MAX_DOCUMENT_LINES:
+            # Remove old content in chunks
+            cursor = QtWidgets.QTextCursor(doc)
+            cursor.movePosition(QtGui.QTextCursor.Start)
+            # Delete lines in chunks to stay within limit
+            lines_to_remove = (
+                doc.lineCount()
+                - ConsoleLimits.MAX_DOCUMENT_LINES
+                + ConsoleLimits.TRIM_CHUNK_SIZE
+            )
+            cursor.movePosition(QtGui.QTextCursor.Down, QtGui.QTextCursor.KeepAnchor, lines_to_remove)
+            cursor.removeText()
+    
     def append_log(self, port_label: str, html_content: str, plain_text: str) -> None:
         """
         Append log content to a specific port's log.
+        Uses throttled updates for better performance.
         
         Args:
             port_label: Port identifier (CPU1, CPU2, TLM)
             html_content: HTML formatted content
             plain_text: Plain text version
         """
-        # Add to cache
+        # Add to cache immediately
         if port_label not in self._log_cache:
             self._log_cache[port_label] = []
         
@@ -278,13 +322,14 @@ class ConsolePanelView(QtWidgets.QWidget):
         if len(self._log_cache[port_label]) > max_cache:
             self._log_cache[port_label] = self._log_cache[port_label][-max_cache:]
         
-        # Get widget
-        if port_label in self._log_widgets:
-            widget = self._log_widgets[port_label]
-            if widget.text_edit:
-                # Truncate HTML to prevent performance issues
-                truncated_html = self._truncate_html(html_content)
-                widget.text_edit.append(truncated_html)
+        # Queue UI update for throttling
+        if port_label not in self._pending_updates:
+            self._pending_updates[port_label] = []
+        self._pending_updates[port_label].append((html_content, plain_text))
+        
+        # Trigger timer if not already running
+        if self._update_timer and not self._update_timer.isActive():
+            self._update_timer.start(self._update_interval_ms)
     
     def append_rx(self, port_label: str, data: str) -> None:
         """
@@ -352,30 +397,38 @@ class ConsolePanelView(QtWidgets.QWidget):
         if not text or not text.strip():
             return ""
         
-        # Remove trailing line endings
+        # Remove trailing line endings and убрать пустые строки
         text = text.rstrip('\r\n')
+        lines = [line for line in text.splitlines() if line.strip()]
+        text = "\n".join(lines)
         
-        parts = []
+        header_parts = []
         colors = self._colors
         timestamp = QtCore.QDateTime.currentDateTime().toString('hh:mm:ss')
         if self._show_time:
-            parts.append(f"<span style='color:{colors.timestamp}'>[{timestamp}]</span> ")
-        
+            header_parts.append(f"<span style='color:{colors.timestamp}'>[{timestamp}]</span>")
         if self._show_source:
             label_color = {
                 "RX": colors.rx_label,
                 "TX": colors.tx_label,
                 "SYS": colors.sys_label,
             }.get(msg_type, colors.sys_label)
-            parts.append(f"<b style='color:{label_color}'>{msg_type}({port_label}):</b> ")
-        
+            header_parts.append(f"<b style='color:{label_color}'>{msg_type}({port_label}):</b>")
+        header = " ".join(header_parts).strip()
+
         body_color = {
             "RX": colors.rx_text,
             "TX": colors.tx_text,
             "SYS": colors.sys_text,
         }.get(msg_type, colors.sys_text)
-        parts.append(f"<span style='color:{body_color}; white-space:pre'>{html.escape(text)}</span>")
-        return "".join(parts)
+
+        header_html = f"{header} " if header else ""
+
+        return (
+            "<div style='white-space:pre-wrap; margin:0 0 0.25em 0'>"
+            f"{header_html}<span style='color:{body_color}'>{html.escape(text)}</span>"
+            "</div>"
+        )
 
     def _current_theme(self) -> str:
         return "light" if theme_manager.is_light_theme() else "dark"

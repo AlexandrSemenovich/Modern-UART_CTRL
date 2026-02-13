@@ -110,13 +110,8 @@ class ThemeManager(QObject):
 
     def _load_stylesheet(self) -> str:
         """Load application stylesheet from disk."""
-        qss_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "styles",
-            "app.qss",
-        )
         try:
-            with open(qss_path, "r", encoding="utf-8") as handle:
+            with open(self._qss_path, "r", encoding="utf-8") as handle:
                 return handle.read()
         except OSError:
             return ""

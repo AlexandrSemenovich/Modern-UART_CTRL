@@ -108,3 +108,18 @@ class SerialConfig:
     PORT_LABEL_2 = _cfg.get("port_label_2", "CPU2")
     PORT_LABEL_TLM = _cfg.get("port_label_3", "TLM")
     DEFAULT_PORTS = _cfg.get("default_ports", "COM1,COM2,COM3,COM4,COM5").split(",")
+
+
+class SerialPorts:
+    """Common serial port definitions and restrictions."""
+
+    # Reserved system ports that must not be used by the application
+    SYSTEM_PORTS = {"COM1", "COM2"}
+
+
+class ConsoleLimits:
+    """Constraints for console widgets to prevent memory bloat."""
+
+    MAX_HTML_LENGTH = 10_000
+    MAX_DOCUMENT_LINES = 1_000
+    TRIM_CHUNK_SIZE = 500

@@ -7,6 +7,9 @@ Refactored with:
 - Improved error handling with logging
 - Configurable timing
 - Better exception hierarchy
+- Connection timeout support
+- Production logging levels
+- Charset detection options
 """
 
 from PySide6 import QtCore
@@ -16,6 +19,7 @@ import logging
 import queue
 import time
 import traceback
+from enum import Enum
 
 from src.utils.translator import tr
 
@@ -31,6 +35,59 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+
+# Logging levels for production vs development
+class LoggingLevel(Enum):
+    """Logging level configuration."""
+    DEBUG = logging.DEBUG
+    INFO = logging.INFO
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
+
+# Default production logging level (WARNING to reduce noise)
+_DEFAULT_LOGGING_LEVEL = LoggingLevel.WARNING
+
+# Common charsets for serial data detection
+COMMON_CHARSETS = [
+    'utf-8',
+    'latin-1',
+    'cp1251',
+    'koi8-r',
+    'iso-8859-1',
+    'ascii',
+]
+
+# Auto-detect charset patterns (common serial data prefixes)
+CHARSET_PATTERNS = {
+    b'\xfe\xff': 'utf-16-be',
+    b'\xff\xfe': 'utf-16-le',
+    b'\xef\xbb\xbf': 'utf-8',
+}
+
+
+def _get_effective_logging_level() -> int:
+    """Get the effective logging level based on environment."""
+    import os
+    env_level = os.environ.get('SERIAL_WORKER_LOG_LEVEL')
+    if env_level:
+        level_map = {
+            'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR,
+        }
+        return level_map.get(env_level.upper(), _DEFAULT_LOGGING_LEVEL.value)
+    return _DEFAULT_LOGGING_LEVEL.value
+
+
+# Set default logging level for this module
+logging.addLevelName(logging.DEBUG, 'DEBUG')
+logging.addLevelName(logging.INFO, 'INFO')
+logging.addLevelName(logging.WARNING, 'WARNING')
+logging.addLevelName(logging.ERROR, 'ERROR')
+
+# Apply default logging level
+logger.setLevel(_get_effective_logging_level())
 
 
 class SerialWorker(QThread):
@@ -61,6 +118,17 @@ class SerialWorker(QThread):
     READ_INTERVAL: float = 0.02   # seconds (20ms)
     DEFAULT_BAUD: int = 115200
     
+    # Connection timeout (5 seconds)
+    CONNECTION_TIMEOUT: float = 5.0  # seconds
+    
+    # Connection retry settings
+    MAX_CONNECTION_ATTEMPTS = 3
+    CONNECTION_RETRY_DELAY = 0.5  # seconds between retries
+    
+    # Charset detection settings
+    CHARSET_AUTO_DETECT = True
+    CHARSET_DETECTION_LENGTH = 1024  # bytes to sample for auto-detection
+    
     # Max consecutive errors before giving up
     MAX_CONSECUTIVE_ERRORS = 3
     
@@ -69,6 +137,9 @@ class SerialWorker(QThread):
     
     # Rate limiting: max bytes per second (1MB/s) - DoS protection
     MAX_BYTES_PER_SECOND = 1024 * 1024
+    
+    # TX rate limiting: max bytes per second (256KB/s)
+    MAX_TX_BYTES_PER_SECOND = 256 * 1024
     
     # Max write size (64KB) - security hardening
     MAX_WRITE_SIZE = 65536
@@ -97,6 +168,12 @@ class SerialWorker(QThread):
         self._timeout: float = self._config.get('timeout', self.DEFAULT_TIMEOUT)
         self._read_interval: float = self._config.get('read_interval', self.READ_INTERVAL)
         
+        # Charset configuration for serial data decoding
+        self._charset: str = self._config.get('charset', 'utf-8')
+        self._charset_errors: str = self._config.get('charset_errors', 'replace')  # 'replace', 'ignore', 'strict'
+        self._charset_auto_detect: bool = self._config.get('charset_auto_detect', False)
+        self._detected_charset: Optional[str] = None
+        
         # Thread control
         self._running: bool = False
         self._write_q: queue.Queue = queue.Queue()
@@ -114,32 +191,53 @@ class SerialWorker(QThread):
         # Rate limiting: track bytes received per second
         self._bytes_received: int = 0
         self._last_rate_check: float = 0.0
+        
+        # TX rate limiting: track bytes sent per second
+        self._bytes_sent: int = 0
+        self._last_tx_rate_check: float = 0.0
+        
+        # Connection timeout tracking
+        self._connection_start_time: float = 0.0
+        self._connection_timeout_reached: bool = False
+        self._connection_attempts: int = 0
+        
+        # Logging level override
+        self._log_level: Optional[int] = self._config.get('log_level')
+        if self._log_level:
+            logger.setLevel(self._log_level)
     
     @property
-    def port_label(self) -> str:
-        """Get port label."""
-        return self._port_label
+    def charset(self) -> str:
+        """Get configured charset."""
+        return self._charset
     
     @property
-    def port_name(self) -> Optional[str]:
-        """Get configured port name."""
-        return self._port_name
+    def detected_charset(self) -> Optional[str]:
+        """Get auto-detected charset if available."""
+        return self._detected_charset
     
     @property
-    def baud_rate(self) -> int:
-        """Get configured baud rate."""
-        return self._baud
+    def is_charset_auto_detect(self) -> bool:
+        """Check if charset auto-detection is enabled."""
+        return self._charset_auto_detect
     
     @property
-    def is_running(self) -> bool:
-        """Check if worker is running."""
-        return self._running
+    def connection_attempts(self) -> int:
+        """Get number of connection attempts made."""
+        return self._connection_attempts
+    
+    @property
+    def is_connected(self) -> bool:
+        """Check if serial port is currently connected."""
+        return self._ser is not None and getattr(self._ser, 'is_open', False)
     
     def configure(
         self, 
         port: str, 
         baud: int, 
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
+        charset: Optional[str] = None,
+        charset_auto_detect: bool = False
     ) -> None:
         """
         Configure the serial port and baud rate.
@@ -148,13 +246,18 @@ class SerialWorker(QThread):
             port (str): Port name (e.g., 'COM1', '/dev/ttyUSB0')
             baud (int): Baud rate (e.g., 9600, 115200)
             timeout (Optional[float]): Read timeout in seconds
+            charset (Optional[str]): Character encoding for data
+            charset_auto_detect (bool): Enable automatic charset detection
         """
         self._port_name = port
         self._baud = baud
         if timeout is not None:
             self._timeout = timeout
+        if charset is not None:
+            self._charset = charset
+        self._charset_auto_detect = charset_auto_detect
         
-        logger.debug(f"Configured {self._port_label}: port={port}, baud={baud}, timeout={self._timeout}")
+        logger.info(f"Configured {self._port_label}: port={port}, baud={baud}, timeout={self._timeout}, charset={charset}")
     
     def configure_from_dict(self, config: Dict[str, Any]) -> None:
         """
@@ -168,16 +271,58 @@ class SerialWorker(QThread):
                 - 'data_bits': Optional data bits
                 - 'parity': Optional parity
                 - 'stop_bits': Optional stop bits
+                - 'charset': Character encoding
+                - 'charset_auto_detect': Enable auto-detection
+                - 'charset_errors': Error handling ('replace', 'ignore', 'strict')
+                - 'log_level': Logging level override
         """
         self._port_name = config.get('port')
         self._baud = config.get('baud', self.DEFAULT_BAUD)
         self._timeout = config.get('timeout', self.DEFAULT_TIMEOUT)
+        self._charset = config.get('charset', self._charset)
+        self._charset_auto_detect = config.get('charset_auto_detect', self._charset_auto_detect)
+        self._charset_errors = config.get('charset_errors', self._charset_errors)
         
-        logger.debug(f"Configured {self._port_label} from dict: {config}")
+        # Set logging level if provided
+        log_level = config.get('log_level')
+        if log_level:
+            logger.setLevel(log_level)
+        
+        logger.info(f"Configured {self._port_label} from dict: port={self._port_name}, baud={self._baud}, charset={self._charset}")
+    
+    def _detect_charset(self, data: bytes) -> Optional[str]:
+        """
+        Attempt to detect charset from raw data bytes.
+        
+        Args:
+            data: Raw bytes to analyze
+            
+        Returns:
+            Detected charset name or None if detection fails
+        """
+        # Check for BOM patterns first
+        for pattern, charset in CHARSET_PATTERNS.items():
+            if data.startswith(pattern):
+                logger.debug(f"Detected charset '{charset}' from BOM pattern")
+                return charset
+        
+        # Try to decode with common charsets to find best match
+        sample = data[:self.CHARSET_DETECTION_LENGTH]
+        for charset in COMMON_CHARSETS:
+            try:
+                sample.decode(charset, errors='strict')
+                # This charset works, but prefer UTF-8 if valid
+                if charset == 'utf-8':
+                    return charset
+            except UnicodeDecodeError:
+                continue
+        
+        # Default to latin-1 if no specific charset detected (handles most serial data)
+        return 'latin-1'
     
     def _open_connection(self) -> Optional[Any]:
         """
-        Open serial connection with proper error handling.
+        Open serial connection with proper error handling and timeout.
         
         Returns:
             Serial port instance or None if failed
@@ -210,7 +355,8 @@ class SerialWorker(QThread):
             return ser
         
         except SerialException as e:
-            logger.error(f"Serial connection error: {e}")
+            self._connection_attempts += 1
+            logger.error(f"Serial connection error (attempt {self._connection_attempts}): {e}")
             self._emit_error(tr("worker_open_error", "Open error ({port}): {error}").format(
                 port=self._port_name or 'N/A',
                 error=e
@@ -218,7 +364,8 @@ class SerialWorker(QThread):
             return None
         
         except Exception as e:
-            logger.exception(f"Unexpected error during connection: {e}")
+            self._connection_attempts += 1
+            logger.exception(f"Unexpected error during connection (attempt {self._connection_attempts}): {e}")
             self._emit_error(tr("worker_open_error", "Connection error: {error}").format(error=e))
             return None
     
@@ -234,7 +381,7 @@ class SerialWorker(QThread):
             logger.warning(f"Serial exception on {self._port_label}: {error}")
             self._emit_error(str(error))
         else:
-            logger.exception(f"Unexpected error in read loop: {error}")
+            logger.warning(f"Unexpected error in read loop: {error}")
             self._emit_error(str(error))
         
         self._consecutive_errors += 1
@@ -254,10 +401,16 @@ class SerialWorker(QThread):
         self._consecutive_errors = 0
         self._bytes_received = 0
         self._last_rate_check = time.monotonic()
+        self._bytes_sent = 0
+        self._last_tx_rate_check = time.monotonic()
         
         self._emit_status(tr("worker_connecting_to", "Connecting to {port}...").format(
             port=self._port_name or 'N/A'
         ))
+        
+        # Record connection start time for timeout tracking
+        self._connection_start_time = time.monotonic()
+        self._connection_timeout_reached = False
         
         ser: Optional[Any] = None
         connection_error: Optional[str] = None
@@ -322,6 +475,16 @@ class SerialWorker(QThread):
         # Main loop with simplified exception handling using helper method
         try:
             while self._running and not self._should_stop:
+                # Check connection timeout during initial connection
+                if not self._connection_timeout_reached and self._ser is None:
+                    elapsed = time.monotonic() - self._connection_start_time
+                    if elapsed > self.CONNECTION_TIMEOUT:
+                        logger.warning(f"Connection timeout for {self._port_label}")
+                        self._emit_error(tr("worker_connection_timeout", "Connection timeout"))
+                        self._connection_timeout_reached = True
+                        self._running = False
+                        break
+                
                 try:
                     read_ok = self._process_read(ser)
                     
@@ -341,10 +504,7 @@ class SerialWorker(QThread):
                 
                 self._process_write()
                 
-                # Keep UI responsive with Qt-native sleep (better integration)
-                self.msleep(int(self._read_interval * 1000))
-                
-                # Keep UI responsive with Qt-native sleep (better integration)
+                # Keep UI responsive with Qt-native sleep
                 self.msleep(int(self._read_interval * 1000))
         
         except Exception as e:
@@ -405,9 +565,18 @@ class SerialWorker(QThread):
                         self._bytes_received = 0
                         self._last_rate_check = current_time
                     
+                    # Auto-detect charset if enabled and not yet detected
+                    if self._charset_auto_detect and self._detected_charset is None:
+                        detected = self._detect_charset(data)
+                        if detected:
+                            self._detected_charset = detected
+                            self._charset = detected
+                            logger.info(f"Auto-detected charset: {detected}")
+                    
                     try:
-                        text = data.decode('utf-8', errors='replace')
-                    except Exception:
+                        text = data.decode(self._charset, errors=self._charset_errors)
+                    except Exception as e:
+                        logger.debug(f"Decode error with charset {self._charset}: {e}")
                         # Fallback to repr if decode fails
                         text = repr(data)
                     
@@ -491,8 +660,35 @@ class SerialWorker(QThread):
         """
         try:
             if self._ser is not None:
-                # Add CR+LF to the outgoing data if not present
-                data_to_send = data if data.endswith('\r\n') else data + '\r\n'
+                # Security: Validate data to prevent CRLF injection
+                # Reject data containing embedded newlines (could inject multiple commands)
+                if '\n' in data or '\r' in data:
+                    logger.warning(f"Rejected data with embedded newlines for {self._port_label}")
+                    self._emit_error(tr("worker_invalid_data", "Invalid data: newlines not allowed"))
+                    return False
+                
+                # TX rate limiting check
+                current_time = time.monotonic()
+                elapsed = current_time - self._last_tx_rate_check
+                
+                # Reset TX rate tracking every second
+                if elapsed >= 1.0:
+                    if self._bytes_sent > self.MAX_TX_BYTES_PER_SECOND:
+                        logger.warning(f"TX rate limit exceeded: {self._bytes_sent} bytes/sec (limit: {self.MAX_TX_BYTES_PER_SECOND})")
+                    self._bytes_sent = 0
+                    self._last_tx_rate_check = current_time
+                
+                # Add CR+LF to the outgoing data
+                data_to_send = data + '\r\n'
+                data_bytes = len(data_to_send.encode())
+                
+                # Check if adding this data would exceed rate limit
+                if self._bytes_sent + data_bytes > self.MAX_TX_BYTES_PER_SECOND:
+                    logger.warning(f"TX rate limit would be exceeded, queuing for next interval")
+                    # Re-queue the data for later
+                    return False
+                
+                self._bytes_sent += data_bytes
                 
                 try:
                     bytes_written = self._ser.write(data_to_send.encode())

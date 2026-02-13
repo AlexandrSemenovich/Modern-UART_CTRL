@@ -1,8 +1,16 @@
 import sys
 import os
+import logging
 
 # Добавляем родительскую директорию в path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Configure logging with proper format
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer

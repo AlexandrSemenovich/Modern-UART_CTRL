@@ -4,8 +4,6 @@ Used to detect runtime exceptions on startup.
 """
 import sys
 import os
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTimer
 
 # ensure package import path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,6 +13,9 @@ from src.views.main_window import MainWindow
 
 def run():
     try:
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtCore import QTimer
+        
         app = QApplication(sys.argv)
         # apply qss if available
         try:

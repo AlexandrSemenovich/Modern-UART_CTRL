@@ -9,16 +9,17 @@ from typing import Optional, Dict, Any
 import html
 import logging
 import threading
-
 from enum import Enum
 
 from src.utils.translator import tr
 from src.models.serial_worker import SerialWorker
+from src.styles.constants import SerialConfig, SerialPorts
 
 logger = logging.getLogger(__name__)
 
-
-from enum import Enum
+# Module-level singleton for tracking active ports (shared across all instances)
+_active_ports: set[str] = set()
+_active_ports_lock = threading.Lock()
 
 
 class PortConnectionState(Enum):
@@ -147,10 +148,9 @@ class ComPortViewModel(QObject):
         Set baud rate for connection.
         
         Args:
-            baud_rate: Valid baud rate (9600, 19200, 38400, 57600, 115200, etc.)
+            baud_rate: Valid baud rate from SerialConfig.BAUD_RATES
         """
-        valid_rates = [9600, 19200, 38400, 57600, 115200, 230400, 460800]
-        if baud_rate in valid_rates:
+        if baud_rate in SerialConfig.BAUD_RATES:
             self._baud_rate = baud_rate
         else:
             logger.warning(f"Invalid baud rate {baud_rate}, using {self._baud_rate}")
@@ -160,10 +160,6 @@ class ComPortViewModel(QObject):
         self._available_ports = ports
         logger.debug(f"Available ports updated: {ports}")
     
-    _active_ports: set[str] = set()
-    _system_ports = {"COM1", "COM2"}
-    _active_ports_lock = threading.Lock()
-
     def connect(self) -> bool:
         """
         Establish connection to the configured serial port.
@@ -179,13 +175,13 @@ class ComPortViewModel(QObject):
             self._emit_error(tr("error_no_port", "No port selected"))
             return False
 
-        if self._port_name.upper() in self._system_ports:
+        if self._port_name.upper() in SerialPorts.SYSTEM_PORTS:
             self._emit_error(tr("error_system_port", "System COM ports cannot be used"))
             return False
 
         # Thread-safe check if port is already in use
-        with self._active_ports_lock:
-            if self._port_name in self._active_ports:
+        with _active_ports_lock:
+            if self._port_name in _active_ports:
                 self._emit_error(tr("error_port_in_use", "Port already in use"))
                 return False
 
@@ -196,8 +192,8 @@ class ComPortViewModel(QObject):
         self._worker.configure(self._port_name, self._baud_rate)
         
         # Thread-safe add to active ports
-        with self._active_ports_lock:
-            self._active_ports.add(self._port_name)
+        with _active_ports_lock:
+            _active_ports.add(self._port_name)
 
         # Connect signals directly to the worker thread
         self._worker.rx.connect(self._on_data_received)
@@ -231,13 +227,13 @@ class ComPortViewModel(QObject):
             self._emit_error(tr("error_no_port", "No port selected"))
             return False
         
-        if self._port_name.upper() in self._system_ports:
+        if self._port_name.upper() in SerialPorts.SYSTEM_PORTS:
             self._emit_error(tr("error_system_port", "System COM ports cannot be used"))
             return False
         
         # Thread-safe check if port is already in use
-        with self._active_ports_lock:
-            if self._port_name in self._active_ports:
+        with _active_ports_lock:
+            if self._port_name in _active_ports:
                 self._emit_error(tr("error_port_in_use", "Port already in use"))
                 return False
         
@@ -257,8 +253,8 @@ class ComPortViewModel(QObject):
             self._worker.configure(self._port_name, self._baud_rate)
             
             # Thread-safe add to active ports
-            with self._active_ports_lock:
-                self._active_ports.add(self._port_name)
+            with _active_ports_lock:
+                _active_ports.add(self._port_name)
             
             # Connect signals directly to the worker thread
             self._worker.rx.connect(self._on_data_received)
@@ -290,9 +286,9 @@ class ComPortViewModel(QObject):
         self._safe_stop_worker()
 
         # Thread-safe remove from active ports
-        with self._active_ports_lock:
-            if self._port_name in self._active_ports:
-                self._active_ports.remove(self._port_name)
+        with _active_ports_lock:
+            if self._port_name in _active_ports:
+                _active_ports.remove(self._port_name)
 
         self._set_state(PortConnectionState.DISCONNECTED)
         logger.info(f"Disconnected from {self._port_label}")
@@ -477,18 +473,18 @@ class ComPortViewModel(QObject):
         self._safe_stop_worker()
         
         # Thread-safe remove from active ports
-        with self._active_ports_lock:
-            if self._port_name in self._active_ports:
-                self._active_ports.remove(self._port_name)
+        with _active_ports_lock:
+            if self._port_name in _active_ports:
+                _active_ports.remove(self._port_name)
 
         self._set_state(PortConnectionState.DISCONNECTED)
         logger.info(f"Shutdown complete for {self._port_label}")
 
     def _on_worker_finished(self) -> None:
         # Thread-safe remove from active ports
-        with self._active_ports_lock:
-            if self._port_name in self._active_ports:
-                self._active_ports.remove(self._port_name)
+        with _active_ports_lock:
+            if self._port_name in _active_ports:
+                _active_ports.remove(self._port_name)
         self._worker = None
         # Return to disconnected state if we were connecting
         if self._state == PortConnectionState.CONNECTING:

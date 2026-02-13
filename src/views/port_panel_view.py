@@ -9,7 +9,7 @@ from typing import Optional, List, Callable
 
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
-from src.styles.constants import Fonts, Sizes, SerialConfig
+from src.styles.constants import Fonts, Sizes, SerialConfig, SerialPorts
 from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
 
 try:
@@ -170,8 +170,11 @@ class PortPanelView(QtWidgets.QGroupBox):
         if HAS_PYSERIAL:
             try:
                 available = list_serial_ports.comports()
-                system_ports = {"COM1", "COM2"}
-                ports = [p.device for p in available if p.device.upper() not in system_ports]
+                ports = [
+                    p.device
+                    for p in available
+                    if p.device.upper() not in SerialPorts.SYSTEM_PORTS
+                ]
             except Exception as e:
                 print(f"Error scanning ports: {e}")
                 ports = []
@@ -179,8 +182,12 @@ class PortPanelView(QtWidgets.QGroupBox):
         # Add placeholder if no ports found
         if not ports:
             # Create default options
-            defaults = ["COM1", "COM2", "COM3", "COM4", "COM5"]
-            ports = defaults[2:]  # Skip system ports
+            defaults = SerialConfig.DEFAULT_PORTS
+            ports = [
+                port
+                for port in defaults
+                if port.upper() not in SerialPorts.SYSTEM_PORTS
+            ]
         
         # Update combo without blocking signals
         self._port_combo.blockSignals(True)
