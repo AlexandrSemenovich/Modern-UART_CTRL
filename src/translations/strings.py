@@ -192,17 +192,73 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Отправить",
         "en": "Send",
     },
-    "save_command": {
-        "ru": "Сохранить команду",
-        "en": "Save Command",
-    },
     "command_history": {
         "ru": "История команд",
         "en": "Command History",
     },
-    "clear_history": {
-        "ru": "Очистить историю",
-        "en": "Clear History",
+    "history_open": {
+        "ru": "История",
+        "en": "History",
+    },
+    "history_total": {
+        "ru": "{count} записей",
+        "en": "{count} entries",
+    },
+    "history_send": {
+        "ru": "Отправить",
+        "en": "Send",
+    },
+    "history_edit": {
+        "ru": "Вставить",
+        "en": "Insert",
+    },
+    "history_delete": {
+        "ru": "Удалить",
+        "en": "Delete",
+    },
+    "history_clear_all": {
+        "ru": "Очистить всё",
+        "en": "Clear All",
+    },
+    "history_export": {
+        "ru": "Экспорт",
+        "en": "Export",
+    },
+    "history_close": {
+        "ru": "Закрыть",
+        "en": "Close",
+    },
+    "history_search_placeholder": {
+        "ru": "Поиск...",
+        "en": "Search...",
+    },
+    "history_column_command": {
+        "ru": "Команда",
+        "en": "Command",
+    },
+    "history_column_port": {
+        "ru": "Порт",
+        "en": "Port",
+    },
+    "history_column_status": {
+        "ru": "Статус",
+        "en": "Status",
+    },
+    "history_column_timestamp": {
+        "ru": "Время",
+        "en": "Timestamp",
+    },
+    "history_status_success": {
+        "ru": "Успех",
+        "en": "Success",
+    },
+    "history_status_failed": {
+        "ru": "Ошибка",
+        "en": "Failed",
+    },
+    "history_confirm_clear": {
+        "ru": "Очистить всю историю?",
+        "en": "Clear entire history?",
     },
     "send_to_cpu1": {
         "ru": "CPU1",

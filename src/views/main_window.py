@@ -26,6 +26,8 @@ from src.styles.constants import Fonts, Sizes, SerialConfig
 from src.views.port_panel_view import PortPanelView
 from src.views.console_panel_view import ConsolePanelView
 from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
+from src.viewmodels.command_history_viewmodel import CommandHistoryModel
+from src.views.command_history_dialog import CommandHistoryDialog
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -48,9 +50,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._console_panel: Optional[ConsolePanelView] = None
         
         # Command history
-        self._command_history: List[str] = []
-        self._max_history = 20
-        self._history_index = -1
+        self._history_model = CommandHistoryModel(self)
+        self._history_dialog: Optional[CommandHistoryDialog] = None
         
         # Setup window properties
         self._setup_window()
@@ -279,39 +280,26 @@ class MainWindow(QtWidgets.QMainWindow):
         history_layout = QtWidgets.QVBoxLayout()
         history_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
         
+        summary_layout = QtWidgets.QHBoxLayout()
+        summary_layout.setSpacing(Sizes.LAYOUT_SPACING)
+
         self._lbl_history_title = QtWidgets.QLabel(tr("command_history", "Command History"))
-        history_layout.addWidget(self._lbl_history_title)
-        
-        self._list_history = QtWidgets.QListWidget()
-        self._list_history.setMaximumHeight(150)
-        self._list_history.itemDoubleClicked.connect(self._insert_history_command)
-        history_layout.addWidget(self._list_history)
-        
-        # History controls
-        history_controls = QtWidgets.QHBoxLayout()
-        history_controls.setSpacing(Sizes.LAYOUT_SPACING)
+        summary_layout.addWidget(self._lbl_history_title)
 
-        self._btn_save_history = QtWidgets.QPushButton(tr("save_command", "Save Command"))
-        self._register_button(self._btn_save_history, "primary")
-        self._btn_save_history.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Fixed,
-        )
-        self._btn_save_history.clicked.connect(self._save_current_command)
-        history_controls.addWidget(self._btn_save_history)
+        self._lbl_history_count = QtWidgets.QLabel()
+        summary_layout.addWidget(self._lbl_history_count)
 
-        self._btn_clear_history = QtWidgets.QPushButton(tr("clear_history", "Clear History"))
-        self._register_button(self._btn_clear_history, "danger")
-        self._btn_clear_history.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Fixed,
-        )
-        self._btn_clear_history.clicked.connect(self._clear_history)
-        history_controls.addWidget(self._btn_clear_history)
+        summary_layout.addStretch(1)
 
-        history_controls.addStretch()
+        self._btn_open_history = QtWidgets.QToolButton()
+        self._btn_open_history.setIcon(QIcon("assets/icons/fa/clock-rotate-left.svg"))
+        self._btn_open_history.setText(tr("history_open", "History"))
+        self._btn_open_history.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self._register_button(self._btn_open_history, "ghost")
+        self._btn_open_history.clicked.connect(self._open_history_dialog)
+        summary_layout.addWidget(self._btn_open_history)
 
-        history_layout.addLayout(history_controls)
+        history_layout.addLayout(summary_layout)
         layout.addLayout(history_layout)
         
         grp.setLayout(layout)
@@ -489,12 +477,9 @@ class MainWindow(QtWidgets.QMainWindow):
         shortcut_tlm = QShortcut(QKeySequence("Ctrl+Alt+3"), self)
         shortcut_tlm.activated.connect(lambda: self._send_command(3))
         
-        # History navigation
-        history_shortcut_up = QShortcut(QKeySequence("Ctrl+Up"), self)
-        history_shortcut_up.activated.connect(lambda: self._navigate_history(-1))
-        
-        history_shortcut_down = QShortcut(QKeySequence("Ctrl+Down"), self)
-        history_shortcut_down.activated.connect(lambda: self._navigate_history(1))
+        # History dialog
+        shortcut_history = QShortcut(QKeySequence("Ctrl+H"), self)
+        shortcut_history.activated.connect(self._open_history_dialog)
     
     def _send_command(self, port_num: int) -> None:
         """
@@ -508,7 +493,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         
         # Add to history
-        self._add_to_history(command)
+        self._history_model.add_entry(command, self._port_label_for_num(port_num))
         
         # Send to port(s)
         if port_num == 0:
@@ -523,53 +508,25 @@ class MainWindow(QtWidgets.QMainWindow):
         """Send command to default port (CPU1)."""
         self._send_command(1)
     
-    def _add_to_history(self, command: str) -> None:
-        """Add command to history."""
-        if command and command not in self._command_history:
-            self._command_history.append(command)
-            
-            # Limit history size
-            if len(self._command_history) > self._max_history:
-                self._command_history.pop(0)
-            
-            # Update UI
-            self._list_history.addItem(command)
-    
-    def _insert_history_command(self, item: QtWidgets.QListWidgetItem) -> None:
-        """Insert selected history command into input field."""
-        self._le_command.setText(item.text())
-    
-    def _save_current_command(self) -> None:
-        """Save current command from input to history."""
-        command = self._le_command.text()
-        if command:
-            self._add_to_history(command)
-    
-    def _clear_history(self) -> None:
-        """Clear command history."""
-        self._command_history.clear()
-        self._list_history.clear()
-    
-    def _navigate_history(self, direction: int) -> None:
-        """
-        Navigate through command history.
-        
-        Args:
-            direction: -1 for up, 1 for down
-        """
-        if not self._command_history:
-            return
-        
-        new_index = self._history_index + direction
-        
-        if new_index < 0:
-            new_index = 0
-        elif new_index >= len(self._command_history):
-            new_index = len(self._command_history) - 1
-        
-        self._history_index = new_index
-        self._le_command.setText(self._command_history[new_index])
+    def _port_label_for_num(self, port_num: int) -> str:
+        if port_num == 0:
+            return "combo"
+        return {1: "cpu1", 2: "cpu2", 3: "tlm"}.get(port_num, "unknown")
 
+    def _open_history_dialog(self) -> None:
+        if not self._history_dialog:
+            self._history_dialog = CommandHistoryDialog(self._history_model, self)
+            self._history_dialog.command_selected.connect(self._le_command.setText)
+        self._history_dialog.show()
+        self._history_dialog.raise_()
+        self._history_dialog.activateWindow()
+        self._update_history_summary()
+
+    def _update_history_summary(self) -> None:
+        count = self._history_model.entry_count()
+        self._lbl_history_count.setText(
+            tr("history_total", "{count} entries").format(count=count)
+        )
     def _on_port_state_changed(self, port_num: int, state: str | PortConnectionState) -> None:
         """Track port connection state and refresh command controls."""
         normalized = self._normalize_state(state)
@@ -724,14 +681,14 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
         self._lbl_history_title.setText(tr("command_history", "Command History"))
+        self._btn_open_history.setText(tr("history_open", "History"))
+        self._update_history_summary()
         self._command_group.setTitle(tr("data_transmission", "Data Transmission"))
         self._le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
         self._btn_combo.setText(tr("send_to_both", "1+2"))
         self._btn_cpu1.setText(tr("send_to_cpu1", "CPU1"))
         self._btn_cpu2.setText(tr("send_to_cpu2", "CPU2"))
         self._btn_tlm.setText(tr("send_to_tlm", "TLM"))
-        self._btn_save_history.setText(tr("save_command", "Save Command"))
-        self._btn_clear_history.setText(tr("clear_history", "Clear History"))
 
         current_lang = translator.get_language()
         for lang, action in self._language_actions.items():
