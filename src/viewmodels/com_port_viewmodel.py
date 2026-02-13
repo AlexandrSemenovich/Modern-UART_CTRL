@@ -101,7 +101,7 @@ class ComPortViewModel(QObject):
         return self._port_number
     
     @property
-    def state(self) -> str:
+    def state(self) -> PortConnectionState:
         """Get current connection state."""
         return self._state
     
@@ -341,18 +341,39 @@ class ComPortViewModel(QObject):
         self._tx_count = 0
         self._emit_counter_update()
     
-    def _set_state(self, new_state: str) -> None:
+    def _set_state(self, new_state: PortConnectionState | str) -> None:
         """
         Update connection state and emit signal.
         
         Args:
             new_state: New state to set
         """
-        if self._state != new_state:
+        if isinstance(new_state, str):
+            normalized_state = self._normalize_state(new_state)
+        else:
+            normalized_state = new_state
+
+        if self._state != normalized_state:
             old_state = self._state
-            self._state = new_state
-            logger.debug(f"State changed: {old_state} -> {new_state}")
-            self.state_changed.emit(new_state)
+            self._state = normalized_state
+            logger.debug(f"State changed: {old_state} -> {normalized_state}")
+
+            state_payload = (
+                normalized_state.value
+                if isinstance(normalized_state, PortConnectionState)
+                else str(normalized_state)
+            )
+            self.state_changed.emit(state_payload)
+
+    @staticmethod
+    def _normalize_state(state: str | PortConnectionState) -> PortConnectionState:
+        if isinstance(state, PortConnectionState):
+            return state
+        candidate = state.split('.')[-1].lower()
+        for option in PortConnectionState:
+            if option.value == candidate or option.name.lower() == candidate:
+                return option
+        return PortConnectionState.DISCONNECTED
     
     def _on_data_received(self, port_label: str, data: str) -> None:
         """

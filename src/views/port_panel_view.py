@@ -5,7 +5,7 @@ Reusable widget for port configuration and connection.
 
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Signal, Qt, QTimer
-from typing import Optional, List, Callable
+from typing import Optional, List
 
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
@@ -27,7 +27,6 @@ class PortPanelView(QtWidgets.QGroupBox):
     - Port selection with scan button
     - Baud rate configuration
     - Connect/disconnect button
-    - Status indicator
     
     Signals:
         connected (int): Port number when connected
@@ -114,15 +113,6 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._register_button(self._connect_btn, "primary")
         layout.addRow(self._connect_btn)
         
-        # Status label
-        self._status_label = QtWidgets.QPushButton(tr("disconnected", "Disconnected"))
-        self._status_label.setEnabled(False)
-        self._status_label.setObjectName("statusLabel")
-        self._register_button(self._status_label)
-        self._status_label.setMinimumHeight(24)
-        self._status_label.setProperty("state", PortConnectionState.DISCONNECTED)
-        layout.addRow(self._status_label)
-        
         self.setLayout(layout)
     
     def _connect_signals(self) -> None:
@@ -151,8 +141,8 @@ class PortPanelView(QtWidgets.QGroupBox):
         if baud_index >= 0:
             self._baud_combo.setCurrentIndex(baud_index)
         
-        # Update status button
-        self._update_status_ui(self._viewmodel.state)
+        # Apply state to controls
+        self._apply_state(self._viewmodel.state)
     
     def _on_scan_clicked(self) -> None:
         """Handle scan button click - refresh port list."""
@@ -221,55 +211,78 @@ class PortPanelView(QtWidgets.QGroupBox):
     
     def _on_connect_clicked(self) -> None:
         """Handle connect/disconnect button click."""
-        if self._viewmodel.is_connected:
+        state = self._normalize_state(self._viewmodel.state)
+        if state in (
+            PortConnectionState.CONNECTED,
+            PortConnectionState.CONNECTING,
+        ):
             self._viewmodel.disconnect()
+            return
+
+        # Ensure port is selected
+        port_name = self._port_combo.currentText().strip()
+        if not port_name:
+            ports = self._scan_ports()
+            port_name = self._port_combo.currentText().strip()
+            if not port_name and ports:
+                port_name = ports[0]
+                self._port_combo.setCurrentText(port_name)
+        
+        if port_name:
+            self._viewmodel.set_port_name(port_name)
+            self._viewmodel.connect()
         else:
-            # Ensure port is selected
-            port_name = self._port_combo.currentText()
-            if not port_name:
-                self._scan_ports()
-                port_name = self._port_combo.currentText()
-            
-            if port_name:
-                self._viewmodel.set_port_name(port_name)
-                self._viewmodel.connect()
-            else:
-                QtWidgets.QMessageBox.warning(
-                    self,
-                    tr("warning", "Warning"),
-                    tr("error_no_port", "No COM port available")
-                )
+            QtWidgets.QMessageBox.warning(
+                self,
+                tr("warning", "Warning"),
+                tr("error_no_port", "No COM port available")
+            )
     
     def _on_state_changed(self, state: str) -> None:
         """Handle ViewModel state change."""
-        self._update_status_ui(state)
+        self._apply_state(state)
         
-        if state == PortConnectionState.CONNECTED:
+        normalized_state = self._normalize_state(state)
+        if normalized_state == PortConnectionState.CONNECTED:
             self.connected.emit(self._port_number)
-            self._connect_btn.setText(tr("disconnect", "Disconnect"))
-        elif state == PortConnectionState.DISCONNECTED:
+        elif normalized_state == PortConnectionState.DISCONNECTED:
             self.disconnected.emit(self._port_number)
-            self._connect_btn.setText(tr("connect", "Connect"))
-        
-        # Disable controls when connected
-        is_connected = (state == PortConnectionState.CONNECTED)
-        self._port_combo.setEnabled(not is_connected)
-        self._scan_btn.setEnabled(not is_connected)
-        self._baud_combo.setEnabled(not is_connected)
     
-    def _update_status_ui(self, state: str) -> None:
-        """Update status label based on connection state."""
-        state_texts = {
-            PortConnectionState.DISCONNECTED: tr("disconnected", "Disconnected"),
-            PortConnectionState.CONNECTING: tr("connecting", "Connecting..."),
-            PortConnectionState.CONNECTED: tr("connected", "Connected"),
-            PortConnectionState.ERROR: tr("error", "Error"),
-        }
+    def _apply_state(self, state: str | PortConnectionState) -> None:
+        """Apply current state to controls and button text."""
+        normalized_state = self._normalize_state(state)
+        self._update_connect_button_text(normalized_state)
+        disable_controls = normalized_state in (
+            PortConnectionState.CONNECTED,
+            PortConnectionState.CONNECTING,
+        )
+        self._port_combo.setEnabled(not disable_controls)
+        self._scan_btn.setEnabled(not disable_controls)
+        self._baud_combo.setEnabled(not disable_controls)
 
-        text = state_texts.get(state, state)
-        self._status_label.setText(text)
-        self._status_label.setProperty("state", state)
-        self._refresh_status_style()
+    def _update_connect_button_text(self, state: str | PortConnectionState) -> None:
+        """Switch connect button label depending on state."""
+        normalized_state = self._normalize_state(state)
+        text = (
+            tr("disconnect", "Disconnect")
+            if normalized_state in (
+                PortConnectionState.CONNECTED,
+                PortConnectionState.CONNECTING,
+            )
+            else tr("connect", "Connect")
+        )
+        self._connect_btn.setText(text)
+
+    @staticmethod
+    def _normalize_state(state: str | PortConnectionState) -> PortConnectionState:
+        if isinstance(state, PortConnectionState):
+            return state
+        if isinstance(state, str):
+            candidate = state.split('.')[-1].lower()
+            for option in PortConnectionState:
+                if option.value == candidate or option.name.lower() == candidate:
+                    return option
+        return PortConnectionState.DISCONNECTED
 
     def _on_error(self, formatted_error: str) -> None:
         """Handle error message from ViewModel."""
@@ -298,23 +311,12 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._lbl_port.setText(tr("port", "Port:"))
         self._lbl_baud.setText(tr("baud_rate", "Baud:"))
         self._scan_btn.setText(tr("scan", "Scan"))
-        self._le_command_placeholder = tr("enter_command", "Enter command...")
-        self._connect_btn.setText(
-            tr("disconnect", "Disconnect")
-            if self._viewmodel.is_connected
-            else tr("connect", "Connect")
-        )
-        self._update_status_ui(self._viewmodel.state)
+        self._update_connect_button_text(self._viewmodel.state)
 
     def _on_theme_changed(self, *_args) -> None:
         """Refresh status colors when global theme switches."""
         self._apply_theme_to_all_buttons()
-        self._refresh_status_style()
-        self._update_status_ui(self._viewmodel.state)
-
-    def _refresh_status_style(self) -> None:
-        """Force the status label to re-evaluate QSS rules."""
-        self._refresh_widget_style(self._status_label)
+        self._update_connect_button_text(self._viewmodel.state)
 
     def _register_button(
         self,

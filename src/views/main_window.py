@@ -363,10 +363,6 @@ class MainWindow(QtWidgets.QMainWindow):
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp)
         
-        # Status group
-        status_grp = self._create_status_group()
-        layout.addWidget(status_grp)
-        
         layout.addStretch()
         content.setLayout(layout)
         scroll_area.setWidget(content)
@@ -374,32 +370,9 @@ class MainWindow(QtWidgets.QMainWindow):
         return scroll_area
     
     def _create_status_group(self) -> QtWidgets.QGroupBox:
-        """Create status group."""
-        grp = QtWidgets.QGroupBox(tr("status", "Status"))
-        layout = QtWidgets.QFormLayout()
-        layout.setSpacing(Sizes.LAYOUT_SPACING)
-        layout.setContentsMargins(
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
-        )
-        
-        self._status_labels: Dict[str, QtWidgets.QLabel] = {}
-        
-        self._status_ports = ["cpu1", "cpu2", "tlm"]
-
-        self._status_row_widgets: List[QtWidgets.QLabel] = []
-
-        for port_key in self._status_ports:
-            port_name = tr(port_key, port_key.upper())
-            label = QtWidgets.QLabel(tr("disconnected", "Disconnected"))
-            self._status_labels[port_key] = label
-            row_label = tr("port_label_template", "{name}:").format(name=port_name)
-            row_widget = QtWidgets.QLabel(row_label)
-            row_widget.setProperty("translation_key", port_key)
-            self._status_row_widgets.append(row_widget)
-            layout.addRow(row_widget, label)
-        
-        grp.setLayout(layout)
+        """Legacy status group removed from UI."""
+        grp = QtWidgets.QGroupBox()
+        grp.hide()
         return grp
     
     def _setup_menu(self) -> None:
@@ -689,13 +662,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     count=self._port_viewmodels[port_num].tx_count
                 )
             )
-
-        for row_widget, port_key in zip(self._status_row_widgets, self._status_ports):
-            port_name = tr(port_key, port_key.upper())
-            row_widget.setText(
-                tr("port_label_template", "{name}:").format(name=port_name)
-            )
-            self._status_labels[port_key].setText(tr("disconnected", "Disconnected"))
 
         self._lbl_history_title.setText(tr("command_history", "Command History"))
         self._command_group.setTitle(tr("data_transmission", "Data Transmission"))

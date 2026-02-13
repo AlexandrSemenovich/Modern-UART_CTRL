@@ -208,53 +208,6 @@ QPushButton[class~="icon-only"] {
     padding: 4px 6px;
 }
 
-/* Port status label variations */
-QPushButton#statusLabel {
-    border: none;
-    padding: 6px 14px;
-    min-width: 96px;
-    border-radius: 12px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-}
-QPushButton#statusLabel[themeClass="dark"][state="disconnected"],
-QPushButton#statusLabel[themeClass="light"][state="disconnected"] {
-    border: none;
-}
-QPushButton#statusLabel[themeClass="dark"][state="disconnected"] {
-    color: #b7beca;
-    background: #252932;
-}
-QPushButton#statusLabel[themeClass="dark"][state="connecting"] {
-    color: #ffc97b;
-    background: #342410;
-}
-QPushButton#statusLabel[themeClass="dark"][state="connected"] {
-    color: #40e3aa;
-    background: #123427;
-}
-QPushButton#statusLabel[themeClass="dark"][state="error"] {
-    color: #ff9c9c;
-    background: #3a1e1e;
-}
-
-QPushButton#statusLabel[themeClass="light"][state="disconnected"] {
-    color: #6b7382;
-    background: #eaeaef;
-}
-QPushButton#statusLabel[themeClass="light"][state="connecting"] {
-    color: #b37200;
-    background: #fff4dd;
-}
-QPushButton#statusLabel[themeClass="light"][state="connected"] {
-    color: #11804f;
-    background: #d9f1e4;
-}
-QPushButton#statusLabel[themeClass="light"][state="error"] {
-    color: #c12b2b;
-    background: #ffe6e6;
-}
-
 /* Line edits and combo boxes */
 QLineEdit, QComboBox {
     padding: 4px;
@@ -354,6 +307,20 @@ QFrame[themeClass="light"] {
 
 /* File dialogs and message boxes */
 QMessageBox {
+    border-radius: 8px;
+    padding: 12px;
+}
+QMessageBox[themeClass="dark"] {
     background: #1e1e1e;
     color: #ffffff;
+}
+QMessageBox[themeClass="dark"] QLabel {
+    color: #ffffff;
+}
+QMessageBox[themeClass="light"] {
+    background: #ffffff;
+    color: #1a1a1a;
+}
+QMessageBox[themeClass="light"] QLabel {
+    color: #1a1a1a;
 }
