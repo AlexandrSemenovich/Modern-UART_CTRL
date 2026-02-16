@@ -8,9 +8,14 @@ from PySide6.QtCore import Signal, Qt
 from html import escape
 from collections import deque
 import re
+import os
 
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
+from src.utils.profiler import PerformanceTimer
+
+# Enable/disable profiling via environment variable
+_ENABLE_PROFILING = os.environ.get('APP_PROFILE', '').lower() == 'true'
 
 
 class MainViewModel(QtCore.QObject):
@@ -101,6 +106,9 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: HTML formatted text
         """
+        if _ENABLE_PROFILING:
+            with PerformanceTimer('format_rx', logging.DEBUG):
+                return self._format_message(source, text, "RX", self._colors.rx_label)
         return self._format_message(source, text, "RX", self._colors.rx_label)
     
     def format_tx(self, source: str, text: str) -> str:
@@ -234,6 +242,13 @@ class MainViewModel(QtCore.QObject):
         Returns:
             str: Filtered HTML content
         """
+        if _ENABLE_PROFILING:
+            with PerformanceTimer('filter_cache', logging.DEBUG):
+                return self._filter_cache_impl(cache_key, search_text)
+        return self._filter_cache_impl(cache_key, search_text)
+    
+    def _filter_cache_impl(self, cache_key: str, search_text: str) -> str:
+        """Internal implementation of filter_cache."""
         if cache_key not in self.log_cache:
             return ""
         

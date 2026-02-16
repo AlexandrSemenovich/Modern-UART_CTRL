@@ -5,12 +5,16 @@ import logging
 # Добавляем родительскую директорию в path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Configure logging with proper format
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+# Configure logging with enhanced logger module
+from src.utils.logger import setup_logging, get_logger
+
+# Initialize logging based on environment
+# Can be overridden with APP_ENV environment variable (development, testing, production, staging)
+_env = os.environ.get('APP_ENV', 'development')
+setup_logging(env=_env)
+
+logger = get_logger(__name__)
+logger.info(f"Starting application in '{_env}' environment")
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer

@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any
 import html
 import logging
 import threading
+import time
 
 from src.utils.translator import tr
 from src.models.serial_worker import SerialWorker
@@ -75,6 +76,14 @@ class ComPortViewModel(QObject):
         self._rx_count: int = 0
         self._tx_count: int = 0
         
+        # Extended metrics for monitoring
+        self._rx_bytes: int = 0
+        self._tx_bytes: int = 0
+        self._error_count: int = 0
+        self._connection_time: float = 0.0  # Unix timestamp when connected
+        self._last_rx_time: float = 0.0  # For throughput calculation
+        self._last_tx_time: float = 0.0
+        
         # Serial worker
         self._worker: Optional[SerialWorker] = None
         
@@ -119,6 +128,18 @@ class ComPortViewModel(QObject):
     def tx_count(self) -> int:
         """Get TX counter value."""
         return self._tx_count
+    
+    @property
+    def error_count(self) -> int:
+        """Get error counter value."""
+        return self._error_count
+    
+    @property
+    def connection_time(self) -> float:
+        """Get connection duration in seconds."""
+        if self._connection_time > 0:
+            return time.time() - self._connection_time
+        return 0.0
     
     @property
     def is_connected(self) -> bool:
@@ -340,6 +361,10 @@ class ComPortViewModel(QObject):
         """Reset RX and TX counters to zero."""
         self._rx_count = 0
         self._tx_count = 0
+        self._rx_bytes = 0
+        self._tx_bytes = 0
+        self._error_count = 0
+        self._connection_time = 0.0
         self._emit_counter_update()
     
     def _set_state(self, new_state: PortConnectionState | str) -> None:
@@ -402,7 +427,11 @@ class ComPortViewModel(QObject):
             error_message: Error description
         """
         logger.error(f"Error on {port_label}: {error_message}")
-
+        
+        # Increment error counter
+        self._error_count += 1
+        self._emit_counter_update()
+        
         # Surface error to UI and mark the port as faulted
         self._set_state(PortConnectionState.ERROR)
         self._emit_error(error_message)
@@ -426,6 +455,8 @@ class ComPortViewModel(QObject):
 
         if status_message == connected_msg:
             self._set_state(PortConnectionState.CONNECTED)
+            # Track connection time
+            self._connection_time = time.time()
         elif status_message == disconnected_msg:
             self._set_state(PortConnectionState.DISCONNECTED)
         elif status_message == connecting_msg:

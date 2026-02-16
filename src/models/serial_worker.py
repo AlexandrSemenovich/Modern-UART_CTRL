@@ -19,11 +19,16 @@ import logging
 import queue
 import time
 import traceback
+import os
 from enum import Enum
 
 from src.utils.translator import tr
 from src.utils.config_loader import config_loader
 from src.styles.constants import CharsetConfig
+from src.utils.profiler import PerformanceTimer
+
+# Enable/disable profiling via environment variable
+_ENABLE_PROFILING = os.environ.get('APP_PROFILE', '').lower() == 'true'
 
 # Try to import pyserial, provide fallback
 try:

@@ -3,7 +3,9 @@ Unified style constants for the entire application.
 Provides colors, fonts, sizes, and spacing.
 """
 
+from pathlib import Path
 from PySide6.QtGui import QFont
+import logging
 
 from src.utils.config_loader import config_loader
 
@@ -165,3 +167,35 @@ class CommandConfig:
     
     # Valid characters: printable ASCII + CR + LF
     VALID_CHARS = set(string.printable + "\r\n")
+
+
+# ==================== Logging ====================
+class LoggingConfig:
+    """Logging configuration constants."""
+    
+    # Log directory relative to project root
+    LOG_DIR = Path('logs')
+    
+    # Maximum size of each log file (10 MB)
+    MAX_BYTES = 10 * 1024 * 1024
+    
+    # Number of backup files to keep
+    BACKUP_COUNT = 5
+    
+    # Default log format
+    LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+    
+    # Log levels per environment
+    ENV_LEVELS = {
+        'development': logging.DEBUG,
+        'testing': logging.DEBUG,
+        'production': logging.INFO,
+        'staging': logging.WARNING,
+    }
+    
+    # Default environment
+    DEFAULT_ENV = 'development'
+    
+    # Environment variable name
+    ENV_VAR = 'APP_ENV'

@@ -1,0 +1,45 @@
+{
+    "development": {
+        "level": "DEBUG",
+        "console": true,
+        "file": true,
+        "rotation": false,
+        "modules": {
+            "src.models": "DEBUG",
+            "src.viewmodels": "DEBUG",
+            "src.utils": "DEBUG"
+        }
+    },
+    "production": {
+        "level": "INFO",
+        "console": false,
+        "file": true,
+        "rotation": true,
+        "modules": {
+            "src.models": "INFO",
+            "src.viewmodels": "WARNING",
+            "src.utils": "INFO"
+        }
+    },
+    "staging": {
+        "level": "WARNING",
+        "console": true,
+        "file": true,
+        "rotation": true,
+        "modules": {
+            "src.models": "INFO",
+            "src.viewmodels": "WARNING",
+            "src.utils": "WARNING"
+        }
+    },
+    "testing": {
+        "level": "DEBUG",
+        "console": true,
+        "file": false,
+        "modules": {
+            "src.models": "DEBUG",
+            "src.viewmodels": "DEBUG",
+            "src.utils": "DEBUG"
+        }
+    }
+}

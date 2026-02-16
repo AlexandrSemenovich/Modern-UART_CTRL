@@ -250,6 +250,10 @@ class MainWindow(QtWidgets.QMainWindow):
             viewmodel.state_changed.connect(
                 self._make_state_handler(port_num)
             )
+            # Connect counter update signal
+            viewmodel.counter_updated.connect(
+                self._make_counter_handler(port_num, port_key)
+            )
 
         # Command input section
         command_group = self._create_command_group()
@@ -414,12 +418,22 @@ class MainWindow(QtWidgets.QMainWindow):
             tx_label = QtWidgets.QLabel(
                 tr("tx_label", "TX: {count}").format(count=0)
             )
+            error_label = QtWidgets.QLabel(
+                tr("error_label", "Errors: {count}").format(count=0)
+            )
+            time_label = QtWidgets.QLabel(
+                tr("time_label", "Time: {time}s").format(time=0)
+            )
             
             counters_layout.addWidget(rx_label, row, 1)
             counters_layout.addWidget(tx_label, row, 2)
+            counters_layout.addWidget(error_label, row, 3)
+            counters_layout.addWidget(time_label, row, 4)
             
             self._counter_labels[f"{port_key}_rx"] = rx_label
             self._counter_labels[f"{port_key}_tx"] = tx_label
+            self._counter_labels[f"{port_key}_error"] = error_label
+            self._counter_labels[f"{port_key}_time"] = time_label
         
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp)
@@ -620,6 +634,41 @@ class MainWindow(QtWidgets.QMainWindow):
             self._on_port_state_changed(port_num, state)
         return handler
 
+    def _make_counter_handler(self, port_num: int, port_key: str):
+        """Create a bound handler for counter update signal."""
+        def handler(rx_count: int, tx_count: int):
+            self._on_counter_updated(port_num, port_key, rx_count, tx_count)
+        return handler
+
+    def _on_counter_updated(self, port_num: int, port_key: str, rx_count: int, tx_count: int) -> None:
+        """Handle counter update signal - update counter labels in UI."""
+        rx_label = self._counter_labels.get(f"{port_key}_rx")
+        tx_label = self._counter_labels.get(f"{port_key}_tx")
+        error_label = self._counter_labels.get(f"{port_key}_error")
+        time_label = self._counter_labels.get(f"{port_key}_time")
+        
+        if rx_label:
+            rx_label.setText(
+                tr("rx_label", "RX: {count}").format(count=rx_count)
+            )
+        if tx_label:
+            tx_label.setText(
+                tr("tx_label", "TX: {count}").format(count=tx_count)
+            )
+        
+        # Update error count and connection time from ViewModel
+        viewmodel = self._port_viewmodels.get(port_num)
+        if viewmodel:
+            if error_label:
+                error_label.setText(
+                    tr("error_label", "Errors: {count}").format(count=viewmodel.error_count)
+                )
+            if time_label:
+                conn_time = viewmodel.connection_time
+                time_label.setText(
+                    tr("time_label", "Time: {time}s").format(time=int(conn_time))
+                )
+
     def _normalize_state(self, state: str | PortConnectionState) -> PortConnectionState:
         if isinstance(state, PortConnectionState):
             return state
@@ -757,6 +806,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
             rx_label = self._counter_labels[f"{port_key}_rx"]
             tx_label = self._counter_labels[f"{port_key}_tx"]
+            error_label = self._counter_labels[f"{port_key}_error"]
+            time_label = self._counter_labels[f"{port_key}_time"]
+            
             rx_label.setText(
                 tr("rx_label", "RX: {count}").format(
                     count=self._port_viewmodels[port_num].rx_count
@@ -767,6 +819,19 @@ class MainWindow(QtWidgets.QMainWindow):
                     count=self._port_viewmodels[port_num].tx_count
                 )
             )
+            if error_label:
+                error_label.setText(
+                    tr("error_label", "Errors: {count}").format(
+                        count=self._port_viewmodels[port_num].error_count
+                    )
+                )
+            if time_label:
+                conn_time = self._port_viewmodels[port_num].connection_time
+                time_label.setText(
+                    tr("time_label", "Time: {time}s").format(
+                        time=int(conn_time)
+                    )
+                )
 
         self._lbl_history_title.setText(tr("command_history", "Command History"))
         self._btn_open_history.setText(tr("history_open", "History"))
