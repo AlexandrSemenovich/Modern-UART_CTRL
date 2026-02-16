@@ -30,6 +30,7 @@ class ThemeManager(QObject):
         self._logger = logging.getLogger(__name__)
         self._theme_applied = False  # флаг для отслеживания применения темы
         self._last_applied_theme = None  # последняя примененная эффективная тема
+        self._last_logical_theme = None  # последняя логическая тема
         self.load_theme()
 
     def load_theme(self):
@@ -115,11 +116,13 @@ class ThemeManager(QObject):
             return
 
         effective = self._get_effective_theme()
+        logical = self.current_theme
         
         # Предотвращаем двойное применение той же темы
         # Проверяем, была ли уже применена та же эффективная тема
+        # Игнорируем это если меняется логическая тема (например, light->system)
         if self._theme_applied and not force:
-            if self._last_applied_theme == effective:
+            if self._last_applied_theme == effective and logical == self._last_logical_theme:
                 # Та же тема уже применена, не применяем повторно
                 return
 
@@ -134,6 +137,7 @@ class ThemeManager(QObject):
         self._apply_stylesheet(app)
         self._theme_applied = True
         self._last_applied_theme = effective  # сохраняем последнюю примененную тему
+        self._last_logical_theme = logical  # сохраняем последнюю логическую тему
 
     def _apply_light_theme(self, app: QApplication) -> None:
         """Apply light theme palette: бело-синие аккуратные оттенки."""
@@ -210,7 +214,8 @@ class ThemeManager(QObject):
 
     def _format_stylesheet(self, template: str) -> str:
         """Inject theme-specific color values into the stylesheet template."""
-        theme = "light" if self.current_theme == "light" else "dark"
+        # Используем effective тему, а не логическую (system может быть light или dark)
+        theme = self._get_effective_theme()
         button_colors = config_loader.get_button_colors(theme)
         palette = {
             "$command_combo_active": button_colors.command_combo_active,

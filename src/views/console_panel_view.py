@@ -169,7 +169,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         toolbar.addWidget(self._chk_time, 0, Qt.AlignVCenter)
 
         self._chk_source = QtWidgets.QCheckBox(tr("source", "Source"))
-        self._chk_source.setChecked(True)
+        self._chk_source.setChecked(False)
         self._chk_source.setFixedHeight(control_height)
         self._chk_source.stateChanged.connect(self._on_display_option_changed)
         toolbar.addWidget(self._chk_source, 0, Qt.AlignVCenter)

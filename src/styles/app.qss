@@ -46,17 +46,17 @@ QPushButton {
     min-width: 84px;
     font-weight: 500;
     qproperty-iconSize: 16px 16px;
-    border: 1px solid transparent;
+    border: 1px solid;
 }
 
 QPushButton[themeClass="dark"] {
     background: transparent;
     color: #e5e7eb;
-    border-color: rgba(17, 24, 39, 0.5);
+    border-color: rgba(107, 114, 128, 0.5);
 }
 QPushButton[themeClass="dark"]:hover {
     background: rgba(17, 24, 39, 0.3);
-    border-color: rgba(31, 41, 55, 0.6);
+    border-color: rgba(31, 41, 55, 0.8);
 }
 QPushButton[themeClass="dark"]:pressed {
     background: #020516;
@@ -64,26 +64,26 @@ QPushButton[themeClass="dark"]:pressed {
 }
 QPushButton[themeClass="dark"]:disabled {
     background: #020617;
-    border-color: #020617;
+    border-color: rgba(107, 114, 128, 0.3);
     color: #6b7280;
 }
 
 QPushButton[themeClass="light"] {
     background: transparent;
     color: #0f172a;
-    border-color: rgba(203, 213, 245, 0.5);
+    border-color: rgba(100, 116, 139, 0.7);
 }
 QPushButton[themeClass="light"]:hover {
-    background: rgba(237, 242, 255, 0.6);
-    border-color: rgba(156, 180, 255, 0.7);
+    background: rgba(237, 242, 255, 0.8);
+    border-color: rgba(59, 130, 246, 0.8);
 }
 QPushButton[themeClass="light"]:pressed {
     background: #dbe4ff;
-    border-color: #7c91ff;
+    border-color: #2563eb;
 }
 QPushButton[themeClass="light"]:disabled {
     background: #f3f4f7;
-    border-color: #e5e7eb;
+    border-color: rgba(100, 116, 139, 0.4);
     color: #9ca3af;
 }
 
@@ -550,21 +550,23 @@ QWidget#console_toolbar_container QToolBar[themeClass="light"] {
 }
 QToolButton[themeClass="dark"] {
     background: transparent;
-    border: 1px solid transparent;
+    border: 1px solid rgba(107, 114, 128, 0.5);
     border-radius: 4px;
     padding: 4px;
 }
 QToolButton[themeClass="dark"]:hover {
-    background: rgba(148, 163, 184, 0.12);
+    background: rgba(148, 163, 184, 0.15);
+    border-color: rgba(148, 163, 184, 0.6);
 }
 QToolButton[themeClass="light"] {
     background: transparent;
-    border: 1px solid transparent;
+    border: 1px solid rgba(100, 116, 139, 0.5);
     border-radius: 4px;
     padding: 4px;
 }
 QToolButton[themeClass="light"]:hover {
-    background: rgba(37, 99, 235, 0.08);
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(59, 130, 246, 0.6);
 }
 
 /* Splitter handles - более заметные разделители */
@@ -629,20 +631,20 @@ QWidget#console_toolbar_container QPushButton {
     margin: 0px;
 }
 
-/* Контейнер toolbar консоли - выделенная панель */
+/* Контейнер toolbar консоли - без фона, сливается с основной темой */
 QWidget#console_toolbar_container[themeClass="dark"] {
-    background: rgba(2, 6, 23, 0.5);
-    border: 1px solid rgba(31, 41, 55, 0.7);
-    border-radius: 6px;
-    margin-bottom: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+    margin-bottom: 0px;
     padding: 0px;
     min-height: 50px;
 }
 QWidget#console_toolbar_container[themeClass="light"] {
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(209, 213, 219, 0.9);
-    border-radius: 6px;
-    margin-bottom: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+    margin-bottom: 0px;
     padding: 0px;
     min-height: 50px;
 }
