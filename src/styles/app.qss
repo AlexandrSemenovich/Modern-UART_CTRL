@@ -68,13 +68,15 @@ QGroupBox::title {
     padding: 0 3px;
 }
 
-/* Buttons – flat minimal */
+/* Buttons – compact 20px style */
 QPushButton {
-    border-radius: 6px;
-    padding: 8px 16px;
-    min-height: 28px;
+    border-radius: 4px;
+    padding: 2px 10px;
+    min-height: 20px;
+    max-height: 20px;
     min-width: 84px;
     font-weight: 500;
+    font-size: 11px;
     qproperty-iconSize: 16px 16px;
     border: 1px solid;
 }
@@ -326,28 +328,149 @@ QPushButton[semanticRole="command_tlm"][themeClass="light"][dataActive="false"] 
     border: 1px solid $command_tlm_inactive;
 }
 
-/* Line edits and combo boxes - минимальный контраст */
-QLineEdit, QComboBox {
-    padding: 4px;
+/* Line edits - compact style */
+QLineEdit {
+    padding: 2px 10px;
     border-radius: 4px;
+    min-height: 20px;
+    max-height: 20px;
+    font-size: 11px;
 }
-QLineEdit[themeClass="dark"], QComboBox[themeClass="dark"] {
-    background: rgba(17, 24, 39, 0.3); /* едва заметный фон */
+QLineEdit[themeClass="dark"] {
+    background: rgba(17, 24, 39, 0.3);
     border: 1px solid #111827;
     color: #e5e7eb;
 }
-QLineEdit[themeClass="dark"]:focus, QComboBox[themeClass="dark"]:focus {
+QLineEdit[themeClass="dark"]:focus {
     background: rgba(17, 24, 39, 0.5);
-    border-color: #2563eb;
+    border: 2px solid #2563eb;
 }
-QLineEdit[themeClass="light"], QComboBox[themeClass="light"] {
-    background: rgba(255, 255, 255, 0.6); /* полупрозрачный белый */
-    border: 1px solid #d0d7e6;
+QLineEdit[themeClass="light"] {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid #E5E7EB;
     color: #0f172a;
 }
-QLineEdit[themeClass="light"]:focus, QComboBox[themeClass="light"]:focus {
+QLineEdit[themeClass="light"]:focus {
     background: rgba(255, 255, 255, 0.9);
-    border-color: #2563eb;
+    border: 2px solid #3B82F6;
+}
+
+/* Modern ComboBox style - compact 20px */
+QComboBox {
+    border-radius: 4px;
+    padding: 2px 10px;
+    min-height: 20px;
+    max-height: 20px;
+    font-size: 11px;
+}
+
+QComboBox[themeClass="dark"] {
+    background: rgba(17, 24, 39, 0.3);
+    border: 1px solid #111827;
+    color: #e5e7eb;
+}
+
+QComboBox[themeClass="light"] {
+    background: white;
+    border: 1px solid #E5E7EB;
+    color: #0f172a;
+}
+
+QComboBox[themeClass="dark"]:hover {
+    border-color: #60a5fa;
+    background: rgba(17, 24, 39, 0.4);
+}
+
+QComboBox[themeClass="light"]:hover {
+    border-color: #3B82F6;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+QComboBox[themeClass="dark"]:focus {
+    background: rgba(17, 24, 39, 0.5);
+    border: 2px solid #60a5fa;
+}
+
+QComboBox[themeClass="light"]:focus {
+    background: white;
+    border: 2px solid #3B82F6;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+
+QComboBox::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #6B7280;
+    margin-right: 8px;
+}
+
+QComboBox[themeClass="dark"]::down-arrow {
+    border-top-color: #9ca3af;
+}
+
+QComboBox[themeClass="light"]::down-arrow {
+    border-top-color: #6B7280;
+}
+
+/* Dropdown menu styling */
+QComboBox[themeClass="dark"] QAbstractItemView {
+    background-color: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 4px;
+    color: #e5e7eb;
+    selection-background-color: #2563eb;
+    selection-color: white;
+    show-decoration-selected: 1;
+}
+
+QComboBox[themeClass="light"] QAbstractItemView {
+    background-color: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 4px;
+    color: #0f172a;
+    selection-background-color: #3B82F6;
+    selection-color: white;
+    show-decoration-selected: 1;
+}
+
+/* Dropdown items */
+QComboBox[themeClass="dark"] QAbstractItemView::item {
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: #e5e7eb;
+}
+
+QComboBox[themeClass="light"] QAbstractItemView::item {
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: #0f172a;
+}
+
+QComboBox[themeClass="dark"] QAbstractItemView::item:hover {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #e5e7eb;
+}
+
+QComboBox[themeClass="light"] QAbstractItemView::item:hover {
+    background-color: #F3F4F6;
+    color: #0f172a;
+}
+
+QComboBox[themeClass="dark"] QAbstractItemView::item:selected {
+    background-color: #2563eb;
+    color: white;
+}
+
+QComboBox[themeClass="light"] QAbstractItemView::item:selected {
+    background-color: #3B82F6;
+    color: white;
 }
 
 /* Tabs – современные вкладки с фоном и границами */
@@ -452,9 +575,6 @@ QGroupBox#data_transmission[themeClass="dark"] {
 }
 QGroupBox#data_transmission[themeClass="light"] {
     border: 1px solid #d0d7e6;
-}
-QComboBox, QLineEdit {
-    padding: 6px 8px;
 }
 
 /* Labels - полностью прозрачный фон */
@@ -653,11 +773,10 @@ QWidget#right_panel[themeClass="light"] {
 
 /* Компактные кнопки в toolbar консоли */
 QWidget#console_toolbar_container QPushButton {
-    padding: 3px 10px;
+    padding: 2px 10px;
     min-height: 20px;
-    max-height: 24px;
-    height: 24px;
-    font-size: 10px;
+    max-height: 20px;
+    font-size: 11px;
     margin: 0px;
 }
 
@@ -888,6 +1007,9 @@ QMenuBar::item[themeClass="dark"] {
 QMenuBar::item[themeClass="dark"]:selected {
     background: rgba(148, 163, 184, 0.12);
 }
+QMenuBar::item[themeClass="dark"]:pressed {
+    background: rgba(148, 163, 184, 0.2);
+}
 QMenuBar::item[themeClass="light"] {
     background: transparent;
     padding: 4px 8px;
@@ -895,6 +1017,9 @@ QMenuBar::item[themeClass="light"] {
 }
 QMenuBar::item[themeClass="light"]:selected {
     background: rgba(37, 99, 235, 0.08);
+}
+QMenuBar::item[themeClass="light"]:pressed {
+    background: rgba(37, 99, 235, 0.15);
 }
 
 /* Menus */
@@ -917,12 +1042,30 @@ QMenu::item[themeClass="dark"] {
 QMenu::item[themeClass="dark"]:selected {
     background: rgba(148, 163, 184, 0.12);
 }
+QMenu::item[themeClass="dark"]:pressed {
+    background: rgba(148, 163, 184, 0.2);
+}
+QMenu::item[themeClass="dark"]:checked {
+    color: #60a5fa;
+}
+QMenu::item[themeClass="dark"]:disabled {
+    color: #6b7280;
+}
 QMenu::item[themeClass="light"] {
     padding: 6px 24px 6px 8px;
     border-radius: 4px;
 }
 QMenu::item[themeClass="light"]:selected {
     background: rgba(37, 99, 235, 0.08);
+}
+QMenu::item[themeClass="light"]:pressed {
+    background: rgba(37, 99, 235, 0.15);
+}
+QMenu::item[themeClass="light"]:checked {
+    color: #2563eb;
+}
+QMenu::item[themeClass="light"]:disabled {
+    color: #9ca3af;
 }
 QMenu::separator[themeClass="dark"] {
     height: 1px;
@@ -933,6 +1076,28 @@ QMenu::separator[themeClass="light"] {
     height: 1px;
     background: #d0d7e6;
     margin: 4px 0;
+}
+
+/* Menu arrow indicators */
+QMenu::indicator[themeClass="dark"] {
+    width: 12px;
+    height: 12px;
+    border: 1px solid rgba(107, 114, 128, 0.5);
+    border-radius: 2px;
+}
+QMenu::indicator[themeClass="dark"]:checked {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+QMenu::indicator[themeClass="light"] {
+    width: 12px;
+    height: 12px;
+    border: 1px solid rgba(100, 116, 139, 0.5);
+    border-radius: 2px;
+}
+QMenu::indicator[themeClass="light"]:checked {
+    background: #3b82f6;
+    border-color: #3b82f6;
 }
 
 /* Tab hover effects уже включены в стили выше */

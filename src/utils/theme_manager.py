@@ -22,7 +22,7 @@ class ThemeManager(QObject):
     def __init__(self):
         super().__init__()
         # Stored logical theme: "light" | "dark" | "system"
-        self.current_theme = "dark"
+        self.current_theme = "light"
         self.settings = QSettings("UART_CTRL", "ThemeSettings")
         self._stylesheet_cache: str | None = None
         self._last_modified: float = 0.0
@@ -44,7 +44,14 @@ class ThemeManager(QObject):
                 theme = config_loader.get_default_theme()
             except Exception:  # pragma: no cover - defensive
                 theme = "dark"
-        self.set_theme(theme)
+        
+        # Если тема "system", сразу определяем эффективную тему для согласованного применения
+        # Это предотвращает визуальные артефакты при первом запуске с системной темой
+        if theme == "system":
+            # Принудительно применяем тему с определением системной темы
+            self.set_theme(theme)
+        else:
+            self.set_theme(theme)
 
     def save_theme(self):
         """Save current theme to settings."""
@@ -55,16 +62,15 @@ class ThemeManager(QObject):
         if theme not in {"light", "dark", "system"}:
             return False
 
-        # Сохраняем тему даже если она не изменилась (для первого запуска)
-        theme_changed = theme != self.current_theme
+        # Всегда сохраняем тему и применяем её - это гарантирует полную перерисовку
+        # При любом изменении темы (включая переключение между явными темами)
+        old_theme = self.current_theme
         self.current_theme = theme
         
         # Применяем тему только если QApplication уже создан
-        # НЕ применяем здесь, чтобы избежать двойного применения при первом запуске
-        # Тема будет применена в main.py через apply_theme(force=True)
         app = QApplication.instance()
-        if app and theme_changed:
-            # Применяем только если тема действительно изменилась
+        if app:
+            # Всегда применяем тему для полной перерисовки всех элементов
             self.apply_theme(force=True)
             self.theme_changed.emit(theme)
         
@@ -133,8 +139,13 @@ class ThemeManager(QObject):
             self._apply_dark_theme(app)
 
         # themeClass используется в QSS-селекторах
+        # Всегда устанавливаем на app - это важно для правильного применения стилей
         app.setProperty("themeClass", effective)
+        
+        # Применяем таблицу стилей
         self._apply_stylesheet(app)
+        
+        # Обновляем состояние
         self._theme_applied = True
         self._last_applied_theme = effective  # сохраняем последнюю примененную тему
         self._last_logical_theme = logical  # сохраняем последнюю логическую тему

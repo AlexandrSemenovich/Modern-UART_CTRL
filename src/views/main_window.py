@@ -852,7 +852,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_theme_changed(self, theme: str) -> None:
         """Handle theme change."""
         self.statusBar().showMessage(
-            tr("theme_changed", "Theme changed to {theme}").format(theme=theme),
+            tr("status_theme_changed", "Theme: {theme}").format(theme=theme),
             2000
         )
         # Re-apply theme-specific properties to the whole widget tree
@@ -1016,9 +1016,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for w in widgets:
             w.setProperty("themeClass", theme_class)
-            self._refresh_widget_style(w)
+            # Используем unpolish + polish для корректного обновления стилей
+            w.style().unpolish(w)
+            w.style().polish(w)
         
         # Специально применяем к панелям для правильного отображения границ
         if hasattr(self, '_console_panel') and self._console_panel:
             self._console_panel.setProperty("themeClass", theme_class)
-            self._refresh_widget_style(self._console_panel)
+            self._console_panel.style().unpolish(self._console_panel)
+            self._console_panel.style().polish(self._console_panel)

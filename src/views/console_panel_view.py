@@ -148,7 +148,10 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._toolbar_container.setObjectName("console_toolbar_container")
         self._toolbar_container.setMinimumHeight(50)  # Минимальная высота для правильного центрирования
         self._toolbar_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+        
+        # Устанавливаем themeClass на основе эффективной темы для согласованного применения стилей
+        effective_theme = theme_manager._get_effective_theme()
+        theme_class = "light" if effective_theme == "light" else "dark"
         self._toolbar_container.setProperty("themeClass", theme_class)
         
         toolbar_layout = QtWidgets.QVBoxLayout(self._toolbar_container)
@@ -576,10 +579,21 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _on_theme_changed(self, theme: str) -> None:
         self._colors = config_loader.get_colors(theme)
         self._apply_theme_to_buttons()
-        # Применяем тему к контейнеру toolbar
+        
+        # Применяем тему к контейнеру toolbar и всем его дочерним виджетам
         if hasattr(self, '_toolbar_container'):
+            # Обновляем themeClass на контейнере
             theme_class = "light" if theme_manager.is_light_theme() else "dark"
             self._toolbar_container.setProperty("themeClass", theme_class)
+            
+            # Применяем тему ко всем дочерним виджетам в toolbar для согласованности
+            toolbar_widgets = self._toolbar_container.findChildren(QtWidgets.QWidget)
+            for widget in toolbar_widgets:
+                widget.setProperty("themeClass", theme_class)
+            
+            # Используем polish для плавного обновления стилей без полной перерисовки
+            self._toolbar_container.style().unpolish(self._toolbar_container)
+            self._toolbar_container.style().polish(self._toolbar_container)
             self._toolbar_container.update()
     
     def _on_search_changed(self, text: str) -> None:
