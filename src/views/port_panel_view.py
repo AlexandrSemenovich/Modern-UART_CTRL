@@ -237,11 +237,28 @@ class PortPanelView(QtWidgets.QGroupBox):
             self._viewmodel.set_port_name(port_name)
             self._viewmodel.connect()
         else:
-            QtWidgets.QMessageBox.warning(
-                self,
-                tr("warning", "Warning"),
-                tr("error_no_port", "No COM port available")
+            # Use toast notification instead of blocking dialog
+            self._show_toast_warning(
+                tr("error_no_port", "No COM port available"),
+                title=tr("warning", "Warning")
             )
+    
+    def _show_toast_warning(self, message: str, title: Optional[str] = None) -> None:
+        """Show warning toast notification."""
+        # Find parent window with toast manager
+        parent = self
+        while parent:
+            if hasattr(parent, '_toast_manager'):
+                parent._toast_manager.show_warning(message)
+                return
+            parent = parent.parentWidget()
+        
+        # Fallback: show message box if no toast manager found
+        QtWidgets.QMessageBox.warning(
+            self,
+            title or tr("warning", "Warning"),
+            message
+        )
     
     def _on_state_changed(self, state: str) -> None:
         """Handle ViewModel state change."""
@@ -268,15 +285,51 @@ class PortPanelView(QtWidgets.QGroupBox):
     def _update_connect_button_text(self, state: str | PortConnectionState) -> None:
         """Switch connect button label depending on state."""
         normalized_state = self._normalize_state(state)
-        text = (
-            tr("disconnect", "Disconnect")
-            if normalized_state in (
-                PortConnectionState.CONNECTED,
-                PortConnectionState.CONNECTING,
-            )
-            else tr("connect", "Connect")
-        )
-        self._connect_btn.setText(text)
+        
+        # Add progress indicator during connection
+        if normalized_state == PortConnectionState.CONNECTING:
+            text = tr("connecting", "Connecting...")
+            self._connect_btn.setText(text)
+            self._connect_btn.setEnabled(True)
+            # Start spinning animation if not already
+            if not hasattr(self, '_connect_animation') or not self._connect_animation:
+                self._start_connect_animation()
+        elif normalized_state == PortConnectionState.CONNECTED:
+            text = tr("disconnect", "Disconnect")
+            self._connect_btn.setText(text)
+            self._connect_btn.setEnabled(True)
+            self._stop_connect_animation()
+        else:
+            text = tr("connect", "Connect")
+            self._connect_btn.setText(text)
+            self._connect_btn.setEnabled(True)
+            self._stop_connect_animation()
+
+    def _start_connect_animation(self) -> None:
+        """Start spinning animation on connect button."""
+        from PySide6.QtCore import QTimer
+        from src.styles.constants import Timing
+        self._connect_animation_timer = QTimer(self)
+        self._connect_animation_timer.timeout.connect(self._animate_connect_button)
+        self._connect_animation_frame = 0
+        self._connect_animation_timer.start(Timing.CONNECT_ANIMATION_INTERVAL_MS)  # Update every 100ms
+        self._original_button_text = self._connect_btn.text()
+        self._connect_animation = True
+
+    def _animate_connect_button(self) -> None:
+        """Animate the connect button with rotating indicator."""
+        from src.styles.constants import Timing
+        frames = ["Connecting", "Connecting.", "Connecting..", "Connecting..."]
+        self._connect_animation_frame = (self._connect_animation_frame + 1) % Timing.CONNECT_ANIMATION_FRAMES
+        self._connect_btn.setText(frames[self._connect_animation_frame])
+
+    def _stop_connect_animation(self) -> None:
+        """Stop the connect button animation."""
+        if hasattr(self, '_connect_animation_timer') and self._connect_animation_timer:
+            self._connect_animation_timer.stop()
+            self._connect_animation_timer.deleteLater()
+            self._connect_animation_timer = None
+        self._connect_animation = False
 
     @staticmethod
     def _normalize_state(state: str | PortConnectionState) -> PortConnectionState:

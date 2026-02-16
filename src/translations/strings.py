@@ -281,8 +281,8 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "en": "TLM",
     },
     "send_to_tlm": {
-        "ru": "Отправить в TLM",
-        "en": "Send to TLM",
+        "ru": "TLM",
+        "en": "TLM",
     },
     "tlm_log": {
         "ru": "Логи TLM",
@@ -290,7 +290,7 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     },
     "send_to_all_three": {
         "ru": "1+2",
-        "en": "All",
+        "en": "1+2",
     },
     "clear": {
         "ru": "Очистить",
@@ -917,5 +917,35 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "manager_monitor_error": {
         "ru": "Ошибка мониторинга {port}: {error}",
         "en": "Error monitoring {port}: {error}",
+    },
+    
+    # System tray
+    "tray_show": {
+        "ru": "Показать окно",
+        "en": "Show Window",
+    },
+    "tray_quit": {
+        "ru": "Выход",
+        "en": "Quit",
+    },
+    
+    # Context menu
+    "copy_all": {
+        "ru": "Копировать всё",
+        "en": "Copy All",
+    },
+    "filter": {
+        "ru": "Фильтр",
+        "en": "Filter",
+    },
+    
+    # Confirmation dialogs
+    "confirm_clear": {
+        "ru": "Подтвердить очистку",
+        "en": "Confirm Clear",
+    },
+    "confirm_clear_message": {
+        "ru": "Вы уверены, что хотите очистить все логи? Это действие нельзя отменить.",
+        "en": "Are you sure you want to clear all logs? This action cannot be undone.",
     },
 }

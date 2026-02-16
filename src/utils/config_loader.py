@@ -98,6 +98,20 @@ class ConsoleConfig:
     max_cache_lines: int
 
 
+@dataclass
+class ToastConfig:
+    """Конфигурация toast-уведомлений."""
+
+    toast_min_width: int
+    toast_max_width: int
+    toast_duration_ms: int
+    toast_spacing: int
+    toast_icon_size: int
+    toast_close_button_size: int
+    toast_margins: tuple[int, int, int, int]
+    toast_corner_radius: int
+
+
 class ConfigLoader:
     """Loads application settings from config/config.ini with defaults."""
 
@@ -117,7 +131,7 @@ class ConfigLoader:
         # defaults
         self._default_colors = {
             "dark": ThemeColors(
-                timestamp="#aaaaaa",
+                timestamp="#757575",
                 rx_text="#c7f0c7",
                 rx_label="#4caf50",
                 tx_text="#fff7d6",
@@ -138,38 +152,38 @@ class ConfigLoader:
 
         self._default_button_colors = {
             "dark": ButtonColors(
-                command_combo_active="#8b5cf6",
-                command_combo_connecting="#a78bfa",
-                command_combo_inactive="#2b2440",
-                command_cpu1_active="#16a34a",
-                command_cpu1_connecting="#22c55e",
-                command_cpu1_inactive="#1f2d26",
-                command_cpu2_active="#0891b2",
-                command_cpu2_connecting="#22d3ee",
-                command_cpu2_inactive="#192a30",
-                command_tlm_active="#e11d48",
-                command_tlm_connecting="#fb7185",
-                command_tlm_inactive="#2f1d24",
+                command_combo_active="#2563eb",
+                command_combo_connecting="#3b82f6",
+                command_combo_inactive="#1e3a5f",
+                command_cpu1_active="#2563eb",
+                command_cpu1_connecting="#3b82f6",
+                command_cpu1_inactive="#1e3a5f",
+                command_cpu2_active="#2563eb",
+                command_cpu2_connecting="#3b82f6",
+                command_cpu2_inactive="#1e3a5f",
+                command_tlm_active="#2563eb",
+                command_tlm_connecting="#3b82f6",
+                command_tlm_inactive="#1e3a5f",
                 command_text_active="#f8fafc",
                 command_text_connecting="#0f172a",
                 command_text_inactive="#7f8596",
             ),
             "light": ButtonColors(
-                command_combo_active="#5b21b6",
-                command_combo_connecting="#8b5cf6",
-                command_combo_inactive="#dcd5f7",
-                command_cpu1_active="#15803d",
-                command_cpu1_connecting="#34d399",
-                command_cpu1_inactive="#d6f2e3",
-                command_cpu2_active="#0f766e",
-                command_cpu2_connecting="#2dd4bf",
-                command_cpu2_inactive="#d3f3f0",
-                command_tlm_active="#be123c",
-                command_tlm_connecting="#fb7185",
-                command_tlm_inactive="#fdd8e1",
+                command_combo_active="#2563eb",
+                command_combo_connecting="#3b82f6",
+                command_combo_inactive="#dbeafe",
+                command_cpu1_active="#2563eb",
+                command_cpu1_connecting="#3b82f6",
+                command_cpu1_inactive="#dbeafe",
+                command_cpu2_active="#2563eb",
+                command_cpu2_connecting="#3b82f6",
+                command_cpu2_inactive="#dbeafe",
+                command_tlm_active="#2563eb",
+                command_tlm_connecting="#3b82f6",
+                command_tlm_inactive="#dbeafe",
                 command_text_active="#ffffff",
-                command_text_connecting="#0b1120",
-                command_text_inactive="#4b5563",
+                command_text_connecting="#0f172a",
+                command_text_inactive="#5a6370",
             ),
         }
 
@@ -378,6 +392,35 @@ class ConfigLoader:
             max_document_lines=get_int("max_document_lines", 1_000),
             trim_chunk_size=get_int("trim_chunk_size", 500),
             max_cache_lines=get_int("max_cache_lines", 10_000),
+        )
+
+    def get_toast_config(self) -> ToastConfig:
+        """
+        Конфигурация toast-уведомлений.
+
+        Берутся из секции [toast], при отсутствии — используются безопасные значения по умолчанию.
+        """
+        section = self._get_section("toast")
+        get_int = lambda key, default: self._get_int(section, key, default)
+        
+        # Parse margins tuple
+        margins_str = section.get("toast_margins", "12, 8, 12, 8")
+        try:
+            margins = tuple(int(x.strip()) for x in margins_str.split(","))
+            if len(margins) != 4:
+                margins = (12, 8, 12, 8)
+        except ValueError:
+            margins = (12, 8, 12, 8)
+        
+        return ToastConfig(
+            toast_min_width=get_int("toast_min_width", 300),
+            toast_max_width=get_int("toast_max_width", 500),
+            toast_duration_ms=get_int("toast_duration_ms", 4000),
+            toast_spacing=get_int("toast_spacing", 8),
+            toast_icon_size=get_int("toast_icon_size", 20),
+            toast_close_button_size=get_int("toast_close_button_size", 20),
+            toast_margins=margins,
+            toast_corner_radius=get_int("toast_corner_radius", 6),
         )
 
 

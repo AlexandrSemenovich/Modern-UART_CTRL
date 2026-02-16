@@ -97,6 +97,10 @@ class Timing:
     
     LED_FLASH_DURATION_MS = 150
     SERIAL_READ_INTERVAL_MS = 20
+    
+    # Connection animation
+    CONNECT_ANIMATION_INTERVAL_MS = 100
+    CONNECT_ANIMATION_FRAMES = 4
 
 
 # ==================== Configuration ====================
@@ -199,3 +203,24 @@ class LoggingConfig:
     
     # Environment variable name
     ENV_VAR = 'APP_ENV'
+
+
+# ==================== Toast Notifications ====================
+class ToastConfig:
+    """Toast notification configuration."""
+    
+    _cfg = config_loader.get_toast_config()
+    
+    # Toast dimensions
+    TOAST_MIN_WIDTH = _cfg.toast_min_width
+    TOAST_MAX_WIDTH = _cfg.toast_max_width
+    TOAST_MARGINS = _cfg.toast_margins
+    TOAST_CORNER_RADIUS = _cfg.toast_corner_radius
+    
+    # Toast sizing
+    TOAST_ICON_SIZE = _cfg.toast_icon_size
+    TOAST_CLOSE_BUTTON_SIZE = _cfg.toast_close_button_size
+    
+    # Timing
+    TOAST_DURATION_MS = _cfg.toast_duration_ms
+    TOAST_SPACING = _cfg.toast_spacing

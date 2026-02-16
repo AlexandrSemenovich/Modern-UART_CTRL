@@ -23,6 +23,48 @@ class LogWidget:
         self.text_edit: Optional[QtWidgets.QTextEdit] = None
 
 
+class DropableTextEdit(QtWidgets.QTextEdit):
+    """QTextEdit with drag-and-drop support for text files."""
+    
+    file_dropped = Signal(str)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+    
+    def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:
+        """Handle drag enter event."""
+        if event.mimeData().hasUrls():
+            # Check if any URLs are text files
+            for url in event.mimeData().urls():
+                if url.isLocalFile():
+                    file_path = url.toLocalFile()
+                    if file_path.endswith(('.txt', '.log', '.hex', '.bin', '.csv')):
+                        event.acceptProposedAction()
+                        return
+        elif event.mimeData().hasText():
+            event.acceptProposedAction()
+    
+    def dragMoveEvent(self, event: QtGui.QDragMoveEvent) -> None:
+        """Handle drag move event."""
+        event.acceptProposedAction()
+    
+    def dropEvent(self, event: QtGui.QDropEvent) -> None:
+        """Handle drop event - emit file path or text."""
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.isLocalFile():
+                    file_path = url.toLocalFile()
+                    if file_path.endswith(('.txt', '.log', '.hex', '.bin', '.csv')):
+                        self.file_dropped.emit(file_path)
+                        event.acceptProposedAction()
+                        return
+        elif event.mimeData().hasText():
+            # Emit the dropped text
+            self.file_dropped.emit(event.mimeData().text())
+            event.acceptProposedAction()
+
+
 class ConsolePanelView(QtWidgets.QWidget):
     """
     UI component for displaying console logs from serial ports.
@@ -43,6 +85,7 @@ class ConsolePanelView(QtWidgets.QWidget):
     search_changed = Signal(str)
     clear_requested = Signal()
     save_requested = Signal()
+    file_dropped = Signal(str)  # Signal for file drop - emits file path
     
     def __init__(
         self, 
@@ -273,15 +316,51 @@ class ConsolePanelView(QtWidgets.QWidget):
         return widget
     
     def _create_log_edit(self) -> QtWidgets.QTextEdit:
-        """Create a read-only log text edit widget."""
-        edit = QtWidgets.QTextEdit()
+        """Create a read-only log text edit widget with drag-and-drop support."""
+        edit = DropableTextEdit()
         edit.setReadOnly(True)
         edit.setFont(Fonts.get_monospace_font())
         edit.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
         edit.setUndoRedoEnabled(False)
         # Set maximum line count as safety net
         edit.document().setMaximumBlockCount(ConsoleLimits.MAX_DOCUMENT_LINES)
+        
+        # Enable context menu
+        edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        edit.customContextMenuRequested.connect(lambda pos: self._show_context_menu(edit, pos))
+        
         return edit
+    
+    def _show_context_menu(self, text_edit: QtWidgets.QTextEdit, pos: QtCore.QPoint) -> None:
+        """Show context menu for the text edit."""
+        menu = text_edit.createStandardContextMenu()
+        
+        # Add custom actions
+        menu.addSeparator()
+        
+        # Copy all visible text
+        copy_all_action = QtWidgets.QAction(tr("copy_all", "Copy All"), menu)
+        copy_all_action.triggered.connect(lambda: self._copy_all_text(text_edit))
+        menu.addAction(copy_all_action)
+        
+        # Filter by selection
+        cursor = text_edit.textCursor()
+        if cursor.hasSelection():
+            selected_text = cursor.selectedText()
+            filter_action = QtWidgets.QAction(f"{tr('filter', 'Filter')}: {selected_text[:20]}...", menu)
+            filter_action.triggered.connect(lambda: self._filter_by_text(selected_text))
+            menu.addAction(filter_action)
+        
+        menu.exec(text_edit.mapToGlobal(pos))
+    
+    def _copy_all_text(self, text_edit: QtWidgets.QTextEdit) -> None:
+        """Copy all text from the text edit to clipboard."""
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setText(text_edit.toPlainText())
+    
+    def _filter_by_text(self, text: str) -> None:
+        """Filter logs by the given text."""
+        self.search_changed.emit(text)
     
     def _create_tab_header(self, port_label: str) -> QtWidgets.QLabel:
         """Create header label for a log tab."""

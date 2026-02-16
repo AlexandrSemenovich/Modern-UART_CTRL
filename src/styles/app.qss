@@ -23,7 +23,28 @@ QWidget[themeClass="light"] {
     color: #0f172a;
 }
 
-/* Плавные переходы реализуются через Qt анимации, не через QSS */
+/* Фокус для клавиатурной доступности - заметная рамка */
+QPushButton:focus,
+QTextEdit:focus,
+QLineEdit:focus,
+QComboBox:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
+}
+
+QPushButton[themeClass="dark"]:focus,
+QTextEdit[themeClass="dark"]:focus,
+QLineEdit[themeClass="dark"]:focus,
+QComboBox[themeClass="dark"]:focus {
+    outline-color: #60a5fa;
+}
+
+QPushButton[themeClass="light"]:focus,
+QTextEdit[themeClass="light"]:focus,
+QLineEdit[themeClass="light"]:focus,
+QComboBox[themeClass="light"]:focus {
+    outline-color: #2563eb;
+}
 
 /* Group boxes as cards - более заметные границы для модулей */
 QGroupBox {
@@ -50,7 +71,7 @@ QGroupBox::title {
 /* Buttons – flat minimal */
 QPushButton {
     border-radius: 6px;
-    padding: 4px 10px;
+    padding: 8px 16px;
     min-height: 28px;
     min-width: 84px;
     font-weight: 500;
@@ -408,7 +429,7 @@ QTabBar::tab[themeClass="light"]:selected {
 /* Text edits (logs) - monospace for aligned tables */
 QTextEdit {
     font-family: "Courier New", Consolas, monospace;
-    font-size: 9pt;
+    font-size: 10pt;
 }
 QTextEdit[themeClass="dark"] {
     background: rgba(2, 6, 23, 0.5); /* выделенный фон для области логов */
@@ -636,7 +657,7 @@ QWidget#console_toolbar_container QPushButton {
     min-height: 20px;
     max-height: 24px;
     height: 24px;
-    font-size: 11px;
+    font-size: 10px;
     margin: 0px;
 }
 

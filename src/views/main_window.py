@@ -13,12 +13,16 @@ Features:
 
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QIcon, QFont, QColor, QKeySequence, QShortcut, QActionGroup
+from PySide6.QtGui import QIcon, QFont, QColor, QKeySequence, QShortcut, QActionGroup, QAction
+from PySide6.QtWidgets import QSystemTrayIcon
 from typing import Dict, Optional, List
 import os
 import sys
 import time
 import datetime
+
+from src.utils.logger import get_logger
+logger = get_logger(__name__)
 
 # Windows API для кастомного title bar
 if sys.platform == "win32":
@@ -60,6 +64,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # Console panel
         self._console_panel: Optional[ConsolePanelView] = None
         
+        # System tray
+        self._tray_icon: Optional[QSystemTrayIcon] = None
+        
+        # Toast notifications
+        self._toast_manager = None
+        
         # Command history
         self._history_model = CommandHistoryModel(self)
         self._history_dialog: Optional[CommandHistoryDialog] = None
@@ -71,6 +81,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_ui()
         self._setup_menu()
         self._setup_shortcuts()
+        self._setup_tray()
         
         # Connect theme changes
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -157,6 +168,63 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception:
             pass
     
+    def _setup_tray(self) -> None:
+        """Setup system tray icon with context menu."""
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return
+        
+        self._tray_icon = QSystemTrayIcon(self)
+        
+        # Set icon based on theme
+        icon_path = "assets/icons/icon_black.ico" if theme_manager.is_dark_theme() else "assets/icons/icon_white.ico"
+        full_icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), icon_path)
+        
+        # Try to load icon, fall back to application icon if custom icon not found
+        if os.path.exists(full_icon_path):
+            self._tray_icon.setIcon(QIcon(full_icon_path))
+        else:
+            # Fallback: use the application window icon
+            app_icon = self.windowIcon()
+            if not app_icon.isNull():
+                self._tray_icon.setIcon(app_icon)
+            else:
+                logger.warning(f"Tray icon not found: {full_icon_path}, and no fallback icon available")
+                return  # Don't show tray without icon
+        
+        # Create context menu
+        tray_menu = QtWidgets.QMenu()
+        
+        show_action = tray_menu.addAction(tr("tray_show", "Show Window"))
+        show_action.triggered.connect(self.show)
+        show_action.triggered.connect(self.activateWindow)
+        
+        tray_menu.addSeparator()
+        
+        quit_action = tray_menu.addAction(tr("tray_quit", "Quit"))
+        quit_action.triggered.connect(self.close)
+        
+        self._tray_icon.setContextMenu(tray_menu)
+        self._tray_icon.setToolTip(tr("app_name", "UART Control"))
+        
+        # Double-click to show window
+        self._tray_icon.activated.connect(self._on_tray_activated)
+        
+        self._tray_icon.show()
+    
+    def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        """Handle tray icon activation."""
+        if reason == QSystemTrayIcon.DoubleClick or reason == QSystemTrayIcon.Trigger:
+            self.show()
+            self.activateWindow()
+    
+    def closeEvent(self, event) -> None:
+        """Handle window close event - hide to tray instead of closing."""
+        if self._tray_icon and self._tray_icon.isVisible():
+            event.ignore()
+            self.hide()
+        else:
+            super().closeEvent(event)
+    
     def _setup_ui(self) -> None:
         """Initialize main UI components."""
         central_widget = QtWidgets.QWidget()
@@ -238,21 +306,27 @@ class MainWindow(QtWidgets.QMainWindow):
             layout.addWidget(port_view)
             
             # Connect ViewModel signals to console (using bound methods to avoid lambda closure issues)
+            # Use Qt.QueuedConnection for thread-safe handling of high-frequency serial data
             viewmodel.data_received.connect(
-                self._make_rx_handler(port_key)
+                self._make_rx_handler(port_key),
+                type=Qt.QueuedConnection
             )
             viewmodel.data_sent.connect(
-                self._make_tx_handler(port_key)
+                self._make_tx_handler(port_key),
+                type=Qt.QueuedConnection
             )
             viewmodel.error_occurred.connect(
-                self._make_error_handler(port_key, viewmodel)
+                self._make_error_handler(port_key, viewmodel),
+                type=Qt.QueuedConnection
             )
             viewmodel.state_changed.connect(
-                self._make_state_handler(port_num)
+                self._make_state_handler(port_num),
+                type=Qt.QueuedConnection
             )
             # Connect counter update signal
             viewmodel.counter_updated.connect(
-                self._make_counter_handler(port_num, port_key)
+                self._make_counter_handler(port_num, port_key),
+                type=Qt.QueuedConnection
             )
 
         # Command input section
@@ -512,25 +586,16 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._console_panel:
             self._console_panel.append_system(port_label, plain_msg)
         
-        # Limit number of dialogs to prevent memory leaks
-        if len(self._error_dialogs) >= self._MAX_ERROR_DIALOGS:
-            # Close oldest dialog
-            oldest = self._error_dialogs.pop(0)
-            oldest.close()
-            oldest.deleteLater()
+        # Use toast notification instead of blocking dialog
+        if not self._toast_manager:
+            from src.views.toast_notification import get_toast_manager
+            self._toast_manager = get_toast_manager(self)
         
-        dialog = QtWidgets.QMessageBox(
-            QtWidgets.QMessageBox.Critical,
-            tr("error", "Error"),
-            plain_msg,
-            parent=self,
+        self._toast_manager.show_toast(
+            f"{port_label}: {plain_msg}",
+            toast_type="error",
+            duration_ms=5000
         )
-        dialog.setWindowTitle(tr("error", "Error"))
-        
-        # Auto-cleanup when dialog is closed
-        dialog.finished.connect(lambda _: self._cleanup_error_dialog(dialog))
-        dialog.show()
-        self._error_dialogs.append(dialog)
     
     def _cleanup_error_dialog(self, dialog: QtWidgets.QMessageBox) -> None:
         """Remove closed dialog from tracking list."""
@@ -714,9 +779,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self._refresh_widget_style(button)
     
     def _clear_all_logs(self) -> None:
-        """Clear all console logs."""
-        if self._console_panel:
-            self._console_panel.clear_all()
+        """Clear all console logs with confirmation."""
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            tr("confirm_clear", "Confirm Clear"),
+            tr("confirm_clear_message", "Are you sure you want to clear all logs? This action cannot be undone."),
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.No
+        )
+        
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
+            if self._console_panel:
+                self._console_panel.clear_all()
     
     def _save_logs(self) -> None:
         """Save logs to file."""
@@ -727,9 +801,12 @@ class MainWindow(QtWidgets.QMainWindow):
         logs_text = self._console_panel.get_logs_text()
         
         if not logs_text:
-            QtWidgets.QMessageBox.information(
-                self,
-                tr("info", "Info"),
+            # Use toast notification instead of blocking dialog
+            if not self._toast_manager:
+                from src.views.toast_notification import get_toast_manager
+                self._toast_manager = get_toast_manager(self)
+            
+            self._toast_manager.show_info(
                 tr("no_logs_to_save", "No logs to save")
             )
             return
@@ -763,10 +840,13 @@ class MainWindow(QtWidgets.QMainWindow):
                     3000
                 )
             except Exception as e:
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    tr("error", "Error"),
-                    tr("save_error", "Failed to save logs: {error}").format(error=e)
+                # Use toast notification instead of blocking dialog
+                if not self._toast_manager:
+                    from src.views.toast_notification import get_toast_manager
+                    self._toast_manager = get_toast_manager(self)
+                
+                self._toast_manager.show_error(
+                    tr("save_error", "Failed to save logs: {error}").format(error=str(e))
                 )
     
     def _on_theme_changed(self, theme: str) -> None:

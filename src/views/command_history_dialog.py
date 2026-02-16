@@ -121,6 +121,8 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         bottom_row.addStretch(1)
 
         self._btn_close = QtWidgets.QPushButton(tr("history_close", "Close"))
+        self._btn_close.setMinimumHeight(Sizes.BUTTON_MIN_HEIGHT)
+        self._btn_close.setMaximumWidth(Sizes.BUTTON_MAX_WIDTH)
         bottom_row.addWidget(self._btn_close)
 
         layout.addLayout(bottom_row)

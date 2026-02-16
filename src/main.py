@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 logger.info(f"Starting application in '{_env}' environment")
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from src.views.splash_screen import ModernSplashScreen, SplashController
 from src.views.main_window import MainWindow
 from src.utils.theme_manager import theme_manager
