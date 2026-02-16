@@ -152,3 +152,16 @@ class CharsetConfig:
         b'\xff\xfe': 'utf-16-le',
         b'\xef\xbb\xbf': 'utf-8',
     }
+
+
+# ==================== Command Validation ====================
+import string
+
+class CommandConfig:
+    """Command validation configuration for serial port communication."""
+
+    # Maximum command length in characters
+    MAX_COMMAND_LENGTH = 1024
+    
+    # Valid characters: printable ASCII + CR + LF
+    VALID_CHARS = set(string.printable + "\r\n")

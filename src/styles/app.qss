@@ -5,6 +5,15 @@ QWidget {
     font-family: "Segoe UI", "Helvetica", Arial;
     font-size: 10pt;
 }
+
+/* Console log classes */
+.timestamp {
+    color: gray;
+}
+.error {
+    font-weight: bold;
+    color: red;
+}
 QWidget[themeClass="dark"] {
     background: #020617;
     color: #e5e7eb;

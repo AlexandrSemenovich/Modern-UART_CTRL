@@ -6,6 +6,7 @@ Reusable widget for showing RX/TX data from multiple ports.
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Signal, Qt, QTimer
 from typing import Optional, Dict, List, Callable
+from collections import deque
 import html
 import re
 
@@ -61,7 +62,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._port_labels: List[str] = ['CPU1', 'CPU2', 'TLM']
         self._log_widgets: Dict[str, LogWidget] = {}
         self._combined_log_widgets: Dict[str, QtWidgets.QTextEdit] = {}
-        self._log_cache: Dict[str, List[str]] = {}
+        # Use deque with maxlen for O(1) cache operations
+        self._log_cache: Dict[str, deque] = {}
         # Максимальное количество строк в кэше для одного порта
         from src.styles.constants import ConsoleLimits as _ConsoleLimits  # локальный импорт для избежания циклов
         self._max_lines: int = int(self._config.get('max_lines', _ConsoleLimits.MAX_CACHE_LINES))
@@ -77,6 +79,10 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._pending_updates: Dict[str, List[tuple]] = {}
         self._update_timer: Optional[QTimer] = None
         self._update_interval_ms: int = 50  # Batch updates every 50ms
+        
+        # Search debounce timer (300ms)
+        self._search_timer: Optional[QTimer] = None
+        self._search_debounce_ms: int = 300
         
         self._themed_buttons: List[QtWidgets.QPushButton] = []
         self._setup_ui()
@@ -273,6 +279,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         edit.setFont(Fonts.get_monospace_font())
         edit.setLineWrapMode(QtWidgets.QTextEdit.LineWrapMode.NoWrap)
         edit.setUndoRedoEnabled(False)
+        # Set maximum line count as safety net
+        edit.document().setMaximumBlockCount(ConsoleLimits.MAX_DOCUMENT_LINES)
         return edit
     
     def _create_tab_header(self, port_label: str) -> QtWidgets.QLabel:
@@ -304,6 +312,15 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._update_timer = QTimer(self)
         self._update_timer.setSingleShot(True)
         self._update_timer.timeout.connect(self._flush_pending_updates)
+        
+        # Initialize search debounce timer
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.timeout.connect(self._perform_search)
+    
+    def _perform_search(self) -> None:
+        """Execute the actual search operation."""
+        self.search_changed.emit(self._search_text)
     
     def _flush_pending_updates(self) -> None:
         """Flush all pending log updates to UI."""
@@ -331,21 +348,23 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _trim_document_if_needed(self, text_edit: QtWidgets.QTextEdit) -> None:
         """
         Trim document content if it exceeds MAX_DOCUMENT_LINES.
-        Uses chunked removal to minimize UI updates.
+        Uses block-based removal for better performance.
         """
         doc = text_edit.document()
-        if doc.lineCount() > ConsoleLimits.MAX_DOCUMENT_LINES:
-            # Remove old content in chunks
+        max_lines = ConsoleLimits.MAX_DOCUMENT_LINES
+        
+        # Use blockCount for faster line counting
+        if doc.blockCount() > max_lines:
             cursor = QtWidgets.QTextCursor(doc)
             cursor.movePosition(QtGui.QTextCursor.Start)
-            # Delete lines in chunks to stay within limit
-            lines_to_remove = (
-                doc.lineCount()
-                - ConsoleLimits.MAX_DOCUMENT_LINES
-                + ConsoleLimits.TRIM_CHUNK_SIZE
-            )
-            cursor.movePosition(QtGui.QTextCursor.Down, QtGui.QTextCursor.KeepAnchor, lines_to_remove)
-            cursor.removeText()
+            
+            # Calculate how many lines to remove
+            lines_to_remove = doc.blockCount() - max_lines + ConsoleLimits.TRIM_CHUNK_SIZE
+            
+            # Move down and select, then delete using deleteChar()
+            for _ in range(lines_to_remove):
+                cursor.movePosition(QtGui.QTextCursor.Down, QtGui.QTextCursor.KeepAnchor)
+            cursor.deleteChar()
     
     def append_log(self, port_label: str, html_content: str, plain_text: str) -> None:
         """
@@ -357,16 +376,12 @@ class ConsolePanelView(QtWidgets.QWidget):
             html_content: HTML formatted content
             plain_text: Plain text version
         """
-        # Add to cache immediately
+        # Add to cache immediately (deque with maxlen handles size limit automatically)
         if port_label not in self._log_cache:
-            self._log_cache[port_label] = []
+            # Use deque with maxlen for O(1) automatic size limiting
+            self._log_cache[port_label] = deque(maxlen=self._max_lines)
         
         self._log_cache[port_label].append((html_content, plain_text))
-        
-        # Limit cache size
-        max_cache = self._max_lines * 2  # HTML + plain pairs
-        if len(self._log_cache[port_label]) > max_cache:
-            self._log_cache[port_label] = self._log_cache[port_label][-max_cache:]
         
         # Queue UI update for throttling
         if port_label not in self._pending_updates:
@@ -486,14 +501,13 @@ class ConsolePanelView(QtWidgets.QWidget):
         if hasattr(self, '_toolbar_container'):
             theme_class = "light" if theme_manager.is_light_theme() else "dark"
             self._toolbar_container.setProperty("themeClass", theme_class)
-            self._toolbar_container.style().unpolish(self._toolbar_container)
-            self._toolbar_container.style().polish(self._toolbar_container)
             self._toolbar_container.update()
     
     def _on_search_changed(self, text: str) -> None:
-        """Handle search text change."""
+        """Handle search text change with debouncing."""
         self._search_text = text
-        self.search_changed.emit(text)
+        # Restart the debounce timer (300ms delay)
+        self._search_timer.start(300)
     
     def _on_display_option_changed(self) -> None:
         """Handle display option change."""
@@ -614,6 +628,4 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
         theme_class = "light" if theme_manager.is_light_theme() else "dark"
         button.setProperty("themeClass", theme_class)
-        button.style().unpolish(button)
-        button.style().polish(button)
         button.update()

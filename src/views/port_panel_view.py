@@ -3,6 +3,7 @@ PortPanelView: UI component for a single COM port panel.
 Reusable widget for port configuration and connection.
 """
 
+import logging
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Signal, Qt, QTimer
 from typing import Optional, List
@@ -10,7 +11,11 @@ from typing import Optional, List
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
 from src.styles.constants import Fonts, Sizes, SerialConfig, SerialPorts
-from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
+from src.viewmodels.com_port_viewmodel import ComPortViewModel
+from src.utils.state_utils import PortConnectionState
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 try:
     from serial.tools import list_ports as list_serial_ports
@@ -166,7 +171,7 @@ class PortPanelView(QtWidgets.QGroupBox):
                     if p.device.upper() not in SerialPorts.SYSTEM_PORTS
                 ]
             except Exception as e:
-                print(f"Error scanning ports: {e}")
+                logger.warning(f"Error scanning ports: {e}")
                 ports = []
 
         # Add placeholder if no ports found
@@ -346,6 +351,4 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._refresh_widget_style(button)
 
     def _refresh_widget_style(self, widget: QtWidgets.QWidget) -> None:
-        widget.style().unpolish(widget)
-        widget.style().polish(widget)
         widget.update()

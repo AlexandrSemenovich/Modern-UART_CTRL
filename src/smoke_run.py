@@ -4,11 +4,16 @@ Used to detect runtime exceptions on startup.
 """
 import sys
 import os
+import logging
 
 # ensure package import path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.views.main_window import MainWindow
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def run():
@@ -32,11 +37,13 @@ def run():
         # quit after 1 second
         QTimer.singleShot(1000, app.quit)
         rc = app.exec()
+        logger.info(f'SMOKE_RUN_EXIT: {rc}')
         print('SMOKE_RUN_EXIT', rc)
         return rc
     except Exception as e:
         import traceback
         traceback.print_exc()
+        logger.error(f'Smoke run failed: {e}')
         return 2
 
 

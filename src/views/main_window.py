@@ -237,24 +237,18 @@ class MainWindow(QtWidgets.QMainWindow):
             
             layout.addWidget(port_view)
             
-            # Connect ViewModel signals to console
+            # Connect ViewModel signals to console (using bound methods to avoid lambda closure issues)
             viewmodel.data_received.connect(
-                lambda data, key=port_key: self._console_panel.append_rx(
-                    tr(key, key.upper()), data
-                )
+                self._make_rx_handler(port_key)
             )
             viewmodel.data_sent.connect(
-                lambda data, key=port_key: self._console_panel.append_tx(
-                    tr(key, key.upper()), data
-                )
+                self._make_tx_handler(port_key)
             )
             viewmodel.error_occurred.connect(
-                lambda msg, key=port_key, vm=viewmodel: self._handle_port_error(
-                    tr(key, key.upper()), vm, msg
-                )
+                self._make_error_handler(port_key, viewmodel)
             )
             viewmodel.state_changed.connect(
-                lambda state, num=port_num: self._on_port_state_changed(num, state)
+                self._make_state_handler(port_num)
             )
 
         # Command input section
@@ -601,6 +595,30 @@ class MainWindow(QtWidgets.QMainWindow):
         normalized = self._normalize_state(state)
         self._port_states[port_num] = normalized
         self._update_command_controls()
+
+    def _make_rx_handler(self, port_key: str):
+        """Create a bound handler for RX data signal to avoid lambda closure issues."""
+        def handler(data: str):
+            self._console_panel.append_rx(tr(port_key, port_key.upper()), data)
+        return handler
+
+    def _make_tx_handler(self, port_key: str):
+        """Create a bound handler for TX data signal to avoid lambda closure issues."""
+        def handler(data: str):
+            self._console_panel.append_tx(tr(port_key, port_key.upper()), data)
+        return handler
+
+    def _make_error_handler(self, port_key: str, viewmodel):
+        """Create a bound handler for error signal to avoid lambda closure issues."""
+        def handler(msg: str):
+            self._handle_port_error(tr(port_key, port_key.upper()), viewmodel, msg)
+        return handler
+
+    def _make_state_handler(self, port_num: int):
+        """Create a bound handler for state changed signal to avoid lambda closure issues."""
+        def handler(state):
+            self._on_port_state_changed(port_num, state)
+        return handler
 
     def _normalize_state(self, state: str | PortConnectionState) -> PortConnectionState:
         if isinstance(state, PortConnectionState):
