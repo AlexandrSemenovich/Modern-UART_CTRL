@@ -784,6 +784,58 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Поиск в логах...",
         "en": "Search logs...",
     },
+    "search_results_a11y": {
+        "ru": "Результаты поиска",
+        "en": "Search results",
+    },
+    "searching": {
+        "ru": "Поиск...",
+        "en": "Searching...",
+    },
+    "matches": {
+        "ru": "совп.",
+        "en": "matches",
+    },
+    "no_matches": {
+        "ru": "Не найдено",
+        "en": "No matches",
+    },
+    "jump_to_result": {
+        "ru": "Перейти к следующему совпадению",
+        "en": "Jump to next match",
+    },
+    "jump_a11y": {
+        "ru": "Перейти к результату поиска",
+        "en": "Jump to search result",
+    },
+    "case_sensitive": {
+        "ru": "Учитывать регистр",
+        "en": "Case sensitive",
+    },
+    "case_sensitive_a11y": {
+        "ru": "Переключить учёт регистра при поиске",
+        "en": "Toggle case sensitive search",
+    },
+    "case_insensitive": {
+        "ru": "Без учёта регистра",
+        "en": "Case insensitive",
+    },
+    "position_of": {
+        "ru": "{current} из {total}",
+        "en": "{current} of {total}",
+    },
+    "next_match": {
+        "ru": "Далее",
+        "en": "Next",
+    },
+    "jump_next": {
+        "ru": "Перейти к следующему",
+        "en": "Jump to next",
+    },
+    "found_in": {
+        "ru": "Найдено в",
+        "en": "Found in",
+    },
     "show": {
         "ru": "Показать:",
         "en": "Show:",

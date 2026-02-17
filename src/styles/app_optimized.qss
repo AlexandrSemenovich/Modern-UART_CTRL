@@ -65,6 +65,32 @@ QPushButton:pressed { background: palette(dark); }
 QPushButton:disabled { background: palette(window); color: palette(mid); }
 QPushButton:focus { outline: none; }  /* Remove focus ring */
 
+/* Main window styling */
+QMainWindow {
+    border-radius: 8px;
+}
+
+/* All frames and containers - rounded corners for Windows 11 look */
+QWidget, QFrame, QGroupBox {
+    border-radius: 4px;
+}
+
+/* Group boxes with Windows 11 style */
+QGroupBox {
+    background: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 8px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 4px 8px;
+    color: palette(window-text);
+}
+
 /* Primary button */
 QPushButton[class~="primary"] {
     background: #3b82f6;
@@ -107,6 +133,33 @@ QPushButton[semanticRole="command_cpu2"][dataState="connecting"],
 QPushButton[semanticRole="command_tlm"][dataState="connecting"] {
     background: #0f172a;
     color: #9ca3af;
+}
+
+/* Combo button (1+2) - most important action, make it stand out */
+QPushButton[semanticRole="command_combo"] {
+    font-weight: bold;
+    font-size: 13px;
+    min-width: 90px;
+    max-width: 130px;
+    border: 2px solid #3b82f6;
+}
+
+QPushButton[semanticRole="command_combo"]:hover {
+    background: rgba(59, 130, 246, 0.15);
+}
+
+QPushButton[semanticRole="command_combo"]:pressed {
+    background: #3b82f6;
+    color: white;
+}
+
+/* Regular command buttons - less prominent */
+QPushButton[semanticRole="command_cpu1"],
+QPushButton[semanticRole="command_cpu2"],
+QPushButton[semanticRole="command_tlm"] {
+    font-weight: normal;
+    font-size: 12px;
+    min-width: 60px;
 }
 
 /* LineEdit */
@@ -223,6 +276,13 @@ QToolButton {
     padding: 4px;
 }
 QToolButton:hover { background: palette(light); }
+
+/* Search results label in toolbar */
+#console_toolbar_container QLabel {
+    padding: 0 4px;
+    border-radius: 4px;
+    font-size: 9pt;
+}
 
 /* Splitter */
 QSplitter::handle {

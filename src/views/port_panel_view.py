@@ -89,6 +89,15 @@ class PortPanelView(QtWidgets.QGroupBox):
         port_layout = QtWidgets.QHBoxLayout()
         port_layout.setSpacing(Sizes.LAYOUT_SPACING)
         
+        # LED status indicator
+        self._led_indicator = QtWidgets.QLabel()
+        self._led_indicator.setFixedSize(12, 12)
+        self._led_indicator.setAccessibleName(tr("led_status_a11y", "Connection status indicator"))
+        self._led_indicator.setAccessibleDescription(tr("led_status_desc_a11y", "Green = connected, yellow = connecting, gray = disconnected"))
+        # Initial gray color (disconnected)
+        self._update_led_color("disconnected")
+        port_layout.addWidget(self._led_indicator, 0)
+        
         self._port_combo = QtWidgets.QComboBox()
         self._port_combo.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self._port_combo.setEditable(True)
@@ -282,6 +291,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         """Apply current state to controls and button text."""
         normalized_state = self._normalize_state(state)
         self._update_connect_button_text(normalized_state)
+        self._update_led_color(normalized_state)
         disable_controls = normalized_state in (
             PortConnectionState.CONNECTED,
             PortConnectionState.CONNECTING,
@@ -289,6 +299,32 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._port_combo.setEnabled(not disable_controls)
         self._scan_btn.setEnabled(not disable_controls)
         self._baud_combo.setEnabled(not disable_controls)
+    
+    def _update_led_color(self, state: str | PortConnectionState) -> None:
+        """Update LED indicator color based on connection state."""
+        normalized_state = self._normalize_state(state)
+        
+        # Get current theme for appropriate colors
+        is_dark = theme_manager.is_dark_theme()
+        
+        if normalized_state == PortConnectionState.CONNECTED:
+            # Green for connected
+            color = "#22c55e"
+        elif normalized_state == PortConnectionState.CONNECTING:
+            # Yellow/orange for connecting
+            color = "#f59e0b"
+        else:
+            # Gray for disconnected
+            color = "#6b7280" if is_dark else "#9ca3af"
+        
+        # Create circular indicator using stylesheet
+        self._led_indicator.setStyleSheet(f"""
+            QLabel {{
+                background-color: {color};
+                border-radius: 6px;
+                border: 1px solid {'#374151' if is_dark else '#d1d5db'};
+            }}
+        """)
 
     def _update_connect_button_text(self, state: str | PortConnectionState) -> None:
         """Switch connect button label depending on state."""

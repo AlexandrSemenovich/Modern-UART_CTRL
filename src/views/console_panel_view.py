@@ -127,6 +127,11 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_timer: Optional[QTimer] = None
         self._search_debounce_ms: int = 300
         
+        # Search highlighting state
+        self._search_results: List[tuple] = []  # (port_label, line_idx, block_pos, match_offset, match_length, matched_text)
+        self._current_result_index: int = -1
+        self._current_highlight_color: str = ""  # Track current theme for highlight updates
+        
         self._themed_buttons: List[QtWidgets.QPushButton] = []
         self._setup_ui()
         translator.language_changed.connect(self.retranslate_ui)
@@ -156,22 +161,12 @@ class ConsolePanelView(QtWidgets.QWidget):
         
         toolbar_layout = QtWidgets.QVBoxLayout(self._toolbar_container)
         toolbar_layout.setContentsMargins(10, 0, 10, 8)
-        toolbar_layout.setSpacing(0)
-        
-        # Создаем виджет-обертку для toolbar layout
-        toolbar_widget = QtWidgets.QWidget()
-        toolbar_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Minimum,
-        )
-        toolbar_widget.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
+        toolbar_layout.setSpacing(8)
 
-        toolbar = self._create_toolbar()
-        toolbar_widget.setLayout(toolbar)
-        
-        # Добавляем toolbar widget с центрированием по вертикали без лишних отступов
-        toolbar_layout.addWidget(toolbar_widget, 0, Qt.AlignVCenter)
-        
+        search_row, controls_row = self._create_toolbar()
+        toolbar_layout.addLayout(search_row)
+        toolbar_layout.addLayout(controls_row)
+
         layout.addWidget(self._toolbar_container)
         
         # Tab widget for different log views
@@ -187,34 +182,74 @@ class ConsolePanelView(QtWidgets.QWidget):
         
         self.setLayout(layout)
 
-    def _create_toolbar(self) -> QtWidgets.QHBoxLayout:
-        """Create toolbar with search and action buttons."""
-        toolbar = QtWidgets.QHBoxLayout()
-        toolbar.setSpacing(Sizes.TOOLBAR_SPACING)
-        toolbar.setContentsMargins(0, 0, 0, 0)  # отступы задаются контейнером
-        toolbar.setAlignment(Qt.AlignVCenter)  # центрирование только по вертикали
+    def _create_toolbar(self) -> tuple[QtWidgets.QHBoxLayout, QtWidgets.QHBoxLayout]:
+        """Create vertical toolbar with search (row 1) and controls (row 2)."""
         control_height = Sizes.INPUT_MIN_HEIGHT
-        
-        # Search field
+
+        # --- Row 1: Search ---
+        search_row = QtWidgets.QHBoxLayout()
+        search_row.setSpacing(Sizes.TOOLBAR_SPACING)
+        search_row.setContentsMargins(0, 0, 0, 0)
+        search_row.setAlignment(Qt.AlignVCenter)
+
         self._search_label = QtWidgets.QLabel(tr("search", "Search:"))
         self._search_label.setAlignment(Qt.AlignVCenter)
         self._search_label.setFixedHeight(control_height)
-        toolbar.addWidget(self._search_label, 0, Qt.AlignVCenter)
+        search_row.addWidget(self._search_label, 0, Qt.AlignVCenter)
 
         self._search_edit = QtWidgets.QLineEdit()
         self._search_edit.setPlaceholderText(tr("search_logs", "Search logs..."))
-        self._search_edit.setMaximumWidth(Sizes.SEARCH_FIELD_MAX_WIDTH)
         self._search_edit.setFixedHeight(control_height)
         self._search_edit.setAccessibleName(tr("search_a11y", "Search logs"))
         self._search_edit.setAccessibleDescription(tr("search_desc_a11y", "Enter text to filter log messages"))
         self._search_edit.textChanged.connect(self._on_search_changed)
-        toolbar.addWidget(self._search_edit, 0, Qt.AlignVCenter)
-        
-        # Display options
+        search_row.addWidget(self._search_edit, 1, Qt.AlignVCenter)
+
+        search_meta = QtWidgets.QWidget()
+        search_meta_layout = QtWidgets.QHBoxLayout(search_meta)
+        search_meta_layout.setContentsMargins(0, 0, 0, 0)
+        search_meta_layout.setSpacing(4)
+
+        self._search_results_label = QtWidgets.QLabel()
+        self._search_results_label.setAlignment(Qt.AlignVCenter | Qt.AlignHCenter)
+        self._search_results_label.setFixedHeight(control_height)
+        self._search_results_label.setMinimumWidth(80)
+        self._search_results_label.setVisible(False)
+        self._search_results_label.setObjectName("console_search_results")
+        search_meta_layout.addWidget(self._search_results_label)
+
+        self._btn_prev_result = QtWidgets.QToolButton()
+        self._btn_prev_result.setArrowType(Qt.LeftArrow)
+        self._btn_prev_result.setObjectName("console_prev_match")
+        self._btn_prev_result.setFixedSize(control_height, control_height)
+        self._btn_prev_result.setAccessibleName(tr("prev_match", "Previous match"))
+        self._btn_prev_result.setToolTip(tr("prev_match", "Previous match"))
+        self._btn_prev_result.setVisible(False)
+        self._btn_prev_result.clicked.connect(self._jump_to_previous_result)
+        search_meta_layout.addWidget(self._btn_prev_result)
+
+        self._btn_next_result = QtWidgets.QToolButton()
+        self._btn_next_result.setArrowType(Qt.RightArrow)
+        self._btn_next_result.setObjectName("console_next_match")
+        self._btn_next_result.setFixedSize(control_height, control_height)
+        self._btn_next_result.setAccessibleName(tr("next_match", "Next match"))
+        self._btn_next_result.setToolTip(tr("next_match", "Next match"))
+        self._btn_next_result.setVisible(False)
+        self._btn_next_result.clicked.connect(self._jump_to_next_result)
+        search_meta_layout.addWidget(self._btn_next_result)
+
+        search_row.addWidget(search_meta, 0, Qt.AlignRight)
+
+        # --- Row 2: Display options + action buttons ---
+        controls_row = QtWidgets.QHBoxLayout()
+        controls_row.setSpacing(Sizes.TOOLBAR_SPACING)
+        controls_row.setContentsMargins(0, 0, 0, 0)
+        controls_row.setAlignment(Qt.AlignVCenter)
+
         self._show_label = QtWidgets.QLabel(tr("show", "Show:"))
         self._show_label.setAlignment(Qt.AlignVCenter)
         self._show_label.setFixedHeight(control_height)
-        toolbar.addWidget(self._show_label, 0, Qt.AlignVCenter)
+        controls_row.addWidget(self._show_label, 0, Qt.AlignVCenter)
 
         self._chk_time = QtWidgets.QCheckBox(tr("time", "Time"))
         self._chk_time.setChecked(True)
@@ -222,7 +257,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._chk_time.setAccessibleName(tr("chk_time_a11y", "Show timestamp"))
         self._chk_time.setAccessibleDescription(tr("chk_time_desc_a11y", "Toggle display of timestamp in log messages"))
         self._chk_time.stateChanged.connect(self._on_display_option_changed)
-        toolbar.addWidget(self._chk_time, 0, Qt.AlignVCenter)
+        controls_row.addWidget(self._chk_time, 0, Qt.AlignVCenter)
 
         self._chk_source = QtWidgets.QCheckBox(tr("source", "Source"))
         self._chk_source.setChecked(False)
@@ -230,11 +265,10 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._chk_source.setAccessibleName(tr("chk_source_a11y", "Show source"))
         self._chk_source.setAccessibleDescription(tr("chk_source_desc_a11y", "Toggle display of message source in log messages"))
         self._chk_source.stateChanged.connect(self._on_display_option_changed)
-        toolbar.addWidget(self._chk_source, 0, Qt.AlignVCenter)
-        
-        toolbar.addStretch()
-        
-        # Action buttons - компактные для toolbar
+        controls_row.addWidget(self._chk_source, 0, Qt.AlignVCenter)
+
+        controls_row.addStretch()
+
         self._btn_clear = QtWidgets.QPushButton(tr("clear", "Clear"))
         self._btn_clear.setMaximumWidth(Sizes.BUTTON_CLEAR_MAX_WIDTH)
         self._btn_clear.setFixedHeight(control_height)
@@ -242,7 +276,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._btn_clear.setAccessibleDescription(tr("btn_clear_desc_a11y", "Click to clear all log messages"))
         self._register_button(self._btn_clear, "danger")
         self._btn_clear.clicked.connect(self.clear_requested.emit)
-        toolbar.addWidget(self._btn_clear, 0, Qt.AlignVCenter)
+        controls_row.addWidget(self._btn_clear, 0, Qt.AlignVCenter)
 
         self._btn_save = QtWidgets.QPushButton(tr("save", "Save"))
         self._btn_save.setMaximumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH)
@@ -251,9 +285,9 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._btn_save.setAccessibleDescription(tr("btn_save_desc_a11y", "Click to save log messages to file"))
         self._register_button(self._btn_save, "primary")
         self._btn_save.clicked.connect(self.save_requested.emit)
-        toolbar.addWidget(self._btn_save, 0, Qt.AlignVCenter)
-        
-        return toolbar
+        controls_row.addWidget(self._btn_save, 0, Qt.AlignVCenter)
+
+        return search_row, controls_row
     
     def _create_log_tabs(self) -> None:
         """Create log tabs for each port and combined view."""
@@ -411,8 +445,349 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_timer.timeout.connect(self._perform_search)
     
     def _perform_search(self) -> None:
-        """Execute the actual search operation."""
-        self.search_changed.emit(self._search_text)
+        """Execute the actual search operation with highlighting."""
+        
+        # First, flush any pending updates to ensure data is synced
+        self._flush_pending_updates()
+        
+        search_text = self._search_text.strip()
+        
+        # Clear highlights if search is empty
+        if not search_text:
+            self._clear_all_highlights()
+            self._search_results = []
+            self._current_result_index = -1
+            self._update_search_controls(0)
+            return
+        
+        # Search through all logs - search directly in QTextEdit documents
+        self._search_results = []
+        self._current_result_index = -1
+        
+        
+        try:
+            pattern = re.compile(re.escape(search_text), re.IGNORECASE)
+        except re.error:
+            pattern = None
+        
+        # Define search order: Combined (1+2), CPU1, CPU2, TLM
+        search_order = []
+        
+        # First: Combined tab (CPU1+CPU2 together)
+        if 'CPU1' in self._combined_log_widgets and 'CPU2' in self._combined_log_widgets:
+            # Combined widgets are Direct QTextEdit, not LogWidget
+            combined_widgets = {}
+            for k, v in self._combined_log_widgets.items():
+                # Create wrapper with text_edit attribute
+                wrapper = type('LogWidget', (), {'text_edit': v})()
+                combined_widgets[k] = wrapper
+            search_order.append(('COMBINED', combined_widgets, 'COMBINED'))
+        
+        # Then individual ports in order: CPU1, CPU2, TLM
+        for port_label in ['CPU1', 'CPU2', 'TLM']:
+            if port_label in self._log_widgets:
+                search_order.append((port_label, {port_label: self._log_widgets[port_label]}, port_label))
+        
+        # Search in defined order
+        for port_group_label, widgets, tab_name in search_order:
+            for port_label, widget in widgets.items():
+                # Handle both LogWidget (with .text_edit) and direct QTextEdit
+                text_edit = getattr(widget, 'text_edit', widget)
+                if not text_edit:
+                    continue
+                
+                document = text_edit.document()
+                block_count = document.blockCount()
+                
+                # Iterate through all blocks in the document
+                block = document.begin()
+                while block.isValid():
+                    plain_text = block.text()
+                    
+                    if pattern:
+                        matches = list(pattern.finditer(plain_text))
+                    else:
+                        # Simple case-insensitive search
+                        matches = []
+                        search_lower = search_text.lower()
+                        text_lower = plain_text.lower()
+                        start = 0
+                        while True:
+                            pos = text_lower.find(search_lower, start)
+                            if pos == -1:
+                                break
+                            # Create a simple match object
+                            class SimpleMatch:
+                                def __init__(self, start_pos, end_pos):
+                                    self._start = start_pos
+                                    self._end = end_pos
+                                def start(self):
+                                    return self._start
+                                def end(self):
+                                    return self._end
+                                def group(self):
+                                    return plain_text[start_pos:end_pos]
+                            
+                            matches.append(SimpleMatch(pos, pos + len(search_text)))
+                            start = pos + 1
+                    
+                    for match in matches:
+                        match_start = match.start()
+                        match_end = match.end()
+                        matched_text = match.group()
+                        
+                        # Store: (port_label, block_position, match_offset, match_length, matched_text, tab_name)
+                        # tab_name is 'COMBINED' for combined tab, or port_label for individual tabs
+                        self._search_results.append((
+                            port_label,
+                            block.position(),  # block position in document
+                            match_start,
+                            match_end - match_start,
+                            matched_text,
+                            'COMBINED' if port_group_label == 'COMBINED' else port_label  # tab name
+                        ))
+                    
+                    block = block.next()
+        
+        
+        match_count = len(self._search_results)
+        self._current_result_index = 0 if match_count else -1
+        self._update_search_controls(match_count)
+
+        self._highlight_all_matches()
+
+        if match_count:
+            self._scroll_to_current_result()
+    
+    def _update_search_controls(self, match_count: int) -> None:
+        """Update visibility of search navigation controls based on match count."""
+        has_results = match_count > 0
+        self._btn_prev_result.setVisible(has_results)
+        self._btn_next_result.setVisible(has_results)
+        
+        # Update result count label if it exists
+        if hasattr(self, '_lbl_result_count'):
+            if has_results:
+                self._lbl_result_count.setText(f"{self._current_result_index + 1}/{match_count}")
+                self._lbl_result_count.setVisible(True)
+            else:
+                self._lbl_result_count.setVisible(False)
+    
+    def _clear_all_highlights(self) -> None:
+        """Clear all search highlights from all log widgets."""
+        for widget in self._log_widgets.values():
+            if widget.text_edit:
+                widget.text_edit.setExtraSelections([])
+        for text_edit in self._combined_log_widgets.values():
+            text_edit.setExtraSelections([])
+    
+    def _highlight_all_matches(self) -> None:
+        """Highlight all search matches in all log widgets."""
+        from src.styles.constants import Colors
+        
+
+        # Use search colors from constants
+        match_color = Colors.SEARCH_MATCH_COLOR
+        current_color = Colors.SEARCH_CURRENT_COLOR
+        
+        # Clear all highlights first
+        self._clear_all_highlights()
+        
+        # Apply highlights to individual port widgets (CPU1, CPU2, TLM)
+        for port_label, widget in self._log_widgets.items():
+            if not widget.text_edit:
+                continue
+            
+            text_edit = widget.text_edit
+            document = text_edit.document()
+            
+            
+            selections = []
+            
+            # Find all results for this port - use block position directly
+            for idx, result in enumerate(self._search_results):
+                result_port = result[0]
+                if result_port != port_label:
+                    continue
+                
+                block_position = result[1]  # Block position in document
+                match_offset = result[2]
+                match_length = result[3]
+                
+                
+                # Find the block by position
+                block = document.findBlock(block_position)
+                if not block.isValid():
+                    continue
+                
+                # Create selection
+                cursor = QtGui.QTextCursor(block)
+                cursor.setPosition(block.position() + match_offset)
+                cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.KeepAnchor, match_length)
+                
+                # Use orange for current, gray for others
+                if idx == self._current_result_index:
+                    # Current selection - orange
+                    color = QtGui.QColor(*current_color)
+                else:
+                    # All matches - gray
+                    color = QtGui.QColor(*match_color)
+                
+                selection = QtWidgets.QTextEdit.ExtraSelection()
+                selection.cursor = cursor
+                selection.format.setBackground(color)
+                selection.format.setProperty(QtGui.QTextFormat.FullWidthSelection, False)
+                selections.append(selection)
+            
+            text_edit.setExtraSelections(selections)
+        
+        # Apply highlights to Combined tab widgets (CPU1 and CPU2 in combined view)
+        for combined_key, text_edit in self._combined_log_widgets.items():
+            if not text_edit:
+                continue
+            
+            document = text_edit.document()
+            
+            
+            selections = []
+            
+            # Find all results for this combined port
+            for idx, result in enumerate(self._search_results):
+                result_port = result[0]
+                result_tab = result[4] if len(result) > 4 else 'individual'  # Check which tab this result is for
+                
+                # Match if port matches AND tab is 'combined' or port name matches
+                if result_port != combined_key and result_tab != 'combined':
+                    continue
+                
+                block_position = result[1]
+                match_offset = result[2]
+                match_length = result[3]
+                
+                
+                # Find the block by position
+                block = document.findBlock(block_position)
+                if not block.isValid():
+                    continue
+                
+                # Create selection
+                cursor = QtGui.QTextCursor(block)
+                cursor.setPosition(block.position() + match_offset)
+                cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.KeepAnchor, match_length)
+                
+                # Use orange for current, gray for others
+                if idx == self._current_result_index:
+                    color = QtGui.QColor(*current_color)
+                else:
+                    color = QtGui.QColor(*match_color)
+                
+                selection = QtWidgets.QTextEdit.ExtraSelection()
+                selection.cursor = cursor
+                selection.format.setBackground(color)
+                selection.format.setProperty(QtGui.QTextFormat.FullWidthSelection, False)
+                selections.append(selection)
+            
+            text_edit.setExtraSelections(selections)
+    
+    def _scroll_to_current_result(self) -> None:
+        """Scroll to and highlight the current search result."""
+        
+        if not self._search_results or self._current_result_index < 0:
+            return
+        
+        result = self._search_results[self._current_result_index]
+        port_label = result[0]
+        block_position = result[1]
+        match_offset = result[2]
+        match_length = result[3]
+        tab_name = result[5] if len(result) > 5 else port_label  # Get tab name
+        
+        
+        # Switch to the tab with this port
+        self._switch_to_tab_with_port(port_label, tab_name)
+        
+        # Scroll to the line after tab switch - pass port_label and tab_name for correct widget selection
+        QTimer.singleShot(50, lambda: self._scroll_to_line(block_position, match_offset, match_length, port_label, tab_name))
+    
+    def _switch_to_tab_with_port(self, port_label: str, tab_name: str = None) -> None:
+        """Switch to the tab containing the specified port."""
+        
+        # If tab_name is COMBINED, switch to the first tab (Combined view)
+        if tab_name == 'COMBINED':
+            self._tab_widget.setCurrentIndex(0)
+            return
+        
+        # Find the tab index for this port
+        for i in range(self._tab_widget.count()):
+            tab_text = self._tab_widget.tabText(i)
+            if port_label in tab_text:
+                self._tab_widget.setCurrentIndex(i)
+                return
+    
+    def _scroll_to_line(self, block_position: int, match_offset: int, match_length: int, port_label: str = None, tab_name: str = None) -> None:
+        """Scroll to a specific block and highlight the match."""
+       
+        text_edit = None
+        
+        # For Combined tab, use the specific widget (CPU1 or CPU2)
+        if tab_name == 'COMBINED' and port_label in self._combined_log_widgets:
+            text_edit = self._combined_log_widgets[port_label]
+        else:
+            # Get current tab's text edit
+            current_index = self._tab_widget.currentIndex()
+
+            
+            current_tab = self._tab_widget.widget(current_index)
+            
+            # Find text edit in tab
+            text_edits = current_tab.findChildren(QtWidgets.QTextEdit)
+
+            
+            text_edit = text_edits[0]
+        
+            
+        document = text_edit.document()
+        
+        
+        # Find the block by position
+        block = document.findBlock(block_position)
+        
+        
+        # Move cursor to position (without selecting) for scrolling
+        cursor = QtGui.QTextCursor(block)
+        cursor.setPosition(block.position() + match_offset)
+        
+        # Set cursor position for scrolling (no native selection)
+        text_edit.setTextCursor(cursor)
+        
+        # Ensure the cursor is visible by scrolling
+        text_edit.ensureCursorVisible()
+    
+    def _jump_to_next_result(self) -> None:
+        """Jump to the next search result."""
+        if not self._search_results:
+            return
+        
+        self._current_result_index = (self._current_result_index + 1) % len(self._search_results)
+        
+        # Update highlights
+        self._highlight_all_matches()
+        
+        # Scroll to the new result
+        self._scroll_to_current_result()
+    
+    def _jump_to_previous_result(self) -> None:
+        """Jump to the previous search result."""
+        if not self._search_results:
+            return
+        
+        self._current_result_index = (self._current_result_index - 1) % len(self._search_results)
+        
+        # Update highlights
+        self._highlight_all_matches()
+        
+        # Scroll to the new result
+        self._scroll_to_current_result()
     
     def _flush_pending_updates(self) -> None:
         """Flush all pending log updates to UI."""
@@ -718,17 +1093,3 @@ class ConsolePanelView(QtWidgets.QWidget):
                 button.setProperty("class", " ".join(sorted(classes)))
             else:
                 button.setProperty("class", class_name)
-        if not hasattr(self, "_themed_buttons"):
-            self._themed_buttons = []
-        if button not in self._themed_buttons:
-            self._themed_buttons.append(button)
-        self._apply_theme_to_button(button)
-
-    def _apply_theme_to_buttons(self) -> None:
-        for button in getattr(self, "_themed_buttons", []):
-            self._apply_theme_to_button(button)
-
-    def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
-        theme_class = "light" if theme_manager.is_light_theme() else "dark"
-        button.setProperty("themeClass", theme_class)
-        button.update()

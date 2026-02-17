@@ -17,6 +17,7 @@ from PySide6.QtGui import QIcon, QFont, QColor, QKeySequence, QShortcut, QAction
 from PySide6.QtWidgets import QSystemTrayIcon
 from typing import Dict, Optional, List
 import os
+import platform
 import sys
 import time
 import datetime
@@ -37,6 +38,7 @@ else:
     HAS_WIN32_API = False
 
 from src.utils.theme_manager import theme_manager
+from src.utils.windows11 import apply_windows_11_style, is_windows_11_or_later, GlobalHotkeyManager, VK, MOD_CONTROL, MOD_ALT, MOD_SHIFT
 from src.utils.translator import translator, tr
 from src.styles.constants import Fonts, Sizes, SerialConfig
 from src.views.port_panel_view import PortPanelView
@@ -44,6 +46,38 @@ from src.views.console_panel_view import ConsolePanelView
 from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
 from src.viewmodels.command_history_viewmodel import CommandHistoryModel
 from src.views.command_history_dialog import CommandHistoryDialog
+
+
+from PySide6.QtCore import QAbstractNativeEventFilter
+
+
+class _GlobalHotkeyEventFilter(QAbstractNativeEventFilter):
+    """Native event filter for handling global hotkey messages."""
+    
+    def __init__(self, hotkey_manager: GlobalHotkeyManager):
+        super().__init__()
+        self._hotkey_manager = hotkey_manager
+    
+    def nativeEventFilter(self, eventType, message):
+        """Handle native Windows events."""
+        # Check for WM_HOTKEY message
+        if eventType == b"windows_generic_MSG":
+            try:
+                import ctypes
+                from ctypes import wintypes
+                
+                # PySide6 6.x returns Shiboken VoidPtr - need to convert properly
+                # Get the address as integer
+                msg_ptr = int(message)
+                if msg_ptr:
+                    msg = ctypes.cast(msg_ptr, ctypes.POINTER(wintypes.MSG)).contents
+                    if msg.message == 0x0312:  # WM_HOTKEY
+                        if self._hotkey_manager.handle_message(msg.wParam):
+                            return True, 0
+            except Exception:
+                pass  # Ignore errors in native event filter
+        
+        return False, 0
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -211,12 +245,31 @@ class MainWindow(QtWidgets.QMainWindow):
             self.activateWindow()
     
     def closeEvent(self, event) -> None:
-        """Handle window close event - hide to tray instead of closing."""
+        """Handle window close event - hide to tray or shutdown."""
+        # Cleanup global hotkeys
+        if hasattr(self, '_hotkey_manager') and self._hotkey_manager:
+            self._hotkey_manager.cleanup()
+        
         if self._tray_icon and self._tray_icon.isVisible():
             event.ignore()
             self.hide()
-        else:
-            super().closeEvent(event)
+            return
+        
+        # Flush command history to disk before shutting down
+        try:
+            if hasattr(self, "_history_model") and self._history_model is not None:
+                self._history_model.flush()
+        except Exception:
+            pass
+        
+        # Shutdown all port ViewModels
+        for viewmodel in self._port_viewmodels.values():
+            viewmodel.shutdown()
+        
+        # Give threads time to finish
+        self._wait_for_threads()
+        
+        event.accept()
     
     def _setup_ui(self) -> None:
         """Initialize main UI components."""
@@ -258,6 +311,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Apply current theme classes to all widgets in the hierarchy
         self._apply_theme_to_hierarchy()
+        
+        # Apply Windows 11 visual effects (rounded corners, Mica)
+        self._apply_windows11_effects()
+        
+        # Setup global hotkeys (Windows only)
+        self._setup_global_hotkeys()
         
         # Connect console signals
         self._console_panel.clear_requested.connect(self._clear_all_logs)
@@ -351,6 +410,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
         self._le_command.setAccessibleName(tr("cmd_input_a11y", "Command input"))
         self._le_command.setAccessibleDescription(tr("cmd_input_desc_a11y", "Enter serial command to send"))
+        self._le_command.returnPressed.connect(self._send_default_command)
         input_layout.addWidget(self._le_command, 1)
         layout.addLayout(input_layout)
         
@@ -464,10 +524,10 @@ class MainWindow(QtWidgets.QMainWindow):
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
         )
         
-        # Counters group
+        # Counters group - restructured for better readability
         counters_grp = QtWidgets.QGroupBox(tr("port_counters", "Port Counters"))
-        counters_layout = QtWidgets.QGridLayout()
-        counters_layout.setSpacing(Sizes.LAYOUT_SPACING)
+        counters_layout = QtWidgets.QVBoxLayout()  # Vertical layout for ports
+        counters_layout.setSpacing(16)  # More spacing between ports
         counters_layout.setContentsMargins(
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
@@ -480,14 +540,37 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._counter_label_widgets: List[QtWidgets.QLabel] = []
 
-        for row, port_key in enumerate(self._counter_ports):
+        for port_key in self._counter_ports:
+            # Create a card-like container for each port
+            port_card = QtWidgets.QFrame()
+            port_card.setObjectName("counter_card")
+            port_card.setStyleSheet("""
+                QFrame#counter_card {
+                    background: palette(base);
+                    border-radius: 8px;
+                    padding: 8px;
+                }
+            """)
+            port_card_layout = QtWidgets.QVBoxLayout(port_card)
+            port_card_layout.setSpacing(4)
+            port_card_layout.setContentsMargins(12, 8, 12, 8)
+            
+            # Port header
             port_name = tr(port_key, port_key.upper())
-            label_widget = QtWidgets.QLabel(
-                tr("port_label_template", "{name}:").format(name=port_name)
+            port_header = QtWidgets.QLabel(
+                tr("port_label_template", "{name}").format(name=port_name)
             )
-            label_widget.setProperty("translation_key", port_key)
-            self._counter_label_widgets.append(label_widget)
-            counters_layout.addWidget(label_widget, row, 0)
+            port_header.setProperty("translation_key", port_key)
+            font = port_header.font()
+            font.setBold(True)
+            font.setPointSize(font.pointSize() + 1)
+            port_header.setFont(font)
+            self._counter_label_widgets.append(port_header)
+            port_card_layout.addWidget(port_header)
+            
+            # Metrics row 1: RX | TX
+            metrics_row1 = QtWidgets.QHBoxLayout()
+            metrics_row1.setSpacing(16)
             
             rx_label = QtWidgets.QLabel(
                 tr("rx_label", "RX: {count}").format(count=0)
@@ -495,6 +578,16 @@ class MainWindow(QtWidgets.QMainWindow):
             tx_label = QtWidgets.QLabel(
                 tr("tx_label", "TX: {count}").format(count=0)
             )
+            
+            metrics_row1.addWidget(rx_label)
+            metrics_row1.addWidget(tx_label)
+            metrics_row1.addStretch()
+            port_card_layout.addLayout(metrics_row1)
+            
+            # Metrics row 2: Errors | Time
+            metrics_row2 = QtWidgets.QHBoxLayout()
+            metrics_row2.setSpacing(16)
+            
             error_label = QtWidgets.QLabel(
                 tr("error_label", "Errors: {count}").format(count=0)
             )
@@ -502,10 +595,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 tr("time_label", "Time: {time}s").format(time=0)
             )
             
-            counters_layout.addWidget(rx_label, row, 1)
-            counters_layout.addWidget(tx_label, row, 2)
-            counters_layout.addWidget(error_label, row, 3)
-            counters_layout.addWidget(time_label, row, 4)
+            metrics_row2.addWidget(error_label)
+            metrics_row2.addWidget(time_label)
+            metrics_row2.addStretch()
+            port_card_layout.addLayout(metrics_row2)
+            
+            # Add card to counters layout
+            counters_layout.addWidget(port_card)
             
             self._counter_labels[f"{port_key}_rx"] = rx_label
             self._counter_labels[f"{port_key}_tx"] = tx_label
@@ -860,6 +956,8 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         # Re-apply theme-specific properties to the whole widget tree
         self._apply_theme_to_hierarchy()
+        # Re-apply Windows 11 visual effects (Mica, corner radius)
+        self._apply_windows11_effects()
     
     def _on_language_changed(self, language: str) -> None:
         """Handle language change."""
@@ -947,7 +1045,11 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception:
             # Закрытие окна не должно срываться из‑за ошибок записи истории
             pass
-
+        
+        # Cleanup global hotkeys
+        if hasattr(self, '_hotkey_manager') and self._hotkey_manager:
+            self._hotkey_manager.cleanup()
+        
         # Shutdown all port ViewModels
         for viewmodel in self._port_viewmodels.values():
             viewmodel.shutdown()
@@ -1016,3 +1118,77 @@ class MainWindow(QtWidgets.QMainWindow):
         # With palette-based QSS, theme changes automatically propagate
         # through Qt's style system. No manual iteration needed!
         pass
+    
+    def _apply_windows11_effects(self) -> None:
+        """
+        Apply Windows 11 visual effects: rounded corners, Mica backdrop.
+        This is called on startup and when theme changes.
+        """
+        # Only apply on Windows
+        if platform.system() != "Windows":
+            return
+        
+        # Get window handle
+        hwnd = int(self.winId())
+        if not hwnd:
+            return
+        
+        # Apply Windows 11 visual style
+        is_dark = theme_manager.is_dark_theme()
+        apply_windows_11_style(hwnd, is_dark)
+    
+    def _setup_global_hotkeys(self) -> None:
+        """
+        Setup global system-wide hotkeys (Windows only).
+        These work even when the app is not in focus.
+        """
+        # Only setup on Windows
+        if platform.system() != "Windows":
+            return
+        
+        # Initialize hotkey manager
+        hwnd = int(self.winId())
+        if not hwnd:
+            return
+        
+        try:
+            self._hotkey_manager = GlobalHotkeyManager(hwnd)
+            
+            # Register global hotkeys
+            # Ctrl+Alt+S - Show/Hide window
+            self._hotkey_manager.register_hotkey(
+                VK.S, MOD_CONTROL | MOD_ALT,
+                self._toggle_window_visibility
+            )
+            
+            # Ctrl+Alt+1 - Send to CPU1
+            self._hotkey_manager.register_hotkey(
+                VK.NUM1, MOD_CONTROL | MOD_ALT,
+                lambda: self._send_command(1)
+            )
+            
+            # Ctrl+Alt+2 - Send to CPU2
+            self._hotkey_manager.register_hotkey(
+                VK.NUM2, MOD_CONTROL | MOD_ALT,
+                lambda: self._send_command(2)
+            )
+            
+            # Install native event filter to handle hotkey messages
+            from PySide6.QtCore import QAbstractNativeEventFilter
+            self._hotkey_event_filter = _GlobalHotkeyEventFilter(self._hotkey_manager)
+            from PySide6.QtCore import QCoreApplication
+            QCoreApplication.instance().installNativeEventFilter(self._hotkey_event_filter)
+            
+        except Exception as e:
+            # Hotkeys are non-critical, just log and continue
+            print(f"Failed to setup global hotkeys: {e}")
+            self._hotkey_manager = None
+    
+    def _toggle_window_visibility(self) -> None:
+        """Toggle window visibility (show/hide)."""
+        if self.isVisible():
+            self.hide()
+        else:
+            self.show()
+            self.activateWindow()
+            self.raise_()

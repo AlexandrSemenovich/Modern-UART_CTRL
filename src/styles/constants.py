@@ -26,6 +26,12 @@ class Colors:
     LIGHT_BG = "#f5f5f5"
     DARK_TEXT = "#ffffff"
     LIGHT_TEXT = "#000000"
+    
+    # Search highlight colors (RGBA format for QColor)
+    # All matches - gray/neutral highlight
+    SEARCH_MATCH_COLOR = (128, 128, 128, 80)   # Gray, semi-transparent
+    # Current selected match - orange/bright highlight
+    SEARCH_CURRENT_COLOR = (255, 165, 0, 180)   # Orange, more opaque
 
 
 # ==================== Fonts ====================
