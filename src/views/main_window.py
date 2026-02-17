@@ -499,6 +499,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._btn_open_history.setIcon(get_icon("clock-rotate-left"))
         self._btn_open_history.setText(tr("history_open", "History"))
         self._btn_open_history.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        # Increase button size for better visibility
+        self._btn_open_history.setMinimumSize(100, Sizes.BUTTON_MIN_HEIGHT)
+        self._btn_open_history.setIconSize(QtCore.QSize(20, 20))
         self._register_button(self._btn_open_history, "ghost")
         self._btn_open_history.clicked.connect(self._open_history_dialog)
         summary_layout.addWidget(self._btn_open_history)
@@ -673,6 +676,14 @@ class MainWindow(QtWidgets.QMainWindow):
                             lambda: theme_manager.set_theme("dark"))
         theme_menu.addAction(tr("system_theme", "System"), 
                             lambda: theme_manager.set_theme("system"))
+        
+        # Scale submenu
+        scale_menu = view_menu.addMenu(tr("scale", "Scale"))
+        scale_menu.addAction("100%", lambda: self._set_ui_scale(1.0))
+        scale_menu.addAction("125%", lambda: self._set_ui_scale(1.25))
+        scale_menu.addAction("150%", lambda: self._set_ui_scale(1.5))
+        scale_menu.addAction("175%", lambda: self._set_ui_scale(1.75))
+        scale_menu.addAction("200%", lambda: self._set_ui_scale(2.0))
 
     # Maximum number of error dialogs to keep
     _MAX_ERROR_DIALOGS = 5
@@ -890,6 +901,33 @@ class MainWindow(QtWidgets.QMainWindow):
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             if self._console_panel:
                 self._console_panel.clear_all()
+    
+    def _set_ui_scale(self, scale_factor: float) -> None:
+        """Set the UI scale factor for the application."""
+        from PySide6 import QtWidgets
+        app = QtWidgets.QApplication.instance()
+        if app:
+            # Set the application-wide scale factor
+            app.setStyleSheet(f"""
+                QWidget {{
+                    font-size: {int(10 * scale_factor)}pt;
+                }}
+                QPushButton {{
+                    font-size: {int(10 * scale_factor)}pt;
+                }}
+                QLabel {{
+                    font-size: {int(10 * scale_factor)}pt;
+                }}
+                QLineEdit {{
+                    font-size: {int(10 * scale_factor)}pt;
+                }}
+                QTextEdit {{
+                    font-size: {int(10 * scale_factor)}pt;
+                }}
+                QComboBox {{
+                    font-size: {int(10 * scale_factor)}pt;
+                }}
+            """)
     
     def _save_logs(self) -> None:
         """Save logs to file."""

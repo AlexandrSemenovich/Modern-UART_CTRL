@@ -204,6 +204,14 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_edit.setAccessibleDescription(tr("search_desc_a11y", "Enter text to filter log messages"))
         self._search_edit.textChanged.connect(self._on_search_changed)
         search_row.addWidget(self._search_edit, 1, Qt.AlignVCenter)
+        
+        # Regex checkbox
+        self._chk_regex = QtWidgets.QCheckBox(tr("regex", "Regex"))
+        self._chk_regex.setFixedHeight(control_height)
+        self._chk_regex.setAccessibleName(tr("regex_a11y", "Enable regular expression search"))
+        self._chk_regex.setAccessibleDescription(tr("regex_desc_a11y", "Toggle to use regular expression in search"))
+        self._chk_regex.stateChanged.connect(self._on_search_changed)
+        search_row.addWidget(self._chk_regex, 0, Qt.AlignVCenter)
 
         search_meta = QtWidgets.QWidget()
         search_meta_layout = QtWidgets.QHBoxLayout(search_meta)
@@ -464,9 +472,16 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_results = []
         self._current_result_index = -1
         
+        # Check if regex mode is enabled
+        use_regex = getattr(self, '_chk_regex', None) and self._chk_regex.isChecked()
         
         try:
-            pattern = re.compile(re.escape(search_text), re.IGNORECASE)
+            if use_regex:
+                # Use the search text as-is for regex
+                pattern = re.compile(search_text, re.IGNORECASE)
+            else:
+                # Escape special characters for literal search
+                pattern = re.compile(re.escape(search_text), re.IGNORECASE)
         except re.error:
             pattern = None
         
@@ -981,11 +996,16 @@ class ConsolePanelView(QtWidgets.QWidget):
             self._toolbar_container.style().polish(self._toolbar_container)
             self._toolbar_container.update()
     
-    def _on_search_changed(self, text: str) -> None:
-        """Handle search text change with debouncing."""
-        self._search_text = text
-        # Restart the debounce timer (300ms delay)
-        self._search_timer.start(300)
+    def _on_search_changed(self, text_or_state) -> None:
+        """Handle search text change or regex checkbox change with debouncing."""
+        # Check if called from checkbox (int) or text field (str)
+        if isinstance(text_or_state, int):
+            # Checkbox state changed - restart timer to re-search with new mode
+            self._search_timer.start(300)
+        else:
+            self._search_text = text_or_state
+            # Restart the debounce timer (300ms delay)
+            self._search_timer.start(300)
     
     def _on_display_option_changed(self) -> None:
         """Handle display option change."""
