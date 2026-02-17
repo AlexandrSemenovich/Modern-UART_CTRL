@@ -22,8 +22,7 @@ QWidget {
 .timestamp { color: gray; }
 .error { font-weight: bold; color: red; }
 
-/* Focus */
-QPushButton:focus,
+/* Focus - only for input widgets, not buttons */
 QTextEdit:focus,
 QLineEdit:focus,
 QComboBox:focus {
@@ -64,6 +63,7 @@ QPushButton {
 QPushButton:hover { background: palette(light); }
 QPushButton:pressed { background: palette(dark); }
 QPushButton:disabled { background: palette(window); color: palette(mid); }
+QPushButton:focus { outline: none; }  /* Remove focus ring */
 
 /* Primary button */
 QPushButton[class~="primary"] {
@@ -117,7 +117,7 @@ QLineEdit {
     background: palette(base);
     color: palette(text);
 }
-QLineEdit:focus { border-color: #3b82f6; background: palette(window); }
+QLineEdit:focus { border-color: #3b82f6; background: palette(window); outline: none; }
 
 /* ComboBox */
 QComboBox {
@@ -225,8 +225,13 @@ QToolButton {
 QToolButton:hover { background: palette(light); }
 
 /* Splitter */
-QSplitter::handle { background: palette(mid); }
+QSplitter::handle {
+    background: palette(mid);
+    width: 4px;  /* Increased from default 2px for better visibility */
+    height: 4px;
+}
 QSplitter::handle:hover { background: #3b82f6; }
+QSplitter::handle:pressed { background: #2563eb; }
 
 /* Panels */
 QWidget#left_panel, QWidget#right_panel { background: palette(window); }

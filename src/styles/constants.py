@@ -4,7 +4,7 @@ Provides colors, fonts, sizes, and spacing.
 """
 
 from pathlib import Path
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QFontDatabase
 import logging
 
 from src.utils.config_loader import config_loader
@@ -33,14 +33,39 @@ class Fonts:
     """Font definitions with lazy config access."""
 
     _config = config_loader.get_fonts()
+    
+    # Monospace font families in order of preference
+    MONOSPACE_FAMILIES = [
+        "Cascadia Code",
+        "Consolas",
+        "Fira Code",
+        "Courier New",
+        "monospace",
+    ]
 
     @classmethod
     def get_monospace_font(cls) -> QFont:
+        """Get monospace font with fallback for unavailable fonts."""
+        # Try each font family in order of preference
+        available_family = cls._find_available_font(cls.MONOSPACE_FAMILIES)
+        
         font = QFont()
-        font.setFamily(cls._config.monospace_family)
+        font.setFamily(available_family)
         font.setPointSize(cls._config.monospace_size)
         font.setStyleStrategy(QFont.PreferAntialias)
         return font
+    
+    @classmethod
+    def _find_available_font(cls, families: list[str]) -> str:
+        """Find the first available font family from the list."""
+        available_families = QFontDatabase.families()
+        
+        for family in families:
+            if family in available_families:
+                return family
+        
+        # Ultimate fallback - Qt will use system default
+        return "monospace"
 
     @classmethod
     def get_default_font(cls) -> QFont:

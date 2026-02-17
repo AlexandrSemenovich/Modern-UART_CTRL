@@ -97,6 +97,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def _setup_window(self) -> None:
         """Configure window properties."""
         self.setWindowTitle(tr("app_name", "UART Control"))
+        
+        # Accessibility hints
+        self.setAccessibleName(tr("app_name", "UART Control"))
+        self.setAccessibleDescription("Main application window for UART serial port communication control")
+        
         self.setGeometry(100, 100, Sizes.WINDOW_DEFAULT_WIDTH, Sizes.WINDOW_DEFAULT_HEIGHT)
         self.setMinimumSize(Sizes.WINDOW_MIN_WIDTH, Sizes.WINDOW_MIN_HEIGHT)
         self._set_window_icon()
@@ -344,6 +349,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._le_command = QtWidgets.QLineEdit()
         self._le_command.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self._le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
+        self._le_command.setAccessibleName(tr("cmd_input_a11y", "Command input"))
+        self._le_command.setAccessibleDescription(tr("cmd_input_desc_a11y", "Enter serial command to send"))
         input_layout.addWidget(self._le_command, 1)
         layout.addLayout(input_layout)
         
@@ -362,6 +369,8 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_combo.setAccessibleName(tr("btn_combo_a11y", "Send to all (1+2)"))
+        self._btn_combo.setAccessibleDescription(tr("btn_combo_desc_a11y", "Click to send command to both CPU1 and CPU2 simultaneously"))
         self._register_button(self._btn_combo, "primary")
         self._btn_combo.setProperty("semanticRole", "command_combo")
         self._btn_combo.clicked.connect(lambda: self._send_command(0))
@@ -374,6 +383,8 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_cpu1.setAccessibleName(tr("btn_cpu1_a11y", "Send to CPU1"))
+        self._btn_cpu1.setAccessibleDescription(tr("btn_cpu1_desc_a11y", "Click to send command to CPU1"))
         self._register_button(self._btn_cpu1, "secondary")
         self._btn_cpu1.setProperty("semanticRole", "command_cpu1")
         self._btn_cpu1.clicked.connect(lambda: self._send_command(1))
@@ -386,6 +397,8 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_cpu2.setAccessibleName(tr("btn_cpu2_a11y", "Send to CPU2"))
+        self._btn_cpu2.setAccessibleDescription(tr("btn_cpu2_desc_a11y", "Click to send command to CPU2"))
         self._register_button(self._btn_cpu2, "secondary")
         self._btn_cpu2.setProperty("semanticRole", "command_cpu2")
         self._btn_cpu2.clicked.connect(lambda: self._send_command(2))
@@ -398,6 +411,8 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_tlm.setAccessibleName(tr("btn_tlm_a11y", "Send to TLM"))
+        self._btn_tlm.setAccessibleDescription(tr("btn_tlm_desc_a11y", "Click to send command to TLM"))
         self._register_button(self._btn_tlm, "secondary")
         self._btn_tlm.setProperty("semanticRole", "command_tlm")
         self._btn_tlm.clicked.connect(lambda: self._send_command(3))

@@ -948,4 +948,118 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Вы уверены, что хотите очистить все логи? Это действие нельзя отменить.",
         "en": "Are you sure you want to clear all logs? This action cannot be undone.",
     },
+    
+    # Accessibility hints (a11y)
+    "port_combo_a11y": {
+        "ru": "Выбор COM-порта",
+        "en": "COM port selection",
+    },
+    "port_combo_desc_a11y": {
+        "ru": "Выберите последовательный COM-порт для подключения",
+        "en": "Select the serial COM port to connect to",
+    },
+    "scan_btn_a11y": {
+        "ru": "Сканировать порты",
+        "en": "Scan for ports",
+    },
+    "scan_btn_desc_a11y": {
+        "ru": "Нажмите для поиска доступных COM-портов",
+        "en": "Click to scan for available COM ports",
+    },
+    "baud_combo_a11y": {
+        "ru": "Выбор скорости передачи",
+        "en": "Baud rate selection",
+    },
+    "baud_combo_desc_a11y": {
+        "ru": "Выберите скорость передачи для последовательной связи",
+        "en": "Select the baud rate for serial communication",
+    },
+    "connect_btn_a11y": {
+        "ru": "Подключиться к порту",
+        "en": "Connect to port",
+    },
+    "connect_btn_desc_a11y": {
+        "ru": "Нажмите для подключения или отключения от выбранного COM-порта",
+        "en": "Click to connect or disconnect from the selected COM port",
+    },
+    "search_a11y": {
+        "ru": "Поиск в логах",
+        "en": "Search logs",
+    },
+    "search_desc_a11y": {
+        "ru": "Введите текст для фильтрации сообщений лога",
+        "en": "Enter text to filter log messages",
+    },
+    "chk_time_a11y": {
+        "ru": "Показать время",
+        "en": "Show timestamp",
+    },
+    "chk_time_desc_a11y": {
+        "ru": "Переключить отображение времени в сообщениях лога",
+        "en": "Toggle display of timestamp in log messages",
+    },
+    "chk_source_a11y": {
+        "ru": "Показать источник",
+        "en": "Show source",
+    },
+    "chk_source_desc_a11y": {
+        "ru": "Переключить отображение источника сообщений в логах",
+        "en": "Toggle display of message source in log messages",
+    },
+    "btn_clear_a11y": {
+        "ru": "Очистить логи",
+        "en": "Clear logs",
+    },
+    "btn_clear_desc_a11y": {
+        "ru": "Нажмите для очистки всех сообщений лога",
+        "en": "Click to clear all log messages",
+    },
+    "btn_save_a11y": {
+        "ru": "Сохранить логи",
+        "en": "Save logs",
+    },
+    "btn_save_desc_a11y": {
+        "ru": "Нажмите для сохранения сообщений лога в файл",
+        "en": "Click to save log messages to file",
+    },
+    "cmd_input_a11y": {
+        "ru": "Ввод команды",
+        "en": "Command input",
+    },
+    "cmd_input_desc_a11y": {
+        "ru": "Введите последовательную команду для отправки",
+        "en": "Enter serial command to send",
+    },
+    "btn_combo_a11y": {
+        "ru": "Отправить всем (1+2)",
+        "en": "Send to all (1+2)",
+    },
+    "btn_combo_desc_a11y": {
+        "ru": "Нажмите для отправки команды на CPU1 и CPU2 одновременно",
+        "en": "Click to send command to both CPU1 and CPU2 simultaneously",
+    },
+    "btn_cpu1_a11y": {
+        "ru": "Отправить на CPU1",
+        "en": "Send to CPU1",
+    },
+    "btn_cpu1_desc_a11y": {
+        "ru": "Нажмите для отправки команды на CPU1",
+        "en": "Click to send command to CPU1",
+    },
+    "btn_cpu2_a11y": {
+        "ru": "Отправить на CPU2",
+        "en": "Send to CPU2",
+    },
+    "btn_cpu2_desc_a11y": {
+        "ru": "Нажмите для отправки команды на CPU2",
+        "en": "Click to send command to CPU2",
+    },
+    "btn_tlm_a11y": {
+        "ru": "Отправить на TLM",
+        "en": "Send to TLM",
+    },
+    "btn_tlm_desc_a11y": {
+        "ru": "Нажмите для отправки команды на TLM",
+        "en": "Click to send command to TLM",
+    },
 }

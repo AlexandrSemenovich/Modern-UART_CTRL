@@ -93,11 +93,15 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._port_combo.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self._port_combo.setEditable(True)
         self._port_combo.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
+        self._port_combo.setAccessibleName(tr("port_combo_a11y", "COM port selection"))
+        self._port_combo.setAccessibleDescription(tr("port_combo_desc_a11y", "Select the serial COM port to connect to"))
         port_layout.addWidget(self._port_combo, 1)
         
         self._scan_btn = QtWidgets.QPushButton(tr("scan", "Scan"))
         self._scan_btn.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self._scan_btn.setMaximumWidth(Sizes.BUTTON_MAX_WIDTH)
+        self._scan_btn.setAccessibleName(tr("scan_btn_a11y", "Scan for ports"))
+        self._scan_btn.setAccessibleDescription(tr("scan_btn_desc_a11y", "Click to scan for available COM ports"))
         self._register_button(self._scan_btn, "secondary")
         port_layout.addWidget(self._scan_btn, 0)
         
@@ -109,12 +113,16 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._baud_combo.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self._baud_combo.addItems(self.BAUD_RATES)
         self._baud_combo.setCurrentText(str(SerialConfig.DEFAULT_BAUD))
+        self._baud_combo.setAccessibleName(tr("baud_combo_a11y", "Baud rate selection"))
+        self._baud_combo.setAccessibleDescription(tr("baud_combo_desc_a11y", "Select the baud rate for serial communication"))
         self._lbl_baud = QtWidgets.QLabel(tr("baud_rate", "Baud:"))
         layout.addRow(self._lbl_baud, self._baud_combo)
         
         # Connect button (full width)
         self._connect_btn = QtWidgets.QPushButton(tr("connect", "Connect"))
         self._connect_btn.setMinimumHeight(Sizes.BUTTON_MIN_HEIGHT)
+        self._connect_btn.setAccessibleName(tr("connect_btn_a11y", "Connect to port"))
+        self._connect_btn.setAccessibleDescription(tr("connect_btn_desc_a11y", "Click to connect or disconnect from the selected COM port"))
         self._register_button(self._connect_btn, "primary")
         layout.addRow(self._connect_btn)
         
