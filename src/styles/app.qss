@@ -1001,6 +1001,7 @@ QMenuBar[themeClass="light"] {
 }
 QMenuBar::item[themeClass="dark"] {
     background: transparent;
+    color: #e5e7eb;
     padding: 4px 8px;
     border-radius: 4px;
 }
@@ -1010,8 +1011,12 @@ QMenuBar::item[themeClass="dark"]:selected {
 QMenuBar::item[themeClass="dark"]:pressed {
     background: rgba(148, 163, 184, 0.2);
 }
+QMenuBar::item[themeClass="dark"]:disabled {
+    color: #6b7280;
+}
 QMenuBar::item[themeClass="light"] {
     background: transparent;
+    color: #0f172a;
     padding: 4px 8px;
     border-radius: 4px;
 }
@@ -1020,6 +1025,9 @@ QMenuBar::item[themeClass="light"]:selected {
 }
 QMenuBar::item[themeClass="light"]:pressed {
     background: rgba(37, 99, 235, 0.15);
+}
+QMenuBar::item[themeClass="light"]:disabled {
+    color: #9ca3af;
 }
 
 /* Menus */
@@ -1036,6 +1044,7 @@ QMenu[themeClass="light"] {
     padding: 4px;
 }
 QMenu::item[themeClass="dark"] {
+    color: #e5e7eb;
     padding: 6px 24px 6px 8px;
     border-radius: 4px;
 }
@@ -1052,6 +1061,7 @@ QMenu::item[themeClass="dark"]:disabled {
     color: #6b7280;
 }
 QMenu::item[themeClass="light"] {
+    color: #0f172a;
     padding: 6px 24px 6px 8px;
     border-radius: 4px;
 }

@@ -22,6 +22,7 @@ import time
 import datetime
 
 from src.utils.logger import get_logger
+from src.utils.icon_cache import IconCache, get_icon
 logger = get_logger(__name__)
 
 # Windows API для кастомного title bar
@@ -104,20 +105,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._setup_custom_title_bar()
     
     def _set_window_icon(self) -> None:
-        """Set window icon from assets."""
-        icon_paths = [
-            "assets/icons/icon_black.ico",
-            "assets/icons/icon_white.ico",
-        ]
-        
-        for path in icon_paths:
-            full_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), 
-                path
-            )
-            if os.path.exists(full_path):
-                self.setWindowIcon(QIcon(full_path))
-                break
+        """Set window icon from assets using IconCache."""
+        icon = IconCache.get_app_icon()
+        if not icon.isNull():
+            self.setWindowIcon(icon)
     
     def _setup_custom_title_bar(self) -> None:
         """Настройка кастомного title bar для Windows 11+ через DWM API."""
@@ -175,21 +166,18 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self._tray_icon = QSystemTrayIcon(self)
         
-        # Set icon based on theme
-        icon_path = "assets/icons/icon_black.ico" if theme_manager.is_dark_theme() else "assets/icons/icon_white.ico"
-        full_icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), icon_path)
-        
-        # Try to load icon, fall back to application icon if custom icon not found
-        if os.path.exists(full_icon_path):
-            self._tray_icon.setIcon(QIcon(full_icon_path))
+        # Use IconCache for theme-aware tray icon
+        tray_icon = IconCache.get_tray_icon()
+        if not tray_icon.isNull():
+            self._tray_icon.setIcon(tray_icon)
         else:
             # Fallback: use the application window icon
             app_icon = self.windowIcon()
             if not app_icon.isNull():
                 self._tray_icon.setIcon(app_icon)
             else:
-                logger.warning(f"Tray icon not found: {full_icon_path}, and no fallback icon available")
-                return  # Don't show tray without icon
+                logger.warning("No tray icon available")
+                return
         
         # Create context menu
         tray_menu = QtWidgets.QMenu()
@@ -433,7 +421,7 @@ class MainWindow(QtWidgets.QMainWindow):
         summary_layout.addStretch(1)
 
         self._btn_open_history = QtWidgets.QToolButton()
-        self._btn_open_history.setIcon(QIcon("assets/icons/fa/clock-rotate-left.svg"))
+        self._btn_open_history.setIcon(get_icon("clock-rotate-left"))
         self._btn_open_history.setText(tr("history_open", "History"))
         self._btn_open_history.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self._register_button(self._btn_open_history, "ghost")
@@ -1002,26 +990,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _apply_theme_to_hierarchy(self) -> None:
         """
-        Apply current themeClass property to all widgets in the window.
-
-        This makes QSS selectors like QWidget[themeClass=\"dark\"] /
-        QLineEdit[themeClass=\"light\"] work consistently across the UI,
-        not только для вручную зарегистрированных кнопок.
-        """
-        theme_class = "light" if theme_manager.is_light_theme() else "dark"
-
-        # Include the window itself and all child widgets
-        widgets: list[QtWidgets.QWidget] = [self]
-        widgets.extend(self.findChildren(QtWidgets.QWidget))
-
-        for w in widgets:
-            w.setProperty("themeClass", theme_class)
-            # Используем unpolish + polish для корректного обновления стилей
-            w.style().unpolish(w)
-            w.style().polish(w)
+        OPTIMIZED: No longer needed with palette-based QSS.
         
-        # Специально применяем к панелям для правильного отображения границ
-        if hasattr(self, '_console_panel') and self._console_panel:
-            self._console_panel.setProperty("themeClass", theme_class)
-            self._console_panel.style().unpolish(self._console_panel)
-            self._console_panel.style().polish(self._console_panel)
+        The new QSS uses palette() function which automatically inherits
+        from QApplication palette. No need to set themeClass on each widget.
+        
+        This dramatically improves theme switching performance from O(n) 
+        to O(1) where n = number of widgets.
+        """
+        # With palette-based QSS, theme changes automatically propagate
+        # through Qt's style system. No manual iteration needed!
+        pass

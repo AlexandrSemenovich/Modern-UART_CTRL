@@ -26,7 +26,7 @@ class ThemeManager(QObject):
         self.settings = QSettings("UART_CTRL", "ThemeSettings")
         self._stylesheet_cache: str | None = None
         self._last_modified: float = 0.0
-        self._qss_path = str(get_stylesheet_path("app.qss"))
+        self._qss_path = str(get_stylesheet_path("app_optimized.qss"))
         self._logger = logging.getLogger(__name__)
         self._theme_applied = False  # флаг для отслеживания применения темы
         self._last_applied_theme = None  # последняя примененная эффективная тема
@@ -168,6 +168,13 @@ class ThemeManager(QObject):
         palette.setColor(QPalette.Highlight, QColor(colors.highlight))
         palette.setColor(QPalette.HighlightedText, QColor(colors.highlighted_text))
 
+        # Дополнительные цвета для palette-based QSS
+        palette.setColor(QPalette.Mid, QColor("#d0d7e6"))
+        palette.setColor(QPalette.Midlight, QColor("#e5e7eb"))
+        palette.setColor(QPalette.Light, QColor("#ffffff"))
+        palette.setColor(QPalette.Dark, QColor("#c0c5ce"))
+        palette.setColor(QPalette.AlternateBase, QColor("#f3f4f7"))
+
         app.setPalette(palette)
 
     def _apply_dark_theme(self, app: QApplication) -> None:
@@ -187,6 +194,13 @@ class ThemeManager(QObject):
         palette.setColor(QPalette.Link, QColor(colors.link))
         palette.setColor(QPalette.Highlight, QColor(colors.highlight))
         palette.setColor(QPalette.HighlightedText, QColor(colors.highlighted_text))
+
+        # Дополнительные цвета для palette-based QSS
+        palette.setColor(QPalette.Mid, QColor("#374151"))
+        palette.setColor(QPalette.Midlight, QColor("#4b5563"))
+        palette.setColor(QPalette.Light, QColor("#1f2937"))
+        palette.setColor(QPalette.Dark, QColor("#111827"))
+        palette.setColor(QPalette.AlternateBase, QColor("#0f172a"))
 
         app.setPalette(palette)
 

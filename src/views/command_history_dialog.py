@@ -14,6 +14,7 @@ from src.viewmodels.command_history_viewmodel import (
 )
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
+from src.utils.icon_cache import get_icon
 from src.styles.constants import Sizes
 
 
@@ -53,24 +54,24 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         layout.addWidget(self._toolbar)
 
         self._act_send = self._toolbar.addAction(
-            QtGui.QIcon("assets/icons/fa/paper-plane.svg"),
+            get_icon("paper-plane"),
             tr("history_send", "Send"),
         )
         self._act_edit = self._toolbar.addAction(
-            QtGui.QIcon("assets/icons/fa/floppy-disk.svg"),
+            get_icon("floppy-disk"),
             tr("history_edit", "Insert"),
         )
         self._act_delete = self._toolbar.addAction(
-            QtGui.QIcon("assets/icons/fa/trash.svg"),
+            get_icon("trash"),
             tr("history_delete", "Delete"),
         )
         self._toolbar.addSeparator()
         self._act_clear = self._toolbar.addAction(
-            QtGui.QIcon("assets/icons/fa/clock-rotate-left.svg"),
+            get_icon("clock-rotate-left"),
             tr("history_clear_all", "Clear All"),
         )
         self._act_export = self._toolbar.addAction(
-            QtGui.QIcon("assets/icons/fa/floppy-disk_light.svg"),
+            get_icon("floppy-disk"),
             tr("history_export", "Export"),
         )
 
