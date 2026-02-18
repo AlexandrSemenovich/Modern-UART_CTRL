@@ -218,3 +218,26 @@ class CommandHistoryDialog(QtWidgets.QDialog):
             widget.style().unpolish(widget)
             widget.style().polish(widget)
             widget.update()
+        
+        # Update toolbar action icons for theme
+        self._update_toolbar_icons()
+        # Process events to ensure icons are updated
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
+    
+    def _update_toolbar_icons(self) -> None:
+        """Update toolbar action icons when theme changes."""
+        if hasattr(self, '_act_send'):
+            self._act_send.setIcon(get_icon("paper-plane"))
+        if hasattr(self, '_act_edit'):
+            self._act_edit.setIcon(get_icon("floppy-disk"))
+        if hasattr(self, '_act_delete'):
+            self._act_delete.setIcon(get_icon("trash"))
+        if hasattr(self, '_act_clear'):
+            self._act_clear.setIcon(get_icon("clock-rotate-left"))
+        if hasattr(self, '_act_export'):
+            self._act_export.setIcon(get_icon("floppy-disk"))
+        
+        # Force repaint of toolbar
+        if hasattr(self, '_toolbar'):
+            self._toolbar.update()

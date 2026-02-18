@@ -88,6 +88,41 @@ class Fonts:
         font.setPointSize(cls._config.title_size)
         font.setBold(True)
         return font
+    
+    @classmethod
+    def get_caption_font(cls) -> QFont:
+        """Get small/caption text font."""
+        font = QFont()
+        font.setFamily(cls._config.default_family)
+        font.setPointSize(cls._config.caption_size)
+        return font
+
+    # ==================== Typography Scale ====================
+    # Getters for QSS to use directly (returns pt values)
+    @classmethod
+    def get_default_size_pt(cls) -> int:
+        """Get default body text size in points."""
+        return cls._config.default_size
+    
+    @classmethod
+    def get_title_size_pt(cls) -> int:
+        """Get title text size in points."""
+        return cls._config.title_size
+    
+    @classmethod
+    def get_button_size_pt(cls) -> int:
+        """Get button text size in points."""
+        return cls._config.button_size
+    
+    @classmethod
+    def get_caption_size_pt(cls) -> int:
+        """Get caption/small text size in points."""
+        return cls._config.caption_size
+    
+    @classmethod
+    def get_monospace_size_pt(cls) -> int:
+        """Get monospace (console) text size in points."""
+        return cls._config.monospace_size
 
 
 # ==================== Sizes ====================

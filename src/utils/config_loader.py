@@ -46,6 +46,7 @@ class FontConfig:
     default_size: int
     title_size: int
     button_size: int
+    caption_size: int
     monospace_family: str
     monospace_size: int
 
@@ -304,11 +305,12 @@ class ConfigLoader:
         section = self._get_section("fonts")
         return FontConfig(
             default_family=section.get("default_family", "Segoe UI"),
-            default_size=self._get_int(section, "default_size", 10),
-            title_size=self._get_int(section, "title_size", 14),
-            button_size=self._get_int(section, "button_size", 10),
+            default_size=self._get_int(section, "default_size", 12),
+            title_size=self._get_int(section, "title_size", 12),
+            button_size=self._get_int(section, "button_size", 12),
+            caption_size=self._get_int(section, "caption_size", 12),
             monospace_family=section.get("monospace_family", "Courier New"),
-            monospace_size=self._get_int(section, "monospace_size", 9),
+            monospace_size=self._get_int(section, "monospace_size", 10),
         )
 
     def get_sizes(self) -> SizeConfig:

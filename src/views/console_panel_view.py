@@ -14,7 +14,7 @@ from src.utils.translator import tr, translator
 from src.styles.constants import Fonts, Sizes, ConsoleLimits
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
-from src.utils.icon_cache import get_icon
+from src.utils.icon_cache import get_icon, IconCache
 
 
 class LogWidget:
@@ -295,7 +295,7 @@ class ConsolePanelView(QtWidgets.QWidget):
 
         controls_row.addStretch()
 
-        self._btn_clear = QtWidgets.QPushButton(tr("clear", "Clear"))
+        self._btn_clear = QtWidgets.QPushButton(" " + tr("clear", "Clear"))
         self._btn_clear.setIcon(get_icon("trash"))
         self._btn_clear.setMaximumWidth(Sizes.BUTTON_CLEAR_MAX_WIDTH)
         self._btn_clear.setFixedHeight(control_height)
@@ -305,7 +305,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._btn_clear.clicked.connect(self.clear_requested.emit)
         controls_row.addWidget(self._btn_clear, 0, Qt.AlignVCenter)
 
-        self._btn_save = QtWidgets.QPushButton(tr("save", "Save"))
+        self._btn_save = QtWidgets.QPushButton(" " + tr("save", "Save"))
         self._btn_save.setIcon(get_icon("floppy-disk"))
         self._btn_save.setMaximumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH)
         self._btn_save.setFixedHeight(control_height)
@@ -1008,6 +1008,10 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _on_theme_changed(self, theme: str) -> None:
         self._colors = config_loader.get_colors(theme)
         self._apply_theme_to_buttons()
+        self._update_icons_on_theme_change()
+        # Process events to ensure icons are updated
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
         
         # Применяем тему к контейнеру toolbar и всем его дочерним виджетам
         if hasattr(self, '_toolbar_container'):
@@ -1031,6 +1035,43 @@ class ConsolePanelView(QtWidgets.QWidget):
         class_name = "light" if is_light else "dark"
         button.setProperty("class", class_name)
 
+    def _update_icons_on_theme_change(self) -> None:
+        """Update all button icons when theme changes."""
+        # Update clear button icon
+        if hasattr(self, '_btn_clear'):
+            self._btn_clear.setIcon(get_icon("trash"))
+            self._btn_clear.update()
+        
+        # Update save button icon
+        if hasattr(self, '_btn_save'):
+            self._btn_save.setIcon(get_icon("floppy-disk"))
+            self._btn_save.update()
+        
+        # Update tab icons
+        self._update_tab_icons()
+    
+    def _update_tab_icons(self) -> None:
+        """Update tab icons for all port tabs."""
+        if not hasattr(self, '_tab_widget') or not hasattr(self, '_log_widgets'):
+            return
+            
+        # Update combined tab icon
+        self._tab_widget.setTabIcon(0, get_icon("paper-plane"))
+        
+        # Update port-specific tab icons
+        tab_index = 1  # Start after combined tab
+        for port_label in self._log_widgets.keys():
+            if port_label == "CPU1":
+                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
+            elif port_label == "CPU2":
+                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
+            elif port_label == "TLM":
+                self._tab_widget.setTabIcon(tab_index, get_icon("magnifying-glass"))
+            tab_index += 1
+        
+        # Force repaint of tab bar
+        self._tab_widget.tabBar().update()
+    
     def _apply_theme_to_buttons(self) -> None:
         """Update all registered buttons with the active theme class."""
         for button in self._themed_buttons:

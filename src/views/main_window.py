@@ -1025,27 +1025,43 @@ class MainWindow(QtWidgets.QMainWindow):
     def _set_ui_scale(self, scale_factor: float) -> None:
         """Set the UI scale factor for the application."""
         from PySide6 import QtWidgets
+        from src.styles.constants import Fonts
+        
         app = QtWidgets.QApplication.instance()
         if app:
-            # Set the application-wide scale factor
+            # Get font sizes from config (with scale factor applied)
+            default_size = int(Fonts.get_default_size_pt() * scale_factor)
+            button_size = int(Fonts.get_button_size_pt() * scale_factor)
+            caption_size = int(Fonts.get_caption_size_pt() * scale_factor)
+            monospace_size = int(Fonts.get_monospace_size_pt() * scale_factor)
+            
+            # Set the application-wide scale factor with proper typography hierarchy
             app.setStyleSheet(f"""
                 QWidget {{
-                    font-size: {int(10 * scale_factor)}pt;
+                    font-size: {default_size}pt;
                 }}
                 QPushButton {{
-                    font-size: {int(10 * scale_factor)}pt;
+                    font-size: {button_size}pt;
                 }}
                 QLabel {{
-                    font-size: {int(10 * scale_factor)}pt;
+                    font-size: {default_size}pt;
                 }}
                 QLineEdit {{
-                    font-size: {int(10 * scale_factor)}pt;
+                    font-size: {default_size}pt;
                 }}
                 QTextEdit {{
-                    font-size: {int(10 * scale_factor)}pt;
+                    font-size: {default_size}pt;
                 }}
                 QComboBox {{
-                    font-size: {int(10 * scale_factor)}pt;
+                    font-size: {default_size}pt;
+                }}
+                /* Console uses larger monospace font for readability */
+                QTextEdit[objectName^="console"] {{
+                    font-size: {monospace_size}pt;
+                }}
+                /* Status bar and captions use smaller font */
+                QStatusBar, QLabel[class~="caption"] {{
+                    font-size: {caption_size}pt;
                 }}
             """)
     
@@ -1106,12 +1122,24 @@ class MainWindow(QtWidgets.QMainWindow):
                     tr("save_error", "Failed to save logs: {error}").format(error=str(e))
                 )
     
+    def _update_icons_on_theme_change(self) -> None:
+        """Update all theme-aware icons when theme changes."""
+        # Update history button icon
+        if hasattr(self, '_btn_open_history'):
+            self._btn_open_history.setIcon(get_icon("clock-rotate-left"))
+            self._btn_open_history.update()
+    
     def _on_theme_changed(self, theme: str) -> None:
         """Handle theme change."""
         self.statusBar().showMessage(
             tr("status_theme_changed", "Theme: {theme}").format(theme=theme),
             2000
         )
+        # Update icons for theme-aware widgets
+        self._update_icons_on_theme_change()
+        # Process events to ensure icons are updated
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
         # Re-apply theme-specific properties to the whole widget tree
         self._apply_theme_to_hierarchy()
         # Re-apply Windows 11 visual effects (Mica, corner radius)
