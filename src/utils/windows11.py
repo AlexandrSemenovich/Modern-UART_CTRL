@@ -103,6 +103,27 @@ def set_window_backdrop(hwnd: int, backdrop_type: int = DWMSBT_MICA) -> bool:
     if not hwnd:
         return False
     
+    if not is_windows_11_or_later():
+        # Silently skip on Windows 10 - Mica is not supported
+        return False
+    
+    dwm = _get_dwmapi_dll()
+    if not dwm:
+        return False
+    
+    try:
+        result = dwm.DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_SYSTEMBACKDROP_TYPE,
+            ctypes.byref(ctypes.c_int(backdrop_type)),
+            ctypes.sizeof(ctypes.c_int)
+        )
+        return result == 0
+    except Exception:
+        return False
+    if not hwnd:
+        return False
+    
     # Only Windows 11 supports Mica
     if not is_windows_11_or_later():
         return False

@@ -167,13 +167,18 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             # Windows API константы
             DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            DWMWA_SYSTEMBACKDROP_TYPE = 38
+            DWMWA_CORNER_RADIUS = 33
+            
+            # Mica и corner radius константы из windows11
+            from src.utils.windows11 import DWMSBT_MICA, WIN11_CORNER_ROUND, set_window_backdrop, set_window_rounded_corners, is_windows_11_or_later
             
             # Получаем HWND окна (после показа окна)
             def apply_title_bar_theme():
                 try:
                     hwnd = int(self.winId())
                     if hwnd:
-                        # Включаем тёмный режим для title bar
+                        # 1. Включаем тёмный режим для title bar
                         value = ctypes.c_int(1 if theme_manager.is_dark_theme() else 0)
                         ctypes.windll.dwmapi.DwmSetWindowAttribute(
                             wintypes.HWND(hwnd),
@@ -182,7 +187,20 @@ class MainWindow(QtWidgets.QMainWindow):
                             ctypes.sizeof(value)
                         )
                         
-                        # Пытаемся установить цвет caption (Windows 11 22H2+)
+                        # 2. Применяем Mica эффект (Windows 11 only)
+                        if is_windows_11_or_later():
+                            try:
+                                set_window_backdrop(hwnd, DWMSBT_MICA)
+                            except Exception:
+                                pass
+                            
+                            # 3. Скруглённые углы (Windows 11)
+                            try:
+                                set_window_rounded_corners(hwnd, WIN11_CORNER_ROUND)
+                            except Exception:
+                                pass
+                        
+                        # 4. Пытаемся установить цвет caption (Windows 11 22H2+)
                         try:
                             DWMWA_CAPTION_COLOR = 35
                             if theme_manager.is_dark_theme():
