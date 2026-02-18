@@ -127,6 +127,16 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Status bar
         self.statusBar().showMessage(tr("ready", "Ready"))
+        
+        # Language toggle in status bar
+        self._lang_label = QtWidgets.QLabel(tr("lang", "Lang:"))
+        self.statusBar().addPermanentWidget(self._lang_label)
+        
+        self._lang_btn = QtWidgets.QPushButton(translator.get_language().upper())
+        self._lang_btn.setFixedWidth(40)
+        self._lang_btn.setToolTip(tr("switch_language", "Click to switch language"))
+        self._lang_btn.clicked.connect(self._toggle_language)
+        self.statusBar().addPermanentWidget(self._lang_btn)
     
     def _setup_window(self) -> None:
         """Configure window properties."""
@@ -294,11 +304,11 @@ class MainWindow(QtWidgets.QMainWindow):
         hsplit.addWidget(self._console_panel)
         
         # RIGHT PANEL: Counters
-        right_panel = self._create_right_panel()
-        right_panel.setMinimumWidth(Sizes.RIGHT_PANEL_MIN_WIDTH)
-        right_panel.setMaximumWidth(Sizes.RIGHT_PANEL_MAX_WIDTH)
-        right_panel.setObjectName("right_panel")
-        hsplit.addWidget(right_panel)
+        self._right_panel = self._create_right_panel()
+        self._right_panel.setMinimumWidth(Sizes.RIGHT_PANEL_MIN_WIDTH)
+        self._right_panel.setMaximumWidth(Sizes.RIGHT_PANEL_MAX_WIDTH)
+        self._right_panel.setObjectName("right_panel")
+        hsplit.addWidget(self._right_panel)
         
         # Set stretch factors
         hsplit.setStretchFactor(0, 0)  # Left - fixed
@@ -433,6 +443,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._btn_combo.setAccessibleDescription(tr("btn_combo_desc_a11y", "Click to send command to both CPU1 and CPU2 simultaneously"))
         self._register_button(self._btn_combo, "primary")
         self._btn_combo.setProperty("semanticRole", "command_combo")
+        self._btn_combo.style().unpolish(self._btn_combo)
+        self._btn_combo.style().polish(self._btn_combo)
         self._btn_combo.clicked.connect(lambda: self._send_command(0))
         buttons_layout.addWidget(self._btn_combo, 0, 0)
 
@@ -626,6 +638,12 @@ class MainWindow(QtWidgets.QMainWindow):
         grp.hide()
         return grp
     
+    def _toggle_right_panel(self) -> None:
+        """Toggle visibility of the right panel (counters)."""
+        if hasattr(self, '_right_panel') and self._right_panel is not None:
+            is_visible = self._right_panel.isVisible()
+            self._right_panel.setVisible(not is_visible)
+    
     def _setup_menu(self) -> None:
         """Setup application menu bar."""
         menubar = self.menuBar()
@@ -732,6 +750,22 @@ class MainWindow(QtWidgets.QMainWindow):
         # History dialog
         shortcut_history = QShortcut(QKeySequence("Ctrl+H"), self)
         shortcut_history.activated.connect(self._open_history_dialog)
+        
+        # Toggle right panel (Ctrl+R)
+        shortcut_right_panel = QShortcut(QKeySequence("Ctrl+R"), self)
+        shortcut_right_panel.activated.connect(self._toggle_right_panel)
+        
+        # Clear console (Ctrl+L)
+        shortcut_clear = QShortcut(QKeySequence("Ctrl+L"), self)
+        shortcut_clear.activated.connect(self._clear_all_logs)
+        
+        # Find in console (Ctrl+F)
+        shortcut_find = QShortcut(QKeySequence("Ctrl+F"), self)
+        shortcut_find.activated.connect(self._toggle_console_search)
+        
+        # Reconnect all ports (Ctrl+F5)
+        shortcut_reconnect = QShortcut(QKeySequence("Ctrl+F5"), self)
+        shortcut_reconnect.activated.connect(self._reconnect_all_ports)
     
     def _send_command(self, port_num: int) -> None:
         """
@@ -977,6 +1011,17 @@ class MainWindow(QtWidgets.QMainWindow):
             if self._console_panel:
                 self._console_panel.clear_all()
     
+    def _toggle_console_search(self) -> None:
+        """Toggle the console search bar visibility."""
+        if self._console_panel:
+            self._console_panel.toggle_search_bar()
+    
+    def _reconnect_all_ports(self) -> None:
+        """Reconnect all disconnected ports."""
+        for port_num, viewmodel in self._port_viewmodels.items():
+            if not viewmodel.is_connected:
+                viewmodel.connect()
+    
     def _set_ui_scale(self, scale_factor: float) -> None:
         """Set the UI scale factor for the application."""
         from PySide6 import QtWidgets
@@ -1148,7 +1193,17 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         # Language change can recreate menus/toolbars – re-apply theme to hierarchy
         self._apply_theme_to_hierarchy()
+        
+        # Update language button if exists
+        if hasattr(self, '_lang_btn'):
+            self._lang_btn.setText(language.upper())
     
+    def _toggle_language(self) -> None:
+        """Toggle between available languages."""
+        current = translator.get_language()
+        new_lang = "ru_RU" if current == "en_US" else "en_US"
+        translator.set_language(new_lang)
+
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Handle close event - shutdown all ports."""
         # Flush command history to disk before shutting down

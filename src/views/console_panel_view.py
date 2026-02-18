@@ -14,6 +14,7 @@ from src.utils.translator import tr, translator
 from src.styles.constants import Fonts, Sizes, ConsoleLimits
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
+from src.utils.icon_cache import get_icon
 
 
 class LogWidget:
@@ -51,6 +52,15 @@ class DropableTextEdit(QtWidgets.QTextEdit):
     
     def dropEvent(self, event: QtGui.QDropEvent) -> None:
         """Handle drop event - emit file path or text."""
+        # ... existing code ...
+
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        """Handle keyboard shortcuts."""
+        if event.modifiers() == QtCore.Qt.ControlModifier and event.key() == QtCore.Qt.Key_F:
+            self.toggle_search_bar()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 if url.isLocalFile():
@@ -100,6 +110,9 @@ class ConsolePanelView(QtWidgets.QWidget):
             config: Optional configuration dictionary
         """
         super().__init__(parent)
+        
+        # Enable keyboard focus for Ctrl+F shortcut
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
         
         self._config = config or {}
         self._port_labels: List[str] = ['CPU1', 'CPU2', 'TLM']
@@ -174,6 +187,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._tab_widget.setObjectName("console_tabs")
         self._tab_widget.setDocumentMode(True)
         self._tab_widget.setTabsClosable(False)
+        # Prevent text truncation in tabs
+        self._tab_widget.setElideMode(QtCore.Qt.ElideNone)
         
         # Create tabs for each port
         self._create_log_tabs()
@@ -195,6 +210,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_label = QtWidgets.QLabel(tr("search", "Search:"))
         self._search_label.setAlignment(Qt.AlignVCenter)
         self._search_label.setFixedHeight(control_height)
+        self._search_label.setVisible(False)
         search_row.addWidget(self._search_label, 0, Qt.AlignVCenter)
 
         self._search_edit = QtWidgets.QLineEdit()
@@ -203,6 +219,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_edit.setAccessibleName(tr("search_a11y", "Search logs"))
         self._search_edit.setAccessibleDescription(tr("search_desc_a11y", "Enter text to filter log messages"))
         self._search_edit.textChanged.connect(self._on_search_changed)
+        self._search_edit.setVisible(False)
         search_row.addWidget(self._search_edit, 1, Qt.AlignVCenter)
         
         # Regex checkbox
@@ -211,6 +228,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._chk_regex.setAccessibleName(tr("regex_a11y", "Enable regular expression search"))
         self._chk_regex.setAccessibleDescription(tr("regex_desc_a11y", "Toggle to use regular expression in search"))
         self._chk_regex.stateChanged.connect(self._on_search_changed)
+        self._chk_regex.setVisible(False)
         search_row.addWidget(self._chk_regex, 0, Qt.AlignVCenter)
 
         search_meta = QtWidgets.QWidget()
@@ -278,6 +296,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         controls_row.addStretch()
 
         self._btn_clear = QtWidgets.QPushButton(tr("clear", "Clear"))
+        self._btn_clear.setIcon(get_icon("trash"))
         self._btn_clear.setMaximumWidth(Sizes.BUTTON_CLEAR_MAX_WIDTH)
         self._btn_clear.setFixedHeight(control_height)
         self._btn_clear.setAccessibleName(tr("btn_clear_a11y", "Clear logs"))
@@ -287,6 +306,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         controls_row.addWidget(self._btn_clear, 0, Qt.AlignVCenter)
 
         self._btn_save = QtWidgets.QPushButton(tr("save", "Save"))
+        self._btn_save.setIcon(get_icon("floppy-disk"))
         self._btn_save.setMaximumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH)
         self._btn_save.setFixedHeight(control_height)
         self._btn_save.setAccessibleName(tr("btn_save_a11y", "Save logs"))
@@ -303,11 +323,20 @@ class ConsolePanelView(QtWidgets.QWidget):
         # Combined tab (CPU1 + CPU2)
         combined_widget = self._create_combined_widget()
         self._tab_widget.addTab(combined_widget, tr("combined", "1+2"))
+        self._tab_widget.setTabIcon(0, get_icon("paper-plane"))
         
         # Individual tabs
-        for port_label in self._port_labels:
+        for i, port_label in enumerate(self._port_labels):
             tab_widget = self._create_single_log_widget(port_label)
             self._tab_widget.addTab(tab_widget, tr(port_label.lower(), port_label))
+            # Set icon for each tab based on port
+            tab_index = i + 1  # +1 because combined is index 0
+            if port_label == "CPU1":
+                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
+            elif port_label == "CPU2":
+                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
+            elif port_label == "TLM":
+                self._tab_widget.setTabIcon(tab_index, get_icon("magnifying-glass"))
     
     def _create_combined_widget(self) -> QtWidgets.QWidget:
         """Create combined view with CPU1 and CPU2 side by side."""
@@ -995,7 +1024,18 @@ class ConsolePanelView(QtWidgets.QWidget):
             self._toolbar_container.style().unpolish(self._toolbar_container)
             self._toolbar_container.style().polish(self._toolbar_container)
             self._toolbar_container.update()
-    
+
+    def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
+        """Apply theme class to a single button for consistent styling."""
+        is_light = theme_manager.is_light_theme()
+        class_name = "light" if is_light else "dark"
+        button.setProperty("class", class_name)
+
+    def _apply_theme_to_buttons(self) -> None:
+        """Update all registered buttons with the active theme class."""
+        for button in self._themed_buttons:
+            self._apply_theme_to_button(button)
+
     def _on_search_changed(self, text_or_state) -> None:
         """Handle search text change or regex checkbox change with debouncing."""
         # Check if called from checkbox (int) or text field (str)
@@ -1021,6 +1061,30 @@ class ConsolePanelView(QtWidgets.QWidget):
             text_edit.clear()
         
         self._log_cache.clear()
+    
+    def toggle_search_bar(self) -> None:
+        """Toggle visibility of the search bar."""
+        # Toggle visibility of search-related widgets
+        widgets_to_toggle = [
+            self._search_label,
+            self._search_edit,
+            self._chk_regex,
+            self._btn_prev_result,
+            self._btn_next_result,
+            self._search_results_label,
+        ]
+        
+        # Check current visibility state
+        currently_visible = self._search_edit.isVisible()
+        new_visibility = not currently_visible
+        
+        for widget in widgets_to_toggle:
+            if widget:
+                widget.setVisible(new_visibility)
+        
+        # Focus the search edit when showing
+        if new_visibility:
+            self._search_edit.setFocus()
     
     def save_logs(self) -> None:
         """Request to save logs."""

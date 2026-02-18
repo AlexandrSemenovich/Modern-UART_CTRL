@@ -91,6 +91,9 @@ QGroupBox::title {
     color: palette(window-text);
 }
 
+/* Note: Qt QSS does not support CSS transitions like 'transition: all 150ms ease'.
+   Animations must be implemented using QPropertyAnimation or QGraphicsEffect in Python code. */
+
 /* Primary button */
 QPushButton[class~="primary"] {
     background: #3b82f6;
@@ -135,31 +138,53 @@ QPushButton[semanticRole="command_tlm"][dataState="connecting"] {
     color: #9ca3af;
 }
 
-/* Combo button (1+2) - most important action, make it stand out */
+/* Combo button (1+2) - primary action, accent via border/outline only */
 QPushButton[semanticRole="command_combo"] {
     font-weight: bold;
     font-size: 13px;
     min-width: 90px;
     max-width: 130px;
     border: 2px solid #3b82f6;
+    border-radius: 4px;
+    background: transparent;
+    color: #3b82f6;
+    padding: 6px 12px;
 }
 
 QPushButton[semanticRole="command_combo"]:hover {
-    background: rgba(59, 130, 246, 0.15);
-}
-
-QPushButton[semanticRole="command_combo"]:pressed {
     background: #3b82f6;
     color: white;
 }
 
-/* Regular command buttons - less prominent */
+QPushButton[semanticRole="command_combo"]:pressed {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+
+/* Regular command buttons - equal sizing, subtle styling */
 QPushButton[semanticRole="command_cpu1"],
 QPushButton[semanticRole="command_cpu2"],
 QPushButton[semanticRole="command_tlm"] {
     font-weight: normal;
-    font-size: 12px;
-    min-width: 60px;
+    font-size: 13px;
+    min-width: 80px;
+    max-width: 120px;
+    border-radius: 4px;
+    padding: 6px 12px;
+}
+
+/* Tab icons styling */
+QTabBar::tab::icon {
+    width: 30px;
+    height: 16px;
+    margin-right: 2px;
+}
+
+QTabBar::tab {
+    text-align: left;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
 /* LineEdit */
