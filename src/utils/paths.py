@@ -1,9 +1,9 @@
 """
-Пути и директории приложения.
+Paths and directories of the application.
 
-Цели:
-- Единая точка вычисления корня проекта и директории конфигурации.
-- Поддержка как режима разработки, так и упакованных сборок (PyInstaller и т.п.).
+Goals:
+- Single point of computation for project root and configuration directory.
+- Support both development mode and packed builds (PyInstaller, etc.).
 """
 
 from __future__ import annotations
@@ -14,33 +14,33 @@ from pathlib import Path
 
 
 def _is_frozen() -> bool:
-    """Определить, запущено ли приложение в упакованном виде (PyInstaller и т.п.)."""
+    """Determine if the application is running in packed form (PyInstaller, etc.)."""
     return bool(getattr(sys, "frozen", False))
 
 
 def get_root_dir() -> Path:
     """
-    Корень проекта/приложения.
+    Project/application root.
 
-    - В режиме разработки: корневая папка репозитория.
-    - В упакованном виде: директория исполняемого файла.
+    - In development mode: repository root folder.
+    - In packed form: executable file directory.
     """
     if _is_frozen():
         return Path(sys.executable).resolve().parent
-    # src/utils/paths.py -> parents[2] == корень проекта
+    # src/utils/paths.py -> parents[2] == project root
     return Path(__file__).resolve().parents[2]
 
 
 def get_config_dir() -> Path:
     """
-    Директория конфигурации.
+    Configuration directory.
 
-    Приоритет:
-    1. Переменная окружения UART_CTRL_CONFIG_DIR (для явного переопределения).
-    2. Для упакованного приложения:
+    Priority:
+    1. UART_CTRL_CONFIG_DIR environment variable (for explicit override).
+    2. For packed application:
        - Windows: %APPDATA%/UART_CTRL
-       - Остальные: ~/.config/uart_ctrl
-    3. Для разработки: <root>/config
+       - Others: ~/.config/uart_ctrl
+    3. For development: <root>/config
     """
     env_dir = os.environ.get("UART_CTRL_CONFIG_DIR")
     if env_dir:
@@ -50,21 +50,21 @@ def get_config_dir() -> Path:
         if sys.platform.startswith("win"):
             base = os.environ.get("APPDATA") or str(get_root_dir())
             return Path(base) / "UART_CTRL"
-        # POSIX-подобные системы
+        # POSIX-like systems
         home = Path(os.path.expanduser("~"))
         return home / ".config" / "uart_ctrl"
 
-    # Режим разработки: конфиг рядом с исходниками
+    # Development mode: config next to sources
     return get_root_dir() / "config"
 
 
 def ensure_dir(path: Path) -> None:
-    """Гарантировать наличие директории для указанного пути к файлу."""
+    """Guarantee the existence of a directory for the specified file path."""
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
 def get_config_file(name: str) -> Path:
-    """Полный путь к конфигурационному файлу в каталоге конфигурации."""
+    """Full path to a configuration file in the configuration directory."""
     cfg_dir = get_config_dir()
     cfg_path = cfg_dir / name
     ensure_dir(cfg_path)
@@ -73,9 +73,9 @@ def get_config_file(name: str) -> Path:
 
 def get_stylesheet_path(name: str) -> Path:
     """
-    Путь к QSS‑стилю.
+    Path to QSS style.
 
-    Пытается сначала найти стиль в `<root>/src/styles`, затем в `<root>/styles`.
+    First tries to find the style in `<root>/src/styles`, then in `<root>/styles`.
     """
     root = get_root_dir()
     candidates = [
@@ -85,6 +85,6 @@ def get_stylesheet_path(name: str) -> Path:
     for candidate in candidates:
         if candidate.exists():
             return candidate
-    # Возвращаем первый кандидат по умолчанию — вызывающий код сам обработает отсутствие файла
+    # Return first candidate by default - calling code will handle missing file
     return candidates[0]
 

@@ -2,7 +2,7 @@ import sys
 import os
 import logging
 
-# Добавляем родительскую директорию в path
+# Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Configure logging with enhanced logger module
@@ -29,27 +29,27 @@ main_window_ref = None
 def main():
     global main_window_ref
     
-    # Создание приложения
+    # Create application
     app = QApplication(sys.argv)
     
-    # Установка стиля приложения
+    # Set application style
     app.setStyle('Fusion')
     
-    # Убеждаемся, что тема загружена и применена ПЕРЕД созданием splash
-    # Это важно для правильного определения системной темы
-    # При первом запуске применяем тему принудительно
+    # Make sure theme is loaded and applied BEFORE splash creation
+    # This is important for correct system theme detection
+    # On first launch, apply theme forcibly
     theme_manager.apply_theme(force=True)
     
-    # Определяем текущую тему и язык (после применения темы)
+    # Determine current theme and language (after theme application)
     effective_theme = theme_manager._get_effective_theme() if hasattr(theme_manager, '_get_effective_theme') else (
         "dark" if theme_manager.is_dark_theme() else "light"
     )
     language = translator.get_language()
     
-    # Создание modern splash screen с правильной темой
+    # Create modern splash screen with correct theme
     splash = ModernSplashScreen(theme_mode=effective_theme, language=language)
     splash.show()
-    app.processEvents()  # Обработка событий для отображения splash
+    app.processEvents()  # Process events for splash display
     
     # Create splash controller
     controller = SplashController(splash, duration_ms=3000)
@@ -70,7 +70,7 @@ def main():
         global main_window_ref
         splash.close()
         
-        # Убеждаемся, что тема применена перед созданием MainWindow
+        # Make sure theme is applied before creating MainWindow
         theme_manager.apply_theme(force=True)
         
         main_window_ref = MainWindow()
@@ -99,7 +99,7 @@ def main():
     # Begin step-by-step loading
     execute_load_step(0)
     
-    # Запуск приложения
+    # Run application
     sys.exit(app.exec())
 
 if __name__ == "__main__":

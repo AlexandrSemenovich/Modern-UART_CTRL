@@ -40,7 +40,7 @@ class CommandHistoryModel(QtCore.QObject):
         self._max_items = self._load_max_items()
         self._logger = logging.getLogger(__name__)
 
-        # Отложенное сохранение на диск
+        # Deferred save to disk
         self._dirty: bool = False
         self._save_interval_ms: int = 800
         self._save_timer = QtCore.QTimer(self)
@@ -59,7 +59,7 @@ class CommandHistoryModel(QtCore.QObject):
         try:
             parser.read(config_path, encoding="utf-8")
             return parser.getint("ui", "max_history_items", fallback=200)
-        except Exception as exc:  # pragma: no cover - защита от редких ошибок
+        except Exception as exc:  # pragma: no cover - protection against rare errors
             logging.getLogger(__name__).warning(
                 "Failed to read max_history_items from %s: %s", config_path, exc
             )

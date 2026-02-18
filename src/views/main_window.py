@@ -26,7 +26,7 @@ from src.utils.logger import get_logger
 from src.utils.icon_cache import IconCache, get_icon
 logger = get_logger(__name__)
 
-# Windows API для кастомного title bar
+# Windows API for custom title bar
 if sys.platform == "win32":
     try:
         import ctypes
@@ -120,7 +120,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Connect theme changes
         theme_manager.theme_changed.connect(self._on_theme_changed)
-        # Тема уже применена в main.py, не применяем повторно
+        # Theme already applied in main.py, do not apply again
         
         # Connect language changes
         translator.language_changed.connect(self._on_language_changed)
@@ -150,7 +150,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(Sizes.WINDOW_MIN_WIDTH, Sizes.WINDOW_MIN_HEIGHT)
         self._set_window_icon()
         
-        # Настройка кастомного title bar через Windows API (если доступно)
+        # Setup custom title bar via Windows API (if available)
         self._setup_custom_title_bar()
     
     def _set_window_icon(self) -> None:
@@ -160,25 +160,25 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setWindowIcon(icon)
     
     def _setup_custom_title_bar(self) -> None:
-        """Настройка кастомного title bar для Windows 11+ через DWM API."""
+        """Setup custom title bar for Windows 11+ via DWM API."""
         if not HAS_WIN32_API:
             return
         
         try:
-            # Windows API константы
+            # Windows API constants
             DWMWA_USE_IMMERSIVE_DARK_MODE = 20
             DWMWA_SYSTEMBACKDROP_TYPE = 38
             DWMWA_CORNER_RADIUS = 33
             
-            # Mica и corner radius константы из windows11
+            # Mica and corner radius constants from windows11
             from src.utils.windows11 import DWMSBT_MICA, WIN11_CORNER_ROUND, set_window_backdrop, set_window_rounded_corners, is_windows_11_or_later
             
-            # Получаем HWND окна (после показа окна)
+            # Get window HWND (after window is shown)
             def apply_title_bar_theme():
                 try:
                     hwnd = int(self.winId())
                     if hwnd:
-                        # 1. Включаем тёмный режим для title bar
+                        # 1. Enable dark mode for title bar
                         value = ctypes.c_int(1 if theme_manager.is_dark_theme() else 0)
                         ctypes.windll.dwmapi.DwmSetWindowAttribute(
                             wintypes.HWND(hwnd),
@@ -187,26 +187,26 @@ class MainWindow(QtWidgets.QMainWindow):
                             ctypes.sizeof(value)
                         )
                         
-                        # 2. Применяем Mica эффект (Windows 11 only)
+                        # 2. Apply Mica effect (Windows 11 only)
                         if is_windows_11_or_later():
                             try:
                                 set_window_backdrop(hwnd, DWMSBT_MICA)
                             except Exception:
                                 pass
                             
-                            # 3. Скруглённые углы (Windows 11)
+                            # 3. Rounded corners (Windows 11)
                             try:
                                 set_window_rounded_corners(hwnd, WIN11_CORNER_ROUND)
                             except Exception:
                                 pass
                         
-                        # 4. Пытаемся установить цвет caption (Windows 11 22H2+)
+                        # 4. Try to set caption color (Windows 11 22H2+)
                         try:
                             DWMWA_CAPTION_COLOR = 35
                             if theme_manager.is_dark_theme():
-                                caption_color = 0x020617  # наш тёмно-синий цвет
+                                caption_color = 0x020617  # our dark blue color
                             else:
-                                caption_color = 0xf4f6fb  # наш светлый цвет
+                                caption_color = 0xf4f6fb  # our light color
                             color_value = wintypes.DWORD(caption_color)
                             ctypes.windll.dwmapi.DwmSetWindowAttribute(
                                 wintypes.HWND(hwnd),
@@ -219,9 +219,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 except Exception:
                     pass
             
-            # Применяем после показа окна
+            # Apply after window is shown
             QTimer.singleShot(100, apply_title_bar_theme)
-            # Также применяем при смене темы
+            # Also apply on theme change
             theme_manager.theme_changed.connect(lambda: QTimer.singleShot(100, apply_title_bar_theme))
         except Exception:
             pass
@@ -590,7 +590,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # Port header
             port_name = tr(port_key, port_key.upper())
-            port_header = QtWidgets.QLabel(tr("port_label_template", "{name}").format(name=port_name))
+            port_header = QtWidgets.QLabel(tr("port_label_template", f"{{name}}:", name=port_name))
             port_header.setProperty("translation_key", port_key)
             font = port_header.font()
             font.setBold(True)
@@ -603,8 +603,8 @@ class MainWindow(QtWidgets.QMainWindow):
             metrics_row1 = QtWidgets.QHBoxLayout()
             metrics_row1.setSpacing(16)
             
-            rx_label = QtWidgets.QLabel(tr("rx_label", "RX: {count}").format(count=0))
-            tx_label = QtWidgets.QLabel(tr("tx_label", "TX: {count}").format(count=0))
+            rx_label = QtWidgets.QLabel(tr("rx_label", f"RX: {{count}}", count=0))
+            tx_label = QtWidgets.QLabel(tr("tx_label", f"TX: {{count}}", count=0))
             
             metrics_row1.addWidget(rx_label)
             metrics_row1.addWidget(tx_label)
@@ -615,8 +615,8 @@ class MainWindow(QtWidgets.QMainWindow):
             metrics_row2 = QtWidgets.QHBoxLayout()
             metrics_row2.setSpacing(16)
             
-            error_label = QtWidgets.QLabel(tr("error_label", "Errors: {count}").format(count=0))
-            time_label = QtWidgets.QLabel(tr("time_label", "Time: {seconds}s").format(seconds=0))
+            error_label = QtWidgets.QLabel(tr("error_label", f"Errors: {{count}}", count=0))
+            time_label = QtWidgets.QLabel(tr("time_label", f"Time: {{time}}s", time=0))
             
             metrics_row2.addWidget(error_label)
             metrics_row2.addWidget(time_label)
@@ -938,18 +938,18 @@ class MainWindow(QtWidgets.QMainWindow):
         time_label = self._counter_labels.get(f"{port_key}_time")
         
         if rx_label:
-            rx_label.setText(tr("rx_label", "RX: {count}").format(count=rx_count))
+            rx_label.setText(tr("rx_label", f"RX: {{count}}", count=rx_count))
         if tx_label:
-            tx_label.setText(tr("tx_label", "TX: {count}").format(count=tx_count))
+            tx_label.setText(tr("tx_label", f"TX: {{count}}", count=tx_count))
         
         # Update error count and connection time from ViewModel
         viewmodel = self._port_viewmodels.get(port_num)
         if viewmodel:
             if error_label:
-                error_label.setText(tr("error_label", "Errors: {count}").format(count=viewmodel.error_count))
+                error_label.setText(tr("error_label", f"Errors: {{count}}", count=viewmodel.error_count))
             if time_label:
                 conn_time = viewmodel.connection_time
-                time_label.setText(tr("time_label", "Time: {seconds}s").format(seconds=int(conn_time)))
+                time_label.setText(tr("time_label", f"Time: {{time}}s", time=int(conn_time)))
 
     def _normalize_state(self, state: str | PortConnectionState) -> PortConnectionState:
         if isinstance(state, PortConnectionState):
@@ -1084,7 +1084,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Generate filename with timestamp
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = tr("logs_default_filename", "uart_logs_{timestamp}.txt").format(timestamp=timestamp)
+        default_name = tr("logs_default_filename", f"uart_logs_{timestamp}.txt")
         
         
         # Show save dialog
@@ -1105,7 +1105,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(logs_text)
                 
-                self.statusBar().showMessage(tr("logs_saved", "Logs saved to {file_path}").format(file_path=file_path), 3000)
+                self.statusBar().showMessage(tr("logs_saved", f"Logs saved to {file_path}"), 3000)
                 
             except Exception as e:
                 # Use toast notification instead of blocking dialog
@@ -1113,7 +1113,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     from src.views.toast_notification import get_toast_manager
                     self._toast_manager = get_toast_manager(self)
                 
-                self._toast_manager.show_error(tr("save_error", "Failed to save logs: {error}").format(error=str(e)))
+                self._toast_manager.show_error(tr("save_error", f"Failed to save logs: {str(e)}"))
                 
     
     def _update_icons_on_theme_change(self) -> None:
@@ -1125,7 +1125,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def _on_theme_changed(self, theme: str) -> None:
         """Handle theme change."""
-        self.statusBar().showMessage(tr("status_theme_changed", "Theme: {theme}").format(theme=theme), 2000)
+        self.statusBar().showMessage(tr("status_theme_changed", f"Theme: {theme}"), 2000)
         
         # Update icons for theme-aware widgets
         self._update_icons_on_theme_change()
@@ -1159,7 +1159,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for row, (port_num, port_key) in enumerate(zip([1, 2, 3], self._counter_ports)):
             port_name = tr(port_key, port_key.upper())
-            label_text = tr("port_label_template", "{name}:").format(name=port_name)
+            label_text = tr("port_label_template", f"{{name}}:", name=port_name)
             label_widget = self._counter_label_widgets[row]
             label_widget.setText(label_text)
 
@@ -1168,16 +1168,16 @@ class MainWindow(QtWidgets.QMainWindow):
             error_label = self._counter_labels[f"{port_key}_error"]
             time_label = self._counter_labels[f"{port_key}_time"]
             
-            rx_label.setText(tr("rx_label", "RX: {count}").format(count=self._port_viewmodels[port_num].rx_count))
+            rx_label.setText(tr("rx_label", f"RX: {{count}}", count=self._port_viewmodels[port_num].rx_count))
 
-            tx_label.setText(tr("tx_label", "TX: {count}").format(count=self._port_viewmodels[port_num].tx_count))
+            tx_label.setText(tr("tx_label", f"TX: {{count}}", count=self._port_viewmodels[port_num].tx_count))
 
             if error_label:
-                error_label.setText(tr("error_label", "Errors: {count}").format(count=self._port_viewmodels[port_num].error_count))
+                error_label.setText(tr("error_label", f"Errors: {{count}}", count=self._port_viewmodels[port_num].error_count))
 
             if time_label:
                 conn_time = self._port_viewmodels[port_num].connection_time
-                time_label.setText(tr("time_label", "Time: {seconds}s").format(seconds=int(conn_time)))
+                time_label.setText(tr("time_label", f"Time: {{time}}s", time=int(conn_time)))
                     
         self._lbl_history_title.setText(tr("command_history", "Command History"))
         self._btn_open_history.setText(tr("history_open", "History"))
@@ -1194,7 +1194,7 @@ class MainWindow(QtWidgets.QMainWindow):
             action.setChecked(lang == current_lang)
 
         # Update status
-        self.statusBar().showMessage(tr("language_changed", "Language changed to {language}").format(language=language), 2000)
+        self.statusBar().showMessage(tr("language_changed", f"Language changed to {language}"), 2000)
     
         # Language change can recreate menus/toolbars – re-apply theme to hierarchy
         self._apply_theme_to_hierarchy()
@@ -1216,7 +1216,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if hasattr(self, "_history_model") and self._history_model is not None:
                 self._history_model.flush()
         except Exception:
-            # Закрытие окна не должно срываться из‑за ошибок записи истории
+            # Window closing should not fail due to history write errors
             pass
         
         # Cleanup global hotkeys

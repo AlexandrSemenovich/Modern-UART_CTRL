@@ -348,16 +348,13 @@ class SerialWorker(QThread):
         except SerialException as e:
             self._connection_attempts += 1
             logger.error(f"Serial connection error (attempt {self._connection_attempts}): {e}")
-            self._emit_error(tr("worker_open_error", "Open error ({port}): {error}").format(
-                port=self._port_name or 'N/A',
-                error=e
-            ))
+            self._emit_error(tr("worker_open_error", f"Open error ({{port_name}}): {{error}}", port_name=self._port_name or "N/A", error=e))
             return None
         
         except Exception as e:
             self._connection_attempts += 1
             logger.exception(f"Unexpected error during connection (attempt {self._connection_attempts}): {e}")
-            self._emit_error(tr("worker_open_error", "Connection error: {error}").format(error=e))
+            self._emit_error(tr("worker_open_error", f"Connection error: {{error}}", error=e))
             return None
     
     def _handle_read_error(self, error: Exception) -> bool:
@@ -395,9 +392,7 @@ class SerialWorker(QThread):
         self._bytes_sent = 0
         self._last_tx_rate_check = time.monotonic()
         
-        self._emit_status(tr("worker_connecting_to", "Connecting to {port}...").format(
-            port=self._port_name or 'N/A'
-        ))
+        self._emit_status(tr("worker_connecting_to", f"Connecting to {{port_name}}...", port_name=self._port_name or "N/A"))
         
         # Record connection start time for timeout tracking
         self._connection_start_time = time.monotonic()
@@ -431,19 +426,14 @@ class SerialWorker(QThread):
                     
                     self._ser = ser
                     
-                    self._emit_status(tr("worker_connected_to", "Connected to {port}").format(
-                        port=self._port_name
-                    ))
+                    self._emit_status(tr("worker_connected_to", f"Connected to {{port_name}}", port_name=self._port_name))
                     
                     logger.info(f"Successfully connected to {self._port_name}")
                     
                 except SerialException as e:
                     connection_error = str(e)
                     logger.error(f"Serial connection error: {e}")
-                    self._emit_error(tr("worker_open_error", "Open error ({port}): {error}").format(
-                        port=self._port_name or 'N/A',
-                        error=e
-                    ))
+                    self._emit_error(tr("worker_open_error", f"Open error ({{port_name}}): {{error}}", port_name=self._port_name or "N/A", error=e))
                     self._running = False
                     self._cleanup(ser)
                     self.finished.emit()
@@ -457,7 +447,7 @@ class SerialWorker(QThread):
         except Exception as e:
             connection_error = str(e)
             logger.exception(f"Unexpected error during connection: {e}")
-            self._emit_error(tr("worker_open_error", "Connection error: {error}").format(error=e))
+            self._emit_error(tr("worker_open_error", f"Connection error: {{error}}", error=e))
             self._running = False
             self._cleanup(ser)
             self.finished.emit()
@@ -500,7 +490,7 @@ class SerialWorker(QThread):
         
         except Exception as e:
             logger.exception(f"Fatal error in worker loop: {e}")
-            self._emit_error(tr("worker_fatal_error", "Fatal error: {error}").format(error=e))
+            self._emit_error(tr("worker_fatal_error", f"Fatal error: {{error}}", error=e))
         
         finally:
             self._cleanup(ser)
@@ -519,9 +509,7 @@ class SerialWorker(QThread):
         except Exception as e:
             logger.warning(f"Error closing port: {e}")
         
-        self._emit_status(tr("worker_disconnected_from", "Disconnected from {port}").format(
-            port=self._port_name or 'N/A'
-        ))
+        self._emit_status(tr("worker_disconnected_from", f"Disconnected from {{port_name}}", port_name=self._port_name or "N/A"))
     
     def _process_read(self, ser: Optional[Any]) -> bool:
         """
@@ -651,7 +639,7 @@ class SerialWorker(QThread):
         """
         try:
             if self._ser is not None:
-                # Определяем, работаем ли мы со строкой или с байтами
+                # Determine if we are working with string or bytes
                 is_bytes = isinstance(data, (bytes, bytearray))
 
                 if is_bytes:
@@ -704,7 +692,7 @@ class SerialWorker(QThread):
                 except SerialException as e:
                     raise
                 
-                self._emit_status(tr("worker_tx_message", "TX: {data}").format(data=sanitized_for_status))
+                self._emit_status(tr("worker_tx_message", f"TX: {{data}}", data=sanitized_for_status))
                 
                 # Echo for simulation mode
                 if self._ser is None:
@@ -721,10 +709,7 @@ class SerialWorker(QThread):
         
         except Exception as e:
             logger.exception(f"Write error on {self._port_label}: {e}")
-            self._emit_error(tr("worker_write_error", "Write error ({port}): {error}").format(
-                port=self._port_name or 'N/A',
-                error=e
-            ))
+            self._emit_error(tr("worker_write_error", f"Write error ({{port_name}}): {{error}}", port_name=self._port_name or "N/A", error=e))
             return False
     
     def _emit_status(self, message: str) -> None:

@@ -260,7 +260,7 @@ class ComPortViewModel(QObject):
         
         def attempt_connection(attempt: int, backoff_ms: int) -> bool:
             if attempt >= max_attempts:
-                self._emit_error(tr("error_connection_failed", "Connection failed after {attempts} attempts").format(attempts=max_attempts))
+                self._emit_error(tr("error_connection_failed", f"Connection failed after {{attempts}} attempts", attempts=max_attempts))
                 self._set_state(PortConnectionState.ERROR)
                 return False
             
@@ -321,7 +321,7 @@ class ComPortViewModel(QObject):
         
         # Validate command length
         if len(data) > CommandConfig.MAX_COMMAND_LENGTH:
-            self._emit_error(tr("error_command_too_long", "Command too long (max {max} chars)").format(max=CommandConfig.MAX_COMMAND_LENGTH))
+            self._emit_error(tr("error_command_too_long", f"Command too long (max {{max_length}} chars)", max_length=CommandConfig.MAX_COMMAND_LENGTH))
             return False
         
         # Validate characters (allow only printable ASCII + CR + LF)
@@ -439,9 +439,9 @@ class ComPortViewModel(QObject):
         """
         port_name = self._port_name or "N/A"
 
-        connected_msg = tr("worker_connected_to", "Connected to {port}").format(port=port_name)
-        disconnected_msg = tr("worker_disconnected_from", "Disconnected from {port}").format(port=port_name)
-        connecting_msg = tr("worker_connecting_to", "Connecting to {port}...").format(port=port_name)
+        connected_msg = tr("worker_connected_to", f"Connected to {{port_name}}", port_name=port_name)
+        disconnected_msg = tr("worker_disconnected_from", f"Disconnected from {{port_name}}", port_name=port_name)
+        connecting_msg = tr("worker_connecting_to", f"Connecting to {{port_name}}...", port_name=port_name)
 
         if status_message == connected_msg:
             self._set_state(PortConnectionState.CONNECTED)

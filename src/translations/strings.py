@@ -893,28 +893,36 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
 
     # Serial worker
     "worker_connecting_to": {
-        "ru": "Подключение к {port}...",
-        "en": "Connecting to {port}...",
+        "ru": "Подключение к {port_name}...",
+        "en": "Connecting to {port_name}...",
     },
     "worker_connected_to": {
-        "ru": "Подключено к {port}",
-        "en": "Connected to {port}",
+        "ru": "Подключено к {port_name}",
+        "en": "Connected to {port_name}",
     },
     "worker_disconnected_from": {
-        "ru": "Отключено от {port}",
-        "en": "Disconnected from {port}",
+        "ru": "Отключено от {port_name}",
+        "en": "Disconnected from {port_name}",
+    },
+    "error_connection_failed": {
+        "ru": "Подключение не удалось после {attempts} попыток",
+        "en": "Connection failed after {attempts} attempts",
+    },
+    "error_command_too_long": {
+        "ru": "Команда слишком длинная (максимум {max_length} символов)",
+        "en": "Command too long (max {max_length} chars)",
     },
     "worker_open_error": {
-        "ru": "Ошибка открытия ({port}): {error}",
-        "en": "Open error ({port}): {error}",
+        "ru": "Ошибка открытия ({port_name}): {error}",
+        "en": "Open error ({port_name}): {error}",
     },
     "worker_read_error": {
         "ru": "Ошибка чтения: {error}",
         "en": "Read error: {error}",
     },
     "worker_write_error": {
-        "ru": "Ошибка записи ({port}): {error}",
-        "en": "Write error ({port}): {error}",
+        "ru": "Ошибка записи ({port_name}): {error}",
+        "en": "Write error ({port_name}): {error}",
     },
     "worker_tx_message": {
         "ru": "TX: {data}",
@@ -923,10 +931,6 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "worker_simulated_echo": {
         "ru": "(симулируемый отклик) {data}",
         "en": "(simulated echo) {data}",
-    },
-    "worker_disconnected_from": {
-        "ru": "Отключено от {port}",
-        "en": "Disconnected from {port}",
     },
     "worker_simulated": {
         "ru": "Режим симуляции (нет pyserial)",

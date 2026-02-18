@@ -12,28 +12,28 @@ from src.styles.constants import Fonts
 
 
 class ModernSplashScreen(QWidget):
-    """Современный splash экран с прогресс-баром"""
+    """Modern splash screen with progress bar"""
     
     def __init__(self, theme_mode: str = "dark", language: str = "ru"):
         super().__init__()
         self._language = language
         self.theme_mode = theme_mode
         
-        # Настройка окна
+        # Window setup
         self.setFixedSize(400, 500)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
-        # Основной layout
+        # Main layout
         layout = QVBoxLayout()
         self.setLayout(layout)
         
-        # Фоновая карточка с тенью
+        # Background card with shadow
         self.background = QLabel(self)
         self.background.setObjectName("SplashCard")
         self.background.setGeometry(10, 10, 380, 480)
         
-        # Эффект тени
+        # Shadow effect
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(20)
         shadow.setXOffset(0)
@@ -41,14 +41,14 @@ class ModernSplashScreen(QWidget):
         shadow.setColor(QColor(0, 0, 0, 200))
         self.background.setGraphicsEffect(shadow)
         
-        # Иконка
+        # Icon
         self.lbl_icon = QLabel(self.background)
         self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_icon.setGeometry(0, 55, 380, 140)
         self.lbl_icon.setObjectName("SplashIcon")
         self._set_icon()
         
-        # Заголовок
+        # Title
         self.lbl_title = QLabel(tr("splash_title", "UART Control"), self.background)
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_title.setGeometry(0, 200, 380, 40)
@@ -57,7 +57,7 @@ class ModernSplashScreen(QWidget):
         title_font.setPointSize(24)
         self.lbl_title.setFont(title_font)
         
-        # Подзаголовок
+        # Subtitle
         self.lbl_subtitle = QLabel(tr("splash_subtitle", "Modern COM Port Control"), self.background)
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setGeometry(0, 235, 380, 20)
@@ -66,31 +66,31 @@ class ModernSplashScreen(QWidget):
         subtitle_font.setPointSize(11)
         self.lbl_subtitle.setFont(subtitle_font)
         
-        # Статус загрузки
+        # Loading status
         self.lbl_status = QLabel(tr("loading", "Initializing..."), self.background)
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_status.setGeometry(0, 350, 380, 20)
         self.lbl_status.setObjectName("SplashStatus")
         self.lbl_status.setFont(Fonts.get_default_font())
         
-        # Прогресс-бар
+        # Progress bar
         self.progress = QProgressBar(self.background)
         self.progress.setGeometry(50, 380, 280, 6)
         self.progress.setTextVisible(False)
         self.progress.setRange(0, 100)
         self.progress.setObjectName("SplashProgress")
 
-        # Применяем стиль фона в зависимости от темы (после создания всех виджетов)
+        # Apply background style based on theme (after all widgets are created)
         self._apply_theme()
         
     
     def _apply_theme(self):
-        """Применение темы к splash экрану - использует общую систему стилей"""
-        # Используем theme_mode, переданный при создании splash screen
-        # Это гарантирует, что splash screen использует ту же тему, что и приложение
+        """Apply theme to splash screen - uses shared style system"""
+        # Use theme_mode passed when creating splash screen
+        # This ensures splash screen uses the same theme as the application
         effective_theme = self.theme_mode
         
-        # Устанавливаем themeClass для применения QSS
+        # Set themeClass for QSS application
         self.setProperty("themeClass", effective_theme)
         self.background.setProperty("themeClass", effective_theme)
         self.lbl_title.setProperty("themeClass", effective_theme)
@@ -99,9 +99,9 @@ class ModernSplashScreen(QWidget):
         self.progress.setProperty("themeClass", effective_theme)
     
     def _set_icon(self):
-        """Установка иконки splash экрана в зависимости от темы"""
+        """Set splash screen icon based on theme"""
         try:
-            # Выбираем логотип в зависимости от темы
+            # Select logo based on theme
             logo_name = "logo_white.png" if self.theme_mode == "dark" else "logo_black.png"
             icon_path = os.path.join(
                 os.path.dirname(__file__), 
@@ -120,21 +120,21 @@ class ModernSplashScreen(QWidget):
         except Exception:
             pass
         
-        # Если иконки нет, показываем логотип текстом
+        # If no icon, show logo as text
         self.lbl_icon.setText(tr("splash_logo_text", "UART"))
         logo_font = Fonts.get_title_font()
         logo_font.setPointSize(48)
         self.lbl_icon.setFont(logo_font)
     
     def update_progress(self, value: int, status_text: str = None):
-        """Обновление прогресса и статуса"""
+        """Update progress and status"""
         self.progress.setValue(min(100, max(0, value)))
 
-        # Если передан явный статус — показываем его (одна строка)
+        # If explicit status is passed - show it (one line)
         if status_text:
             self.lbl_status.setText(status_text)
         else:
-            # Автоматический текст в зависимости от прогресса с переводами
+            # Automatic text based on progress with translations
             if value < 20:
                 txt = tr("loading_initializing", "Initializing application...")
             elif value < 40:
@@ -149,12 +149,12 @@ class ModernSplashScreen(QWidget):
                 txt = tr("loading_styles", "Applying styles...")
             else:
                 txt = tr("ready", "Ready!")
-            # Обновляем одну строку статуса (перезаписываем)
+            # Update single status line (overwrite)
             self.lbl_status.setText(txt)
 
 
 class SplashController(QObject):
-    """Контроллер для управления splash экраном"""
+    """Controller for splash screen management"""
     
     finished = Signal()
     
@@ -168,16 +168,16 @@ class SplashController(QObject):
         self._timer.timeout.connect(self._tick)
     
     def start(self):
-        """Запуск таймера загрузки"""
+        """Start loading timer"""
         self._elapsed.restart()
-        self._timer.start(30)  # Обновление каждые 30ms
+        self._timer.start(30)  # Update every 30ms
     
     def stop(self):
-        """Остановка таймера"""
+        """Stop timer"""
         self._timer.stop()
     
     def _tick(self):
-        """Обновление прогресса при каждом тике таймера"""
+        """Update progress on each timer tick"""
         self._elapsed_ms = self._elapsed.elapsed()
         ratio = min(1.0, self._elapsed_ms / self._duration_ms)
         progress = int(ratio * 100)
@@ -188,11 +188,11 @@ class SplashController(QObject):
             self.finished.emit()
     
     def complete(self):
-        """Моментальное завершение загрузки"""
+        """Instant completion of loading"""
         self._timer.stop()
         self._splash.update_progress(100)
         self.finished.emit()
     
     def is_finished(self) -> bool:
-        """Проверка, завершена ли загрузка"""
+        """Check if loading is complete"""
         return self._elapsed_ms >= self._duration_ms

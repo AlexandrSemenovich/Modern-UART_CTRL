@@ -118,7 +118,7 @@ class ConfigLoader:
 
     def __init__(self, config_path: Optional[Path] = None) -> None:
         self._config = configparser.ConfigParser()
-        # Единая точка входа для конфигурации
+        # Single entry point for configuration
         default_path = get_config_file("config.ini")
         
         # Error handling for config parsing with fallback to defaults
@@ -315,27 +315,26 @@ class ConfigLoader:
 
     def get_sizes(self) -> SizeConfig:
         section = self._get_section("sizes")
-        get_int = lambda key, default: self._get_int(section, key, default)
         return SizeConfig(
-            window_min_width=get_int("window_min_width", 800),
-            window_min_height=get_int("window_min_height", 600),
-            window_default_width=get_int("window_default_width", 1_200),
-            window_default_height=get_int("window_default_height", 800),
-            left_panel_min_width=get_int("left_panel_min_width", 320),
-            left_panel_max_width=get_int("left_panel_max_width", 380),
-            center_panel_min_width=get_int("center_panel_min_width", 400),
-            right_panel_min_width=get_int("right_panel_min_width", 200),
-            right_panel_max_width=get_int("right_panel_max_width", 350),
-            layout_spacing=get_int("layout_spacing", 5),
-            layout_margin=get_int("layout_margin", 5),
-            toolbar_spacing=get_int("toolbar_spacing", 5),
-            toolbar_margin=get_int("toolbar_margin", 0),
-            button_min_height=get_int("button_min_height", 26),
-            button_max_width=get_int("button_max_width", 110),
-            button_clear_max_width=get_int("button_clear_max_width", 80),
-            button_save_max_width=get_int("button_save_max_width", 80),
-            input_min_height=get_int("input_min_height", 32),
-            search_field_max_width=get_int("search_field_max_width", 200),
+            window_min_width=self._get_int(section, "window_min_width", 800),
+            window_min_height=self._get_int(section, "window_min_height", 600),
+            window_default_width=self._get_int(section, "window_default_width", 1_200),
+            window_default_height=self._get_int(section, "window_default_height", 800),
+            left_panel_min_width=self._get_int(section, "left_panel_min_width", 320),
+            left_panel_max_width=self._get_int(section, "left_panel_max_width", 380),
+            center_panel_min_width=self._get_int(section, "center_panel_min_width", 400),
+            right_panel_min_width=self._get_int(section, "right_panel_min_width", 200),
+            right_panel_max_width=self._get_int(section, "right_panel_max_width", 350),
+            layout_spacing=self._get_int(section, "layout_spacing", 5),
+            layout_margin=self._get_int(section, "layout_margin", 5),
+            toolbar_spacing=self._get_int(section, "toolbar_spacing", 5),
+            toolbar_margin=self._get_int(section, "toolbar_margin", 0),
+            button_min_height=self._get_int(section, "button_min_height", 26),
+            button_max_width=self._get_int(section, "button_max_width", 110),
+            button_clear_max_width=self._get_int(section, "button_clear_max_width", 80),
+            button_save_max_width=self._get_int(section, "button_save_max_width", 80),
+            input_min_height=self._get_int(section, "input_min_height", 32),
+            search_field_max_width=self._get_int(section, "search_field_max_width", 200),
         )
 
     def get_serial_config(self) -> Dict[str, str]:
@@ -388,12 +387,11 @@ class ConfigLoader:
         Берутся из секции [console], при отсутствии — используются безопасные значения по умолчанию.
         """
         section = self._get_section("console")
-        get_int = lambda key, default: self._get_int(section, key, default)
         return ConsoleConfig(
-            max_html_length=get_int("max_html_length", 10_000),
-            max_document_lines=get_int("max_document_lines", 1_000),
-            trim_chunk_size=get_int("trim_chunk_size", 500),
-            max_cache_lines=get_int("max_cache_lines", 10_000),
+            max_html_length=self._get_int(section, "max_html_length", 10_000),
+            max_document_lines=self._get_int(section, "max_document_lines", 1_000),
+            trim_chunk_size=self._get_int(section, "trim_chunk_size", 500),
+            max_cache_lines=self._get_int(section, "max_cache_lines", 10_000),
         )
 
     def get_toast_config(self) -> ToastConfig:
@@ -403,7 +401,6 @@ class ConfigLoader:
         Берутся из секции [toast], при отсутствии — используются безопасные значения по умолчанию.
         """
         section = self._get_section("toast")
-        get_int = lambda key, default: self._get_int(section, key, default)
         
         # Parse margins tuple
         margins_str = section.get("toast_margins", "12, 8, 12, 8")
@@ -415,14 +412,14 @@ class ConfigLoader:
             margins = (12, 8, 12, 8)
         
         return ToastConfig(
-            toast_min_width=get_int("toast_min_width", 300),
-            toast_max_width=get_int("toast_max_width", 500),
-            toast_duration_ms=get_int("toast_duration_ms", 4000),
-            toast_spacing=get_int("toast_spacing", 8),
-            toast_icon_size=get_int("toast_icon_size", 20),
-            toast_close_button_size=get_int("toast_close_button_size", 20),
+            toast_min_width=self._get_int(section, "toast_min_width", 300),
+            toast_max_width=self._get_int(section, "toast_max_width", 500),
+            toast_duration_ms=self._get_int(section, "toast_duration_ms", 4000),
+            toast_spacing=self._get_int(section, "toast_spacing", 8),
+            toast_icon_size=self._get_int(section, "toast_icon_size", 20),
+            toast_close_button_size=self._get_int(section, "toast_close_button_size", 20),
             toast_margins=margins,
-            toast_corner_radius=get_int("toast_corner_radius", 6),
+            toast_corner_radius=self._get_int(section, "toast_corner_radius", 6),
         )
 
 

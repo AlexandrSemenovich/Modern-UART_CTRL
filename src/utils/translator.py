@@ -3,14 +3,14 @@ from typing import Dict, Optional
 from PySide6.QtCore import QObject, Signal
 
 class Translator(QObject):
-    """Класс для управления переводами приложения"""
+    """Class for managing application translations"""
     
-    language_changed = Signal(str)  # Сигнал при изменении языка
+    language_changed = Signal(str)  # Signal on language change
     
     def __init__(self, default_language: str = "ru_RU"):
         super().__init__()
         self.current_language = default_language
-        # Язык в коде: ru или en
+        # Language in code: ru or en
         self.current_lang_code = "en"
         self.translations = {}
         self.available_languages = {
@@ -20,15 +20,15 @@ class Translator(QObject):
         self.load_translations()
     
     def load_translations(self):
-        """Загрузка переводов для текущего языка"""
+        """Load translations for current language"""
         try:
             from src.translations.strings import STRINGS
             
-            # Определяем код языка
+            # Determine language code
             lang_code = "ru" if self.current_language == "ru_RU" else "en"
             self.current_lang_code = lang_code
             
-            # Преобразуем формат: STRINGS["key"]["lang"] -> translations["key"]
+            # Convert format: STRINGS["key"]["lang"] -> translations["key"]
             self.translations = {}
             for key, translations_dict in STRINGS.items():
                 if isinstance(translations_dict, dict) and lang_code in translations_dict:
@@ -38,7 +38,7 @@ class Translator(QObject):
             self.translations = {}
     
     def set_language(self, language: str):
-        """Установка текущего языка"""
+        """Set current language"""
         if language in self.available_languages:
             self.current_language = language
             self.load_translations()
@@ -47,15 +47,15 @@ class Translator(QObject):
         return False
     
     def get_language(self) -> str:
-        """Получение текущего языка"""
+        """Get current language"""
         return self.current_language
     
     def get_available_languages(self) -> Dict[str, str]:
-        """Получение списка доступных языков"""
+        """Get list of available languages"""
         return self.available_languages
     
     def translate(self, key: str, default: Optional[str] = None) -> str:
-        """Перевод текста по ключу"""
+        """Translate text by key"""
         if key in self.translations:
             return self.translations[key]
         elif default:
@@ -64,13 +64,30 @@ class Translator(QObject):
             return key
     
     def tr(self, key: str, default: Optional[str] = None) -> str:
-        """Алиас для метода translate"""
+        """Alias for translate method"""
         return self.translate(key, default)
 
-# Глобальный экземпляр переводчика
+# Global translator instance
 translator = Translator()
 
-# Функция для удобного доступа к переводам
-def tr(key: str, default: Optional[str] = None) -> str:
-    """Глобальная функция для перевода текста"""
-    return translator.translate(key, default)
+# Function for convenient access to translations with f-string style support
+def tr(key: str, template: str, **kwargs) -> str:
+    """Global function for translating text with variable substitution
+    
+    Args:
+        key: Translation key
+        template: Default template (used if translation not found)
+        **kwargs: Variables for substitution in template
+    
+    Returns:
+        Translated text with substituted variables
+    """
+    result = translator.translate(key, template)
+    # If there are variables for substitution, perform replacement
+    if kwargs:
+        try:
+            result = result.format(**kwargs)
+        except (KeyError, ValueError):
+            # If substitution failed, return as is
+            pass
+    return result

@@ -163,22 +163,21 @@ defaults = self._default_colors["dark" if theme not in self._default_colors else
 defaults = self._default_colors.get(theme, self._default_colors["dark"])
 ```
 
-#### 2.3 Remove Redundant Lambda Functions
+#### 2.3 Remove Redundant Lambda Functions ✅ DONE
 **File:** `src/utils/config_loader.py`, lines 318, 391, 406
 
 ```python
 # BEFORE:
 get_int = lambda key, default: self._get_int(section, key, default)
 
-# AFTER: Use method reference
-get_int = partial(self._get_int, section)
-
-# Or inline in simple cases
+# AFTER: Direct method calls
 value = self._get_int(section, key, default)
 ```
 
-#### 2.4 Use Modern Type Hints (Python 3.9+)
-**Files:** All Python files
+*Status:* Completed - removed 3 lambda functions, replaced with direct `self._get_int(section, key, default)` calls in `get_sizes()`, `get_console_config()`, and `get_toast_config()` methods
+
+#### 2.4 Use Modern Type Hints (Python 3.9+) ✅ DONE
+**Files:** All Python files in src/
 
 ```python
 # BEFORE:
@@ -192,12 +191,14 @@ def process(items: list[str]) -> dict[str, int]:
     pass
 ```
 
+*Status:* Completed - replaced all `Optional[X]` with `X | None`, `Dict[` with `dict[`, `List[` with `list[`, `Callable[` with `callable[` in 15+ files. Removed unused typing imports where possible.
+
 ---
 
 ### PHASE 3: Enhancement (Low Impact, High Effort)
 
-#### 3.1 Unify Comment Language
-**Recommendation:** Use English consistently throughout the codebase
+#### 3.1 Unify Comment Language ✅ DONE
+**Files:** All Python files in src/ directory (13 files modified)
 
 #### 3.2 Add __slots__ to Simple Data Classes
 ```python

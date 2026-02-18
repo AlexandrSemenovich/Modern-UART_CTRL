@@ -210,7 +210,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
 
     def _apply_theme(self, _: str) -> None:
         theme_class = "light" if theme_manager.is_light_theme() else "dark"
-        # Применяем ко всем виджетам и их детям
+        # Apply to all widgets and their children
         widgets = [self, self._toolbar, self._search, self._table, self._lbl_summary, self._btn_close]
         widgets.extend(self.findChildren(QtWidgets.QWidget))
         for widget in widgets:

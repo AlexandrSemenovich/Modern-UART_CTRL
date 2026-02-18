@@ -28,9 +28,9 @@ class ThemeManager(QObject):
         self._last_modified: float = 0.0
         self._qss_path = str(get_stylesheet_path("app_optimized.qss"))
         self._logger = logging.getLogger(__name__)
-        self._theme_applied = False  # флаг для отслеживания применения темы
-        self._last_applied_theme = None  # последняя примененная эффективная тема
-        self._last_logical_theme = None  # последняя логическая тема
+        self._theme_applied = False      # flag for tracking theme application
+        self._last_applied_theme = None  # last applied effective theme
+        self._last_logical_theme = None  # last logical theme
         self.load_theme()
 
     def load_theme(self):
@@ -45,10 +45,10 @@ class ThemeManager(QObject):
             except Exception:  # pragma: no cover - defensive
                 theme = "dark"
         
-        # Если тема "system", сразу определяем эффективную тему для согласованного применения
-        # Это предотвращает визуальные артефакты при первом запуске с системной темой
+        # If theme is "system", immediately determine effective theme for consistent application
+        # This prevents visual artifacts on first launch with system theme
         if theme == "system":
-            # Принудительно применяем тему с определением системной темы
+            # Forcibly apply theme with system theme detection
             self.set_theme(theme)
         else:
             self.set_theme(theme)
@@ -62,15 +62,15 @@ class ThemeManager(QObject):
         if theme not in {"light", "dark", "system"}:
             return False
 
-        # Всегда сохраняем тему и применяем её - это гарантирует полную перерисовку
-        # При любом изменении темы (включая переключение между явными темами)
+        # Always save and apply theme - this ensures full redraw
+        # On any theme change (including switching between explicit themes)
         old_theme = self.current_theme
         self.current_theme = theme
         
-        # Применяем тему только если QApplication уже создан
+        # Apply theme only if QApplication is already created
         app = QApplication.instance()
         if app:
-            # Всегда применяем тему для полной перерисовки всех элементов
+            # Always apply theme for full redraw of all elements
             self.apply_theme(force=True)
             self.theme_changed.emit(theme)
         
@@ -117,58 +117,58 @@ class ThemeManager(QObject):
         """
         app = QApplication.instance()
         if not app:
-            # Если QApplication ещё не создан, просто сохраняем тему
-            # Она будет применена позже при создании app
+            # If QApplication is not yet created, just save the theme
+            # It will be applied later when app is created
             return
 
         effective = self._get_effective_theme()
         logical = self.current_theme
         
-        # Предотвращаем двойное применение той же темы
-        # Проверяем, была ли уже применена та же эффективная тема
-        # Игнорируем это если меняется логическая тема (например, light->system)
+        # Prevent double application of the same theme
+        # Check if the same effective theme has already been applied
+        # Ignore if logical theme changes (e.g., light->system)
         if self._theme_applied and not force:
             if self._last_applied_theme == effective and logical == self._last_logical_theme:
-                # Та же тема уже применена, не применяем повторно
+                # Same theme already applied, don't apply again
                 return
 
-        # Применяем тему только если она изменилась или принудительно
+        # Apply theme only if it changed or forced
         if effective == "light":
             self._apply_light_theme(app)
         else:
             self._apply_dark_theme(app)
 
-        # themeClass используется в QSS-селекторах
-        # Всегда устанавливаем на app - это важно для правильного применения стилей
+        # themeClass is used in QSS selectors
+        # Always set on app - this is important for correct style application
         app.setProperty("themeClass", effective)
         
-        # Применяем таблицу стилей
+        # Apply stylesheet
         self._apply_stylesheet(app)
         
-        # Обновляем состояние
+        # Update state
         self._theme_applied = True
-        self._last_applied_theme = effective  # сохраняем последнюю примененную тему
-        self._last_logical_theme = logical  # сохраняем последнюю логическую тему
+        self._last_applied_theme = effective  # save last applied theme
+        self._last_logical_theme = logical  # save last logical theme
 
     def _apply_light_theme(self, app: QApplication) -> None:
-        """Apply light theme palette: бело-синие аккуратные оттенки."""
+        """Apply light theme palette: white-blue clean shades."""
         colors = config_loader.get_palette_colors("light")
         palette = QPalette()
-        # Основной фон окна и панелей
+        # Main background for windows and panels
         palette.setColor(QPalette.Window, QColor(colors.window))
         palette.setColor(QPalette.Base, QColor(colors.base))
-        # Текст
+        # Text
         palette.setColor(QPalette.WindowText, QColor(colors.window_text))
         palette.setColor(QPalette.Text, QColor(colors.text))
-        # Кнопки
+        # Buttons
         palette.setColor(QPalette.Button, QColor(colors.button))
         palette.setColor(QPalette.ButtonText, QColor(colors.button_text))
-        # Ссылки и акцент
+        # Links and accent
         palette.setColor(QPalette.Link, QColor(colors.link))
         palette.setColor(QPalette.Highlight, QColor(colors.highlight))
         palette.setColor(QPalette.HighlightedText, QColor(colors.highlighted_text))
 
-        # Дополнительные цвета для palette-based QSS
+        # Additional colors for palette-based QSS
         palette.setColor(QPalette.Mid, QColor("#d0d7e6"))
         palette.setColor(QPalette.Midlight, QColor("#e5e7eb"))
         palette.setColor(QPalette.Light, QColor("#ffffff"))
@@ -178,24 +178,24 @@ class ThemeManager(QObject):
         app.setPalette(palette)
 
     def _apply_dark_theme(self, app: QApplication) -> None:
-        """Apply dark theme palette: темно-синий + чёрный."""
+        """Apply dark theme palette: dark blue + black."""
         colors = config_loader.get_palette_colors("dark")
         palette = QPalette()
-        # Глубокий тёмный фон с лёгким синим оттенком
+        # Deep dark background with slight blue tint
         palette.setColor(QPalette.Window, QColor(colors.window))
         palette.setColor(QPalette.Base, QColor(colors.base))
-        # Текст
+        # Text
         palette.setColor(QPalette.WindowText, QColor(colors.window_text))
         palette.setColor(QPalette.Text, QColor(colors.text))
-        # Кнопки и вторичные поверхности
+        # Buttons and secondary surfaces
         palette.setColor(QPalette.Button, QColor(colors.button))
         palette.setColor(QPalette.ButtonText, QColor(colors.button_text))
-        # Ссылки и акцент
+        # Links and accent
         palette.setColor(QPalette.Link, QColor(colors.link))
         palette.setColor(QPalette.Highlight, QColor(colors.highlight))
         palette.setColor(QPalette.HighlightedText, QColor(colors.highlighted_text))
 
-        # Дополнительные цвета для palette-based QSS
+        # Additional colors for palette-based QSS
         palette.setColor(QPalette.Mid, QColor("#374151"))
         palette.setColor(QPalette.Midlight, QColor("#4b5563"))
         palette.setColor(QPalette.Light, QColor("#1f2937"))
@@ -239,7 +239,7 @@ class ThemeManager(QObject):
 
     def _format_stylesheet(self, template: str) -> str:
         """Inject theme-specific color values into the stylesheet template."""
-        # Используем effective тему, а не логическую (system может быть light или dark)
+        # Use effective theme, not logical (system can be light or dark)
         theme = self._get_effective_theme()
         button_colors = config_loader.get_button_colors(theme)
         palette = {

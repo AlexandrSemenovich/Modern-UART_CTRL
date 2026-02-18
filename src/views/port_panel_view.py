@@ -480,7 +480,7 @@ class PortPanelView(QtWidgets.QGroupBox):
     def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
         theme_class = "dark" if theme_manager.is_dark_theme() else "light"
         button.setProperty("themeClass", theme_class)
-        # Используем unpolish + polish для корректного обновления стилей
+        # Use unpolish + polish for correct style update
         button.style().unpolish(button)
         button.style().polish(button)
         button.update()

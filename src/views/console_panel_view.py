@@ -130,8 +130,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._combined_log_widgets: Dict[str, QtWidgets.QTextEdit] = {}
         # Use deque with maxlen for O(1) cache operations
         self._log_cache: Dict[str, deque] = {}
-        # Максимальное количество строк в кэше для одного порта
-        from src.styles.constants import ConsoleLimits as _ConsoleLimits  # локальный импорт для избежания циклов
+        # Maximum number of lines in cache for one port
+        from src.styles.constants import ConsoleLimits as _ConsoleLimits  # local import to avoid cycles
         self._max_lines: int = int(self._config.get('max_lines', _ConsoleLimits.MAX_CACHE_LINES))
         
         # Display options
@@ -171,13 +171,13 @@ class ConsolePanelView(QtWidgets.QWidget):
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
         )
         
-        # Toolbar в отдельном контейнере для стилизации
+        # Toolbar in separate container for styling
         self._toolbar_container = QtWidgets.QWidget()
         self._toolbar_container.setObjectName("console_toolbar_container")
-        self._toolbar_container.setMinimumHeight(50)  # Минимальная высота для правильного центрирования
+        self._toolbar_container.setMinimumHeight(50)  # Minimum height for correct centering
         self._toolbar_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         
-        # Устанавливаем themeClass на основе эффективной темы для согласованного применения стилей
+        # Set themeClass based on effective theme for consistent style application
         effective_theme = theme_manager._get_effective_theme()
         theme_class = "light" if effective_theme == "light" else "dark"
         self._toolbar_container.setProperty("themeClass", theme_class)
@@ -981,7 +981,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         if not text or not text.strip():
             return ""
         
-        # Remove trailing line endings and убрать пустые строки
+        # Remove trailing line endings and remove empty lines
         text = text.rstrip('\r\n')
         lines = [line for line in text.splitlines() if line.strip()]
         text = "\n".join(lines)
@@ -1025,18 +1025,18 @@ class ConsolePanelView(QtWidgets.QWidget):
         from PySide6.QtWidgets import QApplication
         QApplication.processEvents()
         
-        # Применяем тему к контейнеру toolbar и всем его дочерним виджетам
+        # Apply theme to toolbar container and all its child widgets
         if hasattr(self, '_toolbar_container'):
-            # Обновляем themeClass на контейнере
+            # Update themeClass on container
             theme_class = "light" if theme_manager.is_light_theme() else "dark"
             self._toolbar_container.setProperty("themeClass", theme_class)
             
-            # Применяем тему ко всем дочерним виджетам в toolbar для согласованности
+            # Apply theme to all child widgets in toolbar for consistency
             toolbar_widgets = self._toolbar_container.findChildren(QtWidgets.QWidget)
             for widget in toolbar_widgets:
                 widget.setProperty("themeClass", theme_class)
             
-            # Используем polish для плавного обновления стилей без полной перерисовки
+            # Use polish for smooth style update without full redraw
             self._toolbar_container.style().unpolish(self._toolbar_container)
             self._toolbar_container.style().polish(self._toolbar_container)
             self._toolbar_container.update()

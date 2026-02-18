@@ -10,7 +10,6 @@ Features:
 """
 
 from PySide6 import QtWidgets, QtCore, QtGui
-from typing import Optional
 import logging
 
 from src.styles.constants import ToastConfig
@@ -35,7 +34,7 @@ class ToastNotification(QtWidgets.QFrame):
         message: str,
         toast_type: str = INFO,
         duration_ms: int = ToastConfig.TOAST_DURATION_MS,
-        parent: Optional[QtWidgets.QWidget] = None
+        parent: QtWidgets.QWidget | None = None
     ):
         super().__init__(parent)
         self._message = message
@@ -231,7 +230,7 @@ class ToastManager(QtCore.QObject):
         self,
         message: str,
         title: Optional[str] = None,
-        error_code: Optional[int] = None,
+        error_code: int | None = None,
         duration_ms: int = 5000
     ) -> ToastNotification:
         """Show error toast."""
@@ -338,7 +337,7 @@ class ToastManager(QtCore.QObject):
 
 
 # Global toast manager instance
-_toast_manager: Optional[ToastManager] = None
+_toast_manager: ToastManager | None = None
 
 
 def get_toast_manager(parent: QtWidgets.QWidget) -> ToastManager:

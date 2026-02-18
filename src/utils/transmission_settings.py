@@ -13,7 +13,7 @@ def load_settings() -> Dict:
         if cfg_path.exists():
             with cfg_path.open('r', encoding='utf-8') as f:
                 return json.load(f)
-    except Exception as exc:  # pragma: no cover - защита на случай повреждённого файла
+    except Exception as exc:  # pragma: no cover - protection in case of corrupted file
         _logger.warning("Failed to load transmission settings from %s: %s", cfg_path, exc)
     # defaults
     return {
