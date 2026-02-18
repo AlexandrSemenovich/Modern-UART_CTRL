@@ -17,7 +17,7 @@ from src.styles.constants import SerialConfig, SerialPorts, CommandConfig
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
 from src.utils.port_manager import port_manager
-from src.utils.state_utils import PortConnectionState
+from src.utils.state_utils import PortConnectionState, normalize_state
 
 logger = logging.getLogger(__name__)
 
@@ -375,7 +375,7 @@ class ComPortViewModel(QObject):
             new_state: New state to set
         """
         if isinstance(new_state, str):
-            normalized_state = self._normalize_state(new_state)
+            normalized_state = normalize_state(new_state)
         else:
             normalized_state = new_state
 
@@ -391,16 +391,6 @@ class ComPortViewModel(QObject):
             )
             self.state_changed.emit(state_payload)
 
-    @staticmethod
-    def _normalize_state(state: str | PortConnectionState) -> PortConnectionState:
-        if isinstance(state, PortConnectionState):
-            return state
-        candidate = state.split('.')[-1].lower()
-        for option in PortConnectionState:
-            if option.value == candidate or option.name.lower() == candidate:
-                return option
-        return PortConnectionState.DISCONNECTED
-    
     def _on_data_received(self, port_label: str, data: str) -> None:
         """
         Handle received data from serial port.

@@ -27,23 +27,38 @@ class LogWidget:
 class DropableTextEdit(QtWidgets.QTextEdit):
     """QTextEdit with drag-and-drop support for text files."""
     
+    SUPPORTED_EXTENSIONS = ('.txt', '.log', '.hex', '.bin', '.csv')
     file_dropped = Signal(str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
     
+    def _is_valid_file(self, path: str) -> bool:
+        """Check if file has supported extension."""
+        return path.endswith(self.SUPPORTED_EXTENSIONS)
+    
+    def _has_valid_url(self, mime) -> bool:
+        """Check if any URL in mime data is a valid local file."""
+        return any(
+            url.isLocalFile() and self._is_valid_file(url.toLocalFile())
+            for url in mime.urls()
+        )
+    
+    def _get_first_valid_url(self, mime) -> str | None:
+        """Get first valid file URL from mime data."""
+        for url in mime.urls():
+            if url.isLocalFile() and (path := url.toLocalFile()):
+                if self._is_valid_file(path):
+                    return path
+        return None
+    
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:
         """Handle drag enter event."""
-        if event.mimeData().hasUrls():
-            # Check if any URLs are text files
-            for url in event.mimeData().urls():
-                if url.isLocalFile():
-                    file_path = url.toLocalFile()
-                    if file_path.endswith(('.txt', '.log', '.hex', '.bin', '.csv')):
-                        event.acceptProposedAction()
-                        return
-        elif event.mimeData().hasText():
+        mime = event.mimeData()
+        if mime.hasUrls() and self._has_valid_url(mime):
+            event.acceptProposedAction()
+        elif mime.hasText():
             event.acceptProposedAction()
     
     def dragMoveEvent(self, event: QtGui.QDragMoveEvent) -> None:
@@ -52,27 +67,22 @@ class DropableTextEdit(QtWidgets.QTextEdit):
     
     def dropEvent(self, event: QtGui.QDropEvent) -> None:
         """Handle drop event - emit file path or text."""
-        # ... existing code ...
-
+        mime = event.mimeData()
+        if mime.hasUrls():
+            if path := self._get_first_valid_url(mime):
+                self.file_dropped.emit(path)
+                event.acceptProposedAction()
+        elif mime.hasText():
+            self.file_dropped.emit(mime.text())
+            event.acceptProposedAction()
+    
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         """Handle keyboard shortcuts."""
         if event.modifiers() == QtCore.Qt.ControlModifier and event.key() == QtCore.Qt.Key_F:
             self.toggle_search_bar()
             event.accept()
-        else:
-            super().keyPressEvent(event)
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                if url.isLocalFile():
-                    file_path = url.toLocalFile()
-                    if file_path.endswith(('.txt', '.log', '.hex', '.bin', '.csv')):
-                        self.file_dropped.emit(file_path)
-                        event.acceptProposedAction()
-                        return
-        elif event.mimeData().hasText():
-            # Emit the dropped text
-            self.file_dropped.emit(event.mimeData().text())
-            event.acceptProposedAction()
+            return
+        super().keyPressEvent(event)
 
 
 class ConsolePanelView(QtWidgets.QWidget):
@@ -320,6 +330,13 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _create_log_tabs(self) -> None:
         """Create log tabs for each port and combined view."""
         
+        # Icon mapping for ports
+        PORT_ICONS = {
+            "CPU1": "paper-plane",
+            "CPU2": "paper-plane",
+            "TLM": "magnifying-glass",
+        }
+        
         # Combined tab (CPU1 + CPU2)
         combined_widget = self._create_combined_widget()
         self._tab_widget.addTab(combined_widget, tr("combined", "1+2"))
@@ -331,12 +348,7 @@ class ConsolePanelView(QtWidgets.QWidget):
             self._tab_widget.addTab(tab_widget, tr(port_label.lower(), port_label))
             # Set icon for each tab based on port
             tab_index = i + 1  # +1 because combined is index 0
-            if port_label == "CPU1":
-                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
-            elif port_label == "CPU2":
-                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
-            elif port_label == "TLM":
-                self._tab_widget.setTabIcon(tab_index, get_icon("magnifying-glass"))
+            self._tab_widget.setTabIcon(tab_index, get_icon(PORT_ICONS.get(port_label, "paper-plane")))
     
     def _create_combined_widget(self) -> QtWidgets.QWidget:
         """Create combined view with CPU1 and CPU2 side by side."""
@@ -1054,19 +1066,21 @@ class ConsolePanelView(QtWidgets.QWidget):
         """Update tab icons for all port tabs."""
         if not hasattr(self, '_tab_widget') or not hasattr(self, '_log_widgets'):
             return
-            
+        
+        # Icon mapping for ports
+        PORT_ICONS = {
+            "CPU1": "paper-plane",
+            "CPU2": "paper-plane",
+            "TLM": "magnifying-glass",
+        }
+        
         # Update combined tab icon
         self._tab_widget.setTabIcon(0, get_icon("paper-plane"))
         
         # Update port-specific tab icons
         tab_index = 1  # Start after combined tab
         for port_label in self._log_widgets.keys():
-            if port_label == "CPU1":
-                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
-            elif port_label == "CPU2":
-                self._tab_widget.setTabIcon(tab_index, get_icon("paper-plane"))
-            elif port_label == "TLM":
-                self._tab_widget.setTabIcon(tab_index, get_icon("magnifying-glass"))
+            self._tab_widget.setTabIcon(tab_index, get_icon(PORT_ICONS.get(port_label, "paper-plane")))
             tab_index += 1
         
         # Force repaint of tab bar

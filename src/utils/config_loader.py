@@ -245,7 +245,7 @@ class ConfigLoader:
 
     def get_colors(self, theme: str) -> ThemeColors:
         section = self._get_section(f"colors.{theme}")
-        defaults = self._default_colors["dark" if theme not in self._default_colors else theme]
+        defaults = self._default_colors.get(theme, self._default_colors["dark"])
         return ThemeColors(
             timestamp=section.get("timestamp", defaults.timestamp),
             rx_text=section.get("rx_text", defaults.rx_text),
@@ -258,7 +258,7 @@ class ConfigLoader:
 
     def get_button_colors(self, theme: str) -> ButtonColors:
         section = self._get_section(f"button_colors.{theme}")
-        defaults = self._default_button_colors["dark" if theme not in self._default_button_colors else theme]
+        defaults = self._default_button_colors.get(theme, self._default_button_colors["dark"])
 
         def _get(key: str, fallback: str) -> str:
             return section.get(key, fallback)
@@ -284,7 +284,7 @@ class ConfigLoader:
     def get_palette_colors(self, theme: str) -> PaletteColors:
         """Get QPalette colors for theme application."""
         section = self._get_section(f"palette.{theme}")
-        defaults = self._default_palette_colors["dark" if theme not in self._default_palette_colors else theme]
+        defaults = self._default_palette_colors.get(theme, self._default_palette_colors["dark"])
 
         def _get(key: str, fallback: str) -> str:
             return section.get(key, fallback)

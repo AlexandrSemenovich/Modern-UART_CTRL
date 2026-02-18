@@ -12,7 +12,7 @@ from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
 from src.styles.constants import Fonts, Sizes, SerialConfig, SerialPorts, Timing
 from src.viewmodels.com_port_viewmodel import ComPortViewModel
-from src.utils.state_utils import PortConnectionState
+from src.utils.state_utils import PortConnectionState, normalize_state
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -238,7 +238,7 @@ class PortPanelView(QtWidgets.QGroupBox):
     
     def _on_connect_clicked(self) -> None:
         """Handle connect/disconnect button click."""
-        state = self._normalize_state(self._viewmodel.state)
+        state = normalize_state(self._viewmodel.state)
         if state in (
             PortConnectionState.CONNECTED,
             PortConnectionState.CONNECTING,
@@ -286,7 +286,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         """Handle ViewModel state change."""
         self._apply_state(state)
         
-        normalized_state = self._normalize_state(state)
+        normalized_state = normalize_state(state)
         if normalized_state == PortConnectionState.CONNECTED:
             self.connected.emit(self._port_number)
         elif normalized_state == PortConnectionState.DISCONNECTED:
@@ -294,7 +294,7 @@ class PortPanelView(QtWidgets.QGroupBox):
     
     def _apply_state(self, state: str | PortConnectionState) -> None:
         """Apply current state to controls and button text."""
-        normalized_state = self._normalize_state(state)
+        normalized_state = normalize_state(state)
         self._update_connect_button_text(normalized_state)
         self._update_led_color(normalized_state)
         disable_controls = normalized_state in (
@@ -307,7 +307,7 @@ class PortPanelView(QtWidgets.QGroupBox):
     
     def _update_led_color(self, state: str | PortConnectionState) -> None:
         """Update LED indicator color based on connection state."""
-        normalized_state = self._normalize_state(state)
+        normalized_state = normalize_state(state)
         
         # Get current theme for appropriate colors
         is_dark = theme_manager.is_dark_theme()
@@ -336,7 +336,7 @@ class PortPanelView(QtWidgets.QGroupBox):
 
     def _update_connect_button_text(self, state: str | PortConnectionState) -> None:
         """Switch connect button label depending on state."""
-        normalized_state = self._normalize_state(state)
+        normalized_state = normalize_state(state)
         
         # Add progress indicator during connection
         if normalized_state == PortConnectionState.CONNECTING:
@@ -420,17 +420,6 @@ class PortPanelView(QtWidgets.QGroupBox):
         # Restore full opacity
         if hasattr(self, '_led_opacity_effect') and self._led_opacity_effect is not None:
             self._led_opacity_effect.setOpacity(Timing.LED_PULSE_MAX_OPACITY)
-
-    @staticmethod
-    def _normalize_state(state: str | PortConnectionState) -> PortConnectionState:
-        if isinstance(state, PortConnectionState):
-            return state
-        if isinstance(state, str):
-            candidate = state.split('.')[-1].lower()
-            for option in PortConnectionState:
-                if option.value == candidate or option.name.lower() == candidate:
-                    return option
-        return PortConnectionState.DISCONNECTED
 
     def _on_error(self, formatted_error: str) -> None:
         """Handle error message from ViewModel."""

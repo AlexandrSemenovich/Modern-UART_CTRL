@@ -590,9 +590,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # Port header
             port_name = tr(port_key, port_key.upper())
-            port_header = QtWidgets.QLabel(
-                tr("port_label_template", "{name}").format(name=port_name)
-            )
+            port_header = QtWidgets.QLabel(tr("port_label_template", "{name}").format(name=port_name))
             port_header.setProperty("translation_key", port_key)
             font = port_header.font()
             font.setBold(True)
@@ -605,12 +603,8 @@ class MainWindow(QtWidgets.QMainWindow):
             metrics_row1 = QtWidgets.QHBoxLayout()
             metrics_row1.setSpacing(16)
             
-            rx_label = QtWidgets.QLabel(
-                tr("rx_label", "RX: {count}").format(count=0)
-            )
-            tx_label = QtWidgets.QLabel(
-                tr("tx_label", "TX: {count}").format(count=0)
-            )
+            rx_label = QtWidgets.QLabel(tr("rx_label", "RX: {count}").format(count=0))
+            tx_label = QtWidgets.QLabel(tr("tx_label", "TX: {count}").format(count=0))
             
             metrics_row1.addWidget(rx_label)
             metrics_row1.addWidget(tx_label)
@@ -621,12 +615,8 @@ class MainWindow(QtWidgets.QMainWindow):
             metrics_row2 = QtWidgets.QHBoxLayout()
             metrics_row2.setSpacing(16)
             
-            error_label = QtWidgets.QLabel(
-                tr("error_label", "Errors: {count}").format(count=0)
-            )
-            time_label = QtWidgets.QLabel(
-                tr("time_label", "Time: {time}s").format(time=0)
-            )
+            error_label = QtWidgets.QLabel(tr("error_label", "Errors: {count}").format(count=0))
+            time_label = QtWidgets.QLabel(tr("time_label", "Time: {seconds}s").format(seconds=0))
             
             metrics_row2.addWidget(error_label)
             metrics_row2.addWidget(time_label)
@@ -903,9 +893,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _update_history_summary(self) -> None:
         count = self._history_model.entry_count()
-        self._lbl_history_count.setText(
-            tr("history_total", "{count} entries").format(count=count)
-        )
+        self._lbl_history_count.setText(tr("history_total", "{count} entries").format(count=count))
     def _on_port_state_changed(self, port_num: int, state: str | PortConnectionState) -> None:
         """Track port connection state and refresh command controls."""
         normalized = self._normalize_state(state)
@@ -950,26 +938,18 @@ class MainWindow(QtWidgets.QMainWindow):
         time_label = self._counter_labels.get(f"{port_key}_time")
         
         if rx_label:
-            rx_label.setText(
-                tr("rx_label", "RX: {count}").format(count=rx_count)
-            )
+            rx_label.setText(tr("rx_label", "RX: {count}").format(count=rx_count))
         if tx_label:
-            tx_label.setText(
-                tr("tx_label", "TX: {count}").format(count=tx_count)
-            )
+            tx_label.setText(tr("tx_label", "TX: {count}").format(count=tx_count))
         
         # Update error count and connection time from ViewModel
         viewmodel = self._port_viewmodels.get(port_num)
         if viewmodel:
             if error_label:
-                error_label.setText(
-                    tr("error_label", "Errors: {count}").format(count=viewmodel.error_count)
-                )
+                error_label.setText(tr("error_label", "Errors: {count}").format(count=viewmodel.error_count))
             if time_label:
                 conn_time = viewmodel.connection_time
-                time_label.setText(
-                    tr("time_label", "Time: {time}s").format(time=int(conn_time))
-                )
+                time_label.setText(tr("time_label", "Time: {seconds}s").format(seconds=int(conn_time)))
 
     def _normalize_state(self, state: str | PortConnectionState) -> PortConnectionState:
         if isinstance(state, PortConnectionState):
@@ -1104,9 +1084,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Generate filename with timestamp
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = tr("logs_default_filename", "uart_logs_{timestamp}.txt").format(
-            timestamp=timestamp
-        )
+        default_name = tr("logs_default_filename", "uart_logs_{timestamp}.txt").format(timestamp=timestamp)
+        
         
         # Show save dialog
         file_filter = tr(
@@ -1126,19 +1105,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(logs_text)
                 
-                self.statusBar().showMessage(
-                    tr("logs_saved", "Logs saved to {path}").format(path=file_path),
-                    3000
-                )
+                self.statusBar().showMessage(tr("logs_saved", "Logs saved to {file_path}").format(file_path=file_path), 3000)
+                
             except Exception as e:
                 # Use toast notification instead of blocking dialog
                 if not self._toast_manager:
                     from src.views.toast_notification import get_toast_manager
                     self._toast_manager = get_toast_manager(self)
                 
-                self._toast_manager.show_error(
-                    tr("save_error", "Failed to save logs: {error}").format(error=str(e))
-                )
+                self._toast_manager.show_error(tr("save_error", "Failed to save logs: {error}").format(error=str(e)))
+                
     
     def _update_icons_on_theme_change(self) -> None:
         """Update all theme-aware icons when theme changes."""
@@ -1149,10 +1125,8 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def _on_theme_changed(self, theme: str) -> None:
         """Handle theme change."""
-        self.statusBar().showMessage(
-            tr("status_theme_changed", "Theme: {theme}").format(theme=theme),
-            2000
-        )
+        self.statusBar().showMessage(tr("status_theme_changed", "Theme: {theme}").format(theme=theme), 2000)
+        
         # Update icons for theme-aware widgets
         self._update_icons_on_theme_change()
         # Process events to ensure icons are updated
@@ -1194,30 +1168,17 @@ class MainWindow(QtWidgets.QMainWindow):
             error_label = self._counter_labels[f"{port_key}_error"]
             time_label = self._counter_labels[f"{port_key}_time"]
             
-            rx_label.setText(
-                tr("rx_label", "RX: {count}").format(
-                    count=self._port_viewmodels[port_num].rx_count
-                )
-            )
-            tx_label.setText(
-                tr("tx_label", "TX: {count}").format(
-                    count=self._port_viewmodels[port_num].tx_count
-                )
-            )
+            rx_label.setText(tr("rx_label", "RX: {count}").format(count=self._port_viewmodels[port_num].rx_count))
+
+            tx_label.setText(tr("tx_label", "TX: {count}").format(count=self._port_viewmodels[port_num].tx_count))
+
             if error_label:
-                error_label.setText(
-                    tr("error_label", "Errors: {count}").format(
-                        count=self._port_viewmodels[port_num].error_count
-                    )
-                )
+                error_label.setText(tr("error_label", "Errors: {count}").format(count=self._port_viewmodels[port_num].error_count))
+
             if time_label:
                 conn_time = self._port_viewmodels[port_num].connection_time
-                time_label.setText(
-                    tr("time_label", "Time: {time}s").format(
-                        time=int(conn_time)
-                    )
-                )
-
+                time_label.setText(tr("time_label", "Time: {seconds}s").format(seconds=int(conn_time)))
+                    
         self._lbl_history_title.setText(tr("command_history", "Command History"))
         self._btn_open_history.setText(tr("history_open", "History"))
         self._update_history_summary()
@@ -1233,10 +1194,8 @@ class MainWindow(QtWidgets.QMainWindow):
             action.setChecked(lang == current_lang)
 
         # Update status
-        self.statusBar().showMessage(
-            tr("language_changed", "Language changed to {lang}").format(lang=language),
-            2000
-        )
+        self.statusBar().showMessage(tr("language_changed", "Language changed to {language}").format(language=language), 2000)
+    
         # Language change can recreate menus/toolbars – re-apply theme to hierarchy
         self._apply_theme_to_hierarchy()
         

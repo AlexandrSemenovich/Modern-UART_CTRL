@@ -20,7 +20,6 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from src.utils.theme_manager import ThemeManager
 from src.utils.paths import get_root_dir
-from src.utils.paths import get_root_dir
 
 
 class IconCache(QObject):

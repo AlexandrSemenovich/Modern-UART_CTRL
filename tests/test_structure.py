@@ -12,7 +12,7 @@ def test_translations_available():
 def test_constants_available():
     """Test constants module is properly structured."""
     from src.styles.constants import Colors, Fonts, Sizes, SerialConfig
-    assert hasattr(Colors, 'DARK_BG')
+    assert hasattr(Colors, 'get_theme_colors')
     assert hasattr(Fonts, 'get_monospace_font')
     assert hasattr(Sizes, 'WINDOW_MIN_WIDTH')
     assert hasattr(SerialConfig, 'DEFAULT_BAUD')

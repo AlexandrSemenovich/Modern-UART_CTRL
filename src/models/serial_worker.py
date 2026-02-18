@@ -711,7 +711,8 @@ class SerialWorker(QThread):
                     self.rx.emit(self._port_label, tr(
                         "worker_simulated_echo", 
                         "(simulated echo) {data}"
-                    ).format(data=sanitized_data))
+                        "(simulated echo) {sanitized_data}"
+                    ))
 
                 return True
             else:
