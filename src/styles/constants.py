@@ -123,6 +123,11 @@ class Timing:
     # Connection animation
     CONNECT_ANIMATION_INTERVAL_MS = 100
     CONNECT_ANIMATION_FRAMES = 4
+    
+    # LED pulse animation for connecting state
+    LED_PULSE_INTERVAL_MS = 300
+    LED_PULSE_MIN_OPACITY = 0.4
+    LED_PULSE_MAX_OPACITY = 1.0
 
 
 # ==================== Flash Animation ====================

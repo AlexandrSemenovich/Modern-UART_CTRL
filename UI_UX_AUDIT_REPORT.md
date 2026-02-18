@@ -43,23 +43,40 @@
 
 ---
 
-#### 1.3 Нет индикации состояния подключения в реальном времени
+#### 1.3 Нет индикации состояния подключения в реальном времени ✅ РЕАЛИЗОВАНО
 
 | Атрибут | Значение |
 |---------|----------|
-| **Файл** | `src/views/port_panel_view.py:93-98` |
+| **Файл** | `src/views/port_panel_view.py:303-395` |
 | **Проблема** | LED-индикатор 12x12px обновляется с задержкой, нет анимации |
 | **Влияние** | Пользователь не видит процесс соединения |
-| **Решение** | Добавить анимацию "пульсации" при connecting state |
+| **Решение** | Добавлена анимация "пульсации" при connecting state |
+| **Статус** | ✅ Выполнено |
 
-```python
-# Пример реализации анимации LED
-animation = QPropertyAnimation(self._led_indicator, b"windowOpacity")
-animation.setDuration(500)
-animation.setStartValue(1.0)
-animation.setEndValue(0.3)
-animation.setLoopCount(-1)  # infinite
-```
+**Реализация:**
+
+1. Добавлены константы в `src/styles/constants.py`:
+   - `LED_PULSE_INTERVAL_MS = 300`
+   - `LED_PULSE_MIN_OPACITY = 0.4`
+   - `LED_PULSE_MAX_OPACITY = 1.0`
+
+2. Добавлена инициализация в `__init__`:
+   - `self._led_pulse_timer: Optional[QTimer] = None`
+   - `self._led_opacity_effect = None`
+
+3. Добавлены методы анимации:
+   - `_start_led_pulse_animation()` — запускает QTimer с интервалом 300ms
+   - `_animate_led_pulse()` — переключает прозрачность через QGraphicsOpacityEffect
+   - `_stop_led_pulse_animation()` — останавливает и восстанавливает полную видимость
+
+4. Изменён метод `_update_led_color()`:
+   - При CONNECTING: вызывает `_start_led_pulse_animation()`
+   - При CONNECTED/DISCONNECTED: вызывает `_stop_led_pulse_animation()`
+
+**Поведение:**
+- DISCONNECTED → серый LED (без анимации)
+- CONNECTING → оранжевый LED + пульсация (opacity 0.4 ↔ 1.0)
+- CONNECTED → зелёный LED (без анимации, постоянное свечение)
 
 ---
 
@@ -154,7 +171,7 @@ QPushButton {
 |---|----------|-------------------|------|-----------|
 | 1.1 | Добавить visual feedback при отправке | Мгновенный TX-visual | `main_window.py` | Средняя | ✅ Выполнено |
 | 1.2 | Исправить контрастность inactive | WCAG AA compliance | `config.ini` | Низкая | ✅ Выполнено |
-| 1.3 | Анимация LED при connecting | Видимый progress | `port_panel_view.py` | Средняя |
+| 1.3 | Анимация LED при connecting | Видимый progress | `port_panel_view.py` | Средняя | ✅ Выполнено |
 
 ### Приоритет 2 — Улучшение UX
 

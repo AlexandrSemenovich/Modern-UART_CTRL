@@ -10,7 +10,7 @@ from typing import Optional, List
 
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
-from src.styles.constants import Fonts, Sizes, SerialConfig, SerialPorts
+from src.styles.constants import Fonts, Sizes, SerialConfig, SerialPorts, Timing
 from src.viewmodels.com_port_viewmodel import ComPortViewModel
 from src.utils.state_utils import PortConnectionState
 
@@ -61,6 +61,11 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._viewmodel = viewmodel
         self._port_number = viewmodel.port_number
         self._themed_buttons: List[QtWidgets.QPushButton] = []
+        
+        # LED animation state
+        self._led_pulse_timer: Optional[QTimer] = None
+        self._led_opacity_effect = None
+        self._led_pulse_visible = True
         
         # Set label from viewmodel
         self.setTitle(viewmodel.port_label)
@@ -310,12 +315,15 @@ class PortPanelView(QtWidgets.QGroupBox):
         if normalized_state == PortConnectionState.CONNECTED:
             # Green for connected
             color = "#22c55e"
+            self._stop_led_pulse_animation()
         elif normalized_state == PortConnectionState.CONNECTING:
             # Yellow/orange for connecting
             color = "#f59e0b"
+            self._start_led_pulse_animation()
         else:
             # Gray for disconnected
             color = "#6b7280" if is_dark else "#9ca3af"
+            self._stop_led_pulse_animation()
         
         # Create circular indicator using stylesheet
         self._led_indicator.setStyleSheet(f"""
@@ -374,6 +382,44 @@ class PortPanelView(QtWidgets.QGroupBox):
             self._connect_animation_timer.deleteLater()
             self._connect_animation_timer = None
         self._connect_animation = False
+
+    def _start_led_pulse_animation(self) -> None:
+        """Start pulsing animation on LED indicator during connecting state."""
+        if hasattr(self, '_led_pulse_timer') and self._led_pulse_timer is not None and self._led_pulse_timer.isActive():
+            # Animation already running
+            return
+        
+        # Create or get opacity effect
+        from PySide6.QtWidgets import QGraphicsOpacityEffect
+        if not hasattr(self, '_led_opacity_effect') or self._led_opacity_effect is None:
+            self._led_opacity_effect = QGraphicsOpacityEffect(self._led_indicator)
+            self._led_opacity_effect.setOpacity(1.0)
+            self._led_indicator.setGraphicsEffect(self._led_opacity_effect)
+        
+        self._led_pulse_visible = True
+        self._led_pulse_timer = QTimer(self)
+        self._led_pulse_timer.timeout.connect(self._animate_led_pulse)
+        self._led_pulse_timer.start(Timing.LED_PULSE_INTERVAL_MS)
+
+    def _animate_led_pulse(self) -> None:
+        """Toggle LED opacity for pulse effect."""
+        if not hasattr(self, '_led_opacity_effect') or self._led_opacity_effect is None:
+            return
+            
+        self._led_pulse_visible = not self._led_pulse_visible
+        opacity = Timing.LED_PULSE_MAX_OPACITY if self._led_pulse_visible else Timing.LED_PULSE_MIN_OPACITY
+        self._led_opacity_effect.setOpacity(opacity)
+
+    def _stop_led_pulse_animation(self) -> None:
+        """Stop LED pulsing and restore full opacity."""
+        if hasattr(self, '_led_pulse_timer') and self._led_pulse_timer is not None:
+            if self._led_pulse_timer.isActive():
+                self._led_pulse_timer.stop()
+            self._led_pulse_timer.deleteLater()
+            self._led_pulse_timer = None
+        # Restore full opacity
+        if hasattr(self, '_led_opacity_effect') and self._led_opacity_effect is not None:
+            self._led_opacity_effect.setOpacity(Timing.LED_PULSE_MAX_OPACITY)
 
     @staticmethod
     def _normalize_state(state: str | PortConnectionState) -> PortConnectionState:
