@@ -40,7 +40,7 @@ else:
 from src.utils.theme_manager import theme_manager
 from src.utils.windows11 import apply_windows_11_style, is_windows_11_or_later, GlobalHotkeyManager, VK, MOD_CONTROL, MOD_ALT, MOD_SHIFT
 from src.utils.translator import translator, tr
-from src.styles.constants import Fonts, Sizes, SerialConfig
+from src.styles.constants import Fonts, Sizes, SerialConfig, FlashAnimation
 from src.views.port_panel_view import PortPanelView
 from src.views.console_panel_view import ConsolePanelView
 from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
@@ -744,6 +744,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if not command:
             return
         
+        # Get button(s) to animate for visual feedback
+        buttons_to_animate = self._get_buttons_for_port(port_num)
+        
         # Add to history
         self._history_model.add_entry(command, self._port_label_for_num(port_num))
         
@@ -755,6 +758,78 @@ class MainWindow(QtWidgets.QMainWindow):
                     self._port_viewmodels[num].send_command(command)
         elif port_num in self._port_viewmodels:
             self._port_viewmodels[port_num].send_command(command)
+        
+        # Visual feedback - animate button(s) to show TX activity
+        self._animate_buttons_flash(buttons_to_animate)
+        
+        # Also animate command input field for additional feedback
+        self._animate_command_input_flash()
+    
+    def _get_buttons_for_port(self, port_num: int) -> list:
+        """Get buttons that correspond to the given port number for animation."""
+        buttons = []
+        if port_num == 0:  # combo - both CPU1 and CPU2
+            buttons = [self._btn_combo, self._btn_cpu1, self._btn_cpu2]
+        elif port_num == 1:
+            buttons = [self._btn_cpu1]
+        elif port_num == 2:
+            buttons = [self._btn_cpu2]
+        elif port_num == 3:
+            buttons = [self._btn_tlm]
+        return [b for b in buttons if b is not None]
+    
+    def _animate_buttons_flash(self, buttons: list) -> None:
+        """
+        Animate button flash to provide visual feedback when command is sent.
+        Uses theme-aware subtle colors for a professional look.
+        """
+        if not buttons:
+            return
+        
+        # Get theme-aware colors from constants
+        is_dark = theme_manager.is_dark_theme()
+        flash_style = FlashAnimation.get_button_flash_style(is_dark)
+        
+        # Store original styles
+        original_styles = []
+        for btn in buttons:
+            original_styles.append(btn.styleSheet())
+        
+        # Apply flash effect
+        for btn in buttons:
+            btn.setStyleSheet(flash_style)
+        
+        # Restore original style after duration from constants
+        def restore_styles():
+            for btn, original in zip(buttons, original_styles):
+                if btn:
+                    btn.setStyleSheet(original)
+        
+        QTimer.singleShot(FlashAnimation.FLASH_DURATION_MS, restore_styles)
+    
+    def _animate_command_input_flash(self) -> None:
+        """
+        Animate command input field to provide visual feedback when command is sent.
+        Uses theme-aware subtle colors for a professional look.
+        """
+        if not hasattr(self, '_le_command') or not self._le_command:
+            return
+        
+        # Store original style
+        original_style = self._le_command.styleSheet()
+        
+        # Get theme-aware colors from constants (matches button colors)
+        is_dark = theme_manager.is_dark_theme()
+        flash_style = FlashAnimation.get_input_flash_style(is_dark)
+        
+        self._le_command.setStyleSheet(flash_style)
+        
+        # Restore original style after duration from constants
+        def restore_style():
+            if self._le_command:
+                self._le_command.setStyleSheet(original_style)
+        
+        QTimer.singleShot(FlashAnimation.FLASH_DURATION_MS, restore_style)
     
     def _send_default_command(self) -> None:
         """Send command to default port (CPU1)."""

@@ -21,12 +21,6 @@ class Colors:
             self._cache[theme] = config_loader.get_colors(theme)
         return self._cache[theme]
     
-    # Common color constants for backwards compatibility
-    DARK_BG = "#1e1e1e"
-    LIGHT_BG = "#f5f5f5"
-    DARK_TEXT = "#ffffff"
-    LIGHT_TEXT = "#000000"
-    
     # Search highlight colors (RGBA format for QColor)
     # All matches - gray/neutral highlight
     SEARCH_MATCH_COLOR = (128, 128, 128, 80)   # Gray, semi-transparent
@@ -126,12 +120,86 @@ class Sizes:
 class Timing:
     """Timing constants for animations and delays."""
     
-    LED_FLASH_DURATION_MS = 150
-    SERIAL_READ_INTERVAL_MS = 20
-    
     # Connection animation
     CONNECT_ANIMATION_INTERVAL_MS = 100
     CONNECT_ANIMATION_FRAMES = 4
+
+
+# ==================== Flash Animation ====================
+class FlashAnimation:
+    """
+    Constants for TX flash animation (visual feedback on command send).
+    Grouped by theme for easy customization.
+    """
+    
+    # Animation duration
+    FLASH_DURATION_MS = 200
+    
+    # Dark theme colors
+    DARK_FLASH_COLOR = "#22c55e"          # Green-500
+    DARK_FLASH_BG = "rgba(34, 197, 94, 0.15)"  # Green with 15% opacity
+    DARK_TEXT_COLOR = "#e5e7eb"           # Light gray text
+    
+    # Light theme colors
+    LIGHT_FLASH_COLOR = "#0d9488"          # Teal-600
+    LIGHT_FLASH_BG = "rgba(13, 148, 136, 0.1)"  # Teal with 10% opacity
+    LIGHT_TEXT_COLOR = "#0f172a"           # Dark slate text
+    
+    # Border settings
+    BORDER_WIDTH = "1px"
+    BORDER_RADIUS = "4px"
+    
+    # Convenience methods
+    @classmethod
+    def get_flash_colors(cls, is_dark: bool) -> dict:
+        """
+        Get flash colors based on theme.
+        
+        Args:
+            is_dark: True for dark theme, False for light theme
+            
+        Returns:
+            dict with keys: flash_color, flash_bg, text_color
+        """
+        if is_dark:
+            return {
+                "flash_color": cls.DARK_FLASH_COLOR,
+                "flash_bg": cls.DARK_FLASH_BG,
+                "text_color": cls.DARK_TEXT_COLOR,
+            }
+        else:
+            return {
+                "flash_color": cls.LIGHT_FLASH_COLOR,
+                "flash_bg": cls.LIGHT_FLASH_BG,
+                "text_color": cls.LIGHT_TEXT_COLOR,
+            }
+    
+    @classmethod
+    def get_button_flash_style(cls, is_dark: bool) -> str:
+        """Get QSS style string for button flash animation."""
+        colors = cls.get_flash_colors(is_dark)
+        return f"""
+            QPushButton {{
+                border: {cls.BORDER_WIDTH} solid {colors["flash_color"]};
+                background-color: {colors["flash_bg"]};
+                color: {colors["text_color"]};
+                border-radius: {cls.BORDER_RADIUS};
+            }}
+        """
+    
+    @classmethod
+    def get_input_flash_style(cls, is_dark: bool) -> str:
+        """Get QSS style string for input field flash animation."""
+        colors = cls.get_flash_colors(is_dark)
+        return f"""
+            QLineEdit {{
+                border: {cls.BORDER_WIDTH} solid {colors["flash_color"]};
+                border-radius: {cls.BORDER_RADIUS};
+                padding: 4px 8px;
+                background: {colors["flash_bg"]};
+                color: palette(text);
+            }}
+        """
 
 
 # ==================== Configuration ====================
