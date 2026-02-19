@@ -5,7 +5,6 @@ Reusable widget for showing RX/TX data from multiple ports.
 
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Signal, Qt, QTimer
-from typing import Optional, Dict, List, Callable
 from collections import deque
 import html
 import re
@@ -22,8 +21,8 @@ class LogWidget:
     __slots__ = ('label', 'text_edit')
     
     def __init__(self):
-        self.label: Optional[QtWidgets.QLabel] = None
-        self.text_edit: Optional[QtWidgets.QTextEdit] = None
+        self.label: QtWidgets.QLabel | None = None
+        self.text_edit: QtWidgets.QTextEdit | None = None
 
 
 class DropableTextEdit(QtWidgets.QTextEdit):
@@ -111,8 +110,8 @@ class ConsolePanelView(QtWidgets.QWidget):
     
     def __init__(
         self, 
-        parent: Optional[QtWidgets.QWidget] = None,
-        config: Optional[Dict] = None
+        parent: QtWidgets.QWidget | None = None,
+        config: dict | None = None
     ):
         """
         Initialize ConsolePanelView.
@@ -127,11 +126,11 @@ class ConsolePanelView(QtWidgets.QWidget):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         
         self._config = config or {}
-        self._port_labels: List[str] = ['CPU1', 'CPU2', 'TLM']
-        self._log_widgets: Dict[str, LogWidget] = {}
-        self._combined_log_widgets: Dict[str, QtWidgets.QTextEdit] = {}
+        self._port_labels: list[str] = ['CPU1', 'CPU2', 'TLM']
+        self._log_widgets: dict[str, LogWidget] = {}
+        self._combined_log_widgets: dict[str, QtWidgets.QTextEdit] = {}
         # Use deque with maxlen for O(1) cache operations
-        self._log_cache: Dict[str, deque] = {}
+        self._log_cache: dict[str, deque] = {}
         # Maximum number of lines in cache for one port
         from src.styles.constants import ConsoleLimits as _ConsoleLimits  # local import to avoid cycles
         self._max_lines: int = int(self._config.get('max_lines', _ConsoleLimits.MAX_CACHE_LINES))
@@ -144,20 +143,20 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_text: str = ""
         
         # Throttled update state
-        self._pending_updates: Dict[str, List[tuple]] = {}
-        self._update_timer: Optional[QTimer] = None
+        self._pending_updates: dict[str, list[tuple]] = {}
+        self._update_timer: QTimer | None = None
         self._update_interval_ms: int = 50  # Batch updates every 50ms
         
         # Search debounce timer (300ms)
-        self._search_timer: Optional[QTimer] = None
+        self._search_timer: QTimer | None = None
         self._search_debounce_ms: int = 300
         
         # Search highlighting state
-        self._search_results: List[tuple] = []  # (port_label, line_idx, block_pos, match_offset, match_length, matched_text)
+        self._search_results: list[tuple] = []  # (port_label, line_idx, block_pos, match_offset, match_length, matched_text)
         self._current_result_index: int = -1
         self._current_highlight_color: str = ""  # Track current theme for highlight updates
         
-        self._themed_buttons: List[QtWidgets.QPushButton] = []
+        self._themed_buttons: list[QtWidgets.QPushButton] = []
         self._setup_ui()
         translator.language_changed.connect(self.retranslate_ui)
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -586,7 +585,7 @@ class ConsolePanelView(QtWidgets.QWidget):
                                 def end(self):
                                     return self._end
                                 def group(self):
-                                    return plain_text[start_pos:end_pos]
+                                    return plain_text[self._start:self._end]
                             
                             matches.append(SimpleMatch(pos, pos + len(search_text)))
                             start = pos + 1
@@ -1149,7 +1148,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         """Request to save logs."""
         self.save_requested.emit()
     
-    def get_logs_text(self, port_label: Optional[str] = None) -> str:
+    def get_logs_text(self, port_label: str | None = None) -> str:
         """
         Get logs as plain text.
         
@@ -1169,7 +1168,7 @@ class ConsolePanelView(QtWidgets.QWidget):
             return "".join(all_lines)
         return ""
     
-    def get_log_count(self, port_label: Optional[str] = None) -> int:
+    def get_log_count(self, port_label: str | None = None) -> int:
         """Get number of log lines."""
         if port_label and port_label in self._log_cache:
             return len(self._log_cache[port_label])
@@ -1177,7 +1176,7 @@ class ConsolePanelView(QtWidgets.QWidget):
             return sum(len(cache) for cache in self._log_cache.values())
         return 0
     
-    def scroll_to_bottom(self, port_label: Optional[str] = None) -> None:
+    def scroll_to_bottom(self, port_label: str | None = None) -> None:
         """Scroll log to bottom."""
         if port_label and port_label in self._log_widgets:
             widget = self._log_widgets[port_label]
@@ -1226,7 +1225,7 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _register_button(
         self,
         button: QtWidgets.QPushButton,
-        class_name: Optional[str] = None,
+        class_name: str | None = None,
     ) -> None:
         if class_name:
             existing = button.property("class")

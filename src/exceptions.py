@@ -3,7 +3,7 @@ Custom exceptions for the application.
 Provides well-defined error types with context and chaining support.
 """
 
-from typing import Optional, Any
+from typing import Any
 
 
 class UARTControlError(Exception):
@@ -13,9 +13,9 @@ class UARTControlError(Exception):
         self,
         message: str,
         *,
-        port: Optional[str] = None,
-        baud_rate: Optional[int] = None,
-        details: Optional[dict[str, Any]] = None,
+        port: str | None = None,
+        baud_rate: int | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         self.port = port
         self.baud_rate = baud_rate
@@ -40,9 +40,9 @@ class SerialConnectionError(UARTControlError):
         self,
         message: str,
         *,
-        port: Optional[str] = None,
-        baud_rate: Optional[int] = None,
-        cause: Optional[Exception] = None,
+        port: str | None = None,
+        baud_rate: int | None = None,
+        cause: Exception | None = None,
     ) -> None:
         self.cause = cause
         details = {"cause": str(cause)} if cause else {}
@@ -63,9 +63,9 @@ class SerialWriteError(UARTControlError):
         self,
         message: str,
         *,
-        port: Optional[str] = None,
-        bytes_written: Optional[int] = None,
-        cause: Optional[Exception] = None,
+        port: str | None = None,
+        bytes_written: int | None = None,
+        cause: Exception | None = None,
     ) -> None:
         self.bytes_written = bytes_written
         self.cause = cause
@@ -82,8 +82,8 @@ class SerialReadError(UARTControlError):
         self,
         message: str,
         *,
-        port: Optional[str] = None,
-        cause: Optional[Exception] = None,
+        port: str | None = None,
+        cause: Exception | None = None,
     ) -> None:
         self.cause = cause
         details = {"cause": str(cause)} if cause else {}
@@ -99,8 +99,8 @@ class ConfigurationError(UARTControlError):
         self,
         message: str,
         *,
-        key: Optional[str] = None,
-        cause: Optional[Exception] = None,
+        key: str | None = None,
+        cause: Exception | None = None,
     ) -> None:
         self.key = key
         self.cause = cause

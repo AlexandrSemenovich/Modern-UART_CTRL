@@ -1,5 +1,4 @@
 import os
-from typing import Dict, Optional
 from PySide6.QtCore import QObject, Signal
 
 class Translator(QObject):
@@ -50,11 +49,11 @@ class Translator(QObject):
         """Get current language"""
         return self.current_language
     
-    def get_available_languages(self) -> Dict[str, str]:
+    def get_available_languages(self) -> dict[str, str]:
         """Get list of available languages"""
         return self.available_languages
     
-    def translate(self, key: str, default: Optional[str] = None) -> str:
+    def translate(self, key: str, default: str | None = None) -> str:
         """Translate text by key"""
         if key in self.translations:
             return self.translations[key]
@@ -63,7 +62,7 @@ class Translator(QObject):
         else:
             return key
     
-    def tr(self, key: str, default: Optional[str] = None) -> str:
+    def tr(self, key: str, default: str | None = None) -> str:
         """Alias for translate method"""
         return self.translate(key, default)
 

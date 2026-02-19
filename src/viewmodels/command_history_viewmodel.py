@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import List, Iterable, NamedTuple
+from typing import Iterable, NamedTuple
 import json
 import datetime
 import configparser
@@ -58,7 +58,7 @@ class CommandHistoryModel(QtCore.QObject):
 
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)
-        self._entries: List[CommandHistoryEntry] = []
+        self._entries: list[CommandHistoryEntry] = []
         self._storage_path = self._resolve_storage_path()
         self._max_items = self._load_max_items()
         self._logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class CommandHistoryModel(QtCore.QObject):
                 exc,
             )
 
-    def entries(self) -> List[CommandHistoryEntry]:
+    def entries(self) -> list[CommandHistoryEntry]:
         return list(self._entries)
 
     def entry_count(self) -> int:

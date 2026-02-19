@@ -13,7 +13,6 @@ import logging.handlers
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 from datetime import datetime
 
 from src.styles.constants import LoggingConfig
@@ -28,11 +27,11 @@ def _get_environment() -> str:
 
 
 def setup_logging(
-    env: Optional[str] = None,
-    log_file: Optional[str] = None,
-    level: Optional[int] = None,
-    console: Optional[bool] = None,
-    file_output: Optional[bool] = None,
+    env: str | None = None,
+    log_file: str | None = None,
+    level: int | None = None,
+    console: bool | None = None,
+    file_output: bool | None = None,
 ) -> logging.Logger:
     """
     Configure application logging.
@@ -117,7 +116,7 @@ def setup_logging(
     return root_logger
 
 
-def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
+def get_logger(name: str, level: int | None = None) -> logging.Logger:
     """
     Get a logger for a specific module.
     
@@ -146,7 +145,7 @@ def set_module_level(module_name: str, level: int) -> None:
     logger.setLevel(level)
 
 
-def get_log_file_path(name: str = 'app') -> Optional[Path]:
+def get_log_file_path(name: str = 'app') -> Path | None:
     """
     Get the path to a log file.
     

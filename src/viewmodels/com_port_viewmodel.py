@@ -5,7 +5,7 @@ Handles all business logic for one serial port connection.
 
 from PySide6 import QtCore
 from PySide6.QtCore import Signal, QObject
-from typing import Optional, Dict, Any
+from typing import Any
 import html
 import logging
 import threading
@@ -51,7 +51,7 @@ class ComPortViewModel(QObject):
         self, 
         port_label: str,
         port_number: int,
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None
     ):
         """
         Initialize ComPortViewModel.
@@ -69,7 +69,7 @@ class ComPortViewModel(QObject):
         
         # Connection state
         self._state = PortConnectionState.DISCONNECTED
-        self._port_name: Optional[str] = None
+        self._port_name: str | None = None
         self._baud_rate: int = self._config.get('default_baud_rate', 115200)
         
         # Counters
@@ -85,7 +85,7 @@ class ComPortViewModel(QObject):
         self._last_tx_time: float = 0.0
         
         # Serial worker
-        self._worker: Optional[SerialWorker] = None
+        self._worker: SerialWorker | None = None
         
         # Available ports cache
         self._available_ports: list = []
@@ -110,7 +110,7 @@ class ComPortViewModel(QObject):
         return self._state
     
     @property
-    def port_name(self) -> Optional[str]:
+    def port_name(self) -> str | None:
         """Get selected port name."""
         return self._port_name
     

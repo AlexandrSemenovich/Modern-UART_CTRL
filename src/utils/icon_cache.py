@@ -12,7 +12,6 @@ Icon naming convention in assets/icons/fa/:
 
 import logging
 import os
-from typing import Optional
 
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QIconEngine, QImage, QScreen
@@ -37,7 +36,7 @@ class IconCache(QObject):
     # Signal emitted when icon is updated (theme change)
     icon_updated = Signal(str, QIcon)  # icon_name, new_icon
     
-    _instance: Optional['IconCache'] = None
+    _instance: 'IconCache | None' = None
     _initialized: bool = False
     
     def __new__(cls) -> 'IconCache':
@@ -120,7 +119,7 @@ class IconCache(QObject):
             return "_light"
         return ""  # neutral
     
-    def _resolve_icon_path(self, name: str, theme: str) -> Optional[str]:
+    def _resolve_icon_path(self, name: str, theme: str) -> str | None:
         """
         Resolve the full path to an icon file.
         
@@ -342,7 +341,7 @@ class IconCache(QObject):
 
 
 # Global instance accessor
-_icon_cache_instance: Optional[IconCache] = None
+_icon_cache_instance: IconCache | None = None
 
 
 def get_icon_cache() -> IconCache:

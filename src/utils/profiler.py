@@ -13,7 +13,7 @@ import io
 import logging
 import functools
 import os
-from typing import Callable, Optional
+from typing import Callable
 from pathlib import Path
 
 from src.styles.constants import LoggingConfig
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class Profiler:
     """Context manager for profiling code sections."""
     
-    def __init__(self, name: str, output_dir: Optional[Path] = None):
+    def __init__(self, name: str, output_dir: Path | None = None):
         self.name = name
         self.output_dir = output_dir or (LoggingConfig.LOG_DIR / 'profiles')
         self.profiler = cProfile.Profile()

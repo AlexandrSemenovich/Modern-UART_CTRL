@@ -6,7 +6,6 @@ Reusable widget for port configuration and connection.
 import logging
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Signal, Qt, QTimer
-from typing import Optional, List
 
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
@@ -47,7 +46,7 @@ class PortPanelView(QtWidgets.QGroupBox):
     def __init__(
         self, 
         viewmodel: ComPortViewModel,
-        parent: Optional[QtWidgets.QWidget] = None
+        parent: QtWidgets.QWidget | None = None
     ):
         """
         Initialize PortPanelView.
@@ -60,10 +59,10 @@ class PortPanelView(QtWidgets.QGroupBox):
         
         self._viewmodel = viewmodel
         self._port_number = viewmodel.port_number
-        self._themed_buttons: List[QtWidgets.QPushButton] = []
+        self._themed_buttons: list[QtWidgets.QPushButton] = []
         
         # LED animation state
-        self._led_pulse_timer: Optional[QTimer] = None
+        self._led_pulse_timer: QTimer | None = None
         self._led_opacity_effect = None
         self._led_pulse_visible = True
         
@@ -175,7 +174,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         """Handle scan button click - refresh port list."""
         self._scan_ports()
     
-    def _scan_ports(self) -> List[str]:
+    def _scan_ports(self) -> list[str]:
         """
         Scan for available COM ports.
         
@@ -265,7 +264,7 @@ class PortPanelView(QtWidgets.QGroupBox):
                 title=tr("warning", "Warning")
             )
     
-    def _show_toast_warning(self, message: str, title: Optional[str] = None) -> None:
+    def _show_toast_warning(self, message: str, title: str | None = None) -> None:
         """Show warning toast notification."""
         # Find parent window with toast manager
         parent = self
@@ -458,7 +457,7 @@ class PortPanelView(QtWidgets.QGroupBox):
     def _register_button(
         self,
         button: QtWidgets.QPushButton,
-        class_name: Optional[str] = None,
+        class_name: str | None = None,
     ) -> None:
         """Attach theme-aware styling to a button."""
         if class_name:

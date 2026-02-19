@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from PySide6 import QtWidgets, QtCore, QtGui
 
@@ -143,8 +142,8 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         translator.language_changed.connect(self._on_language_changed)
         theme_manager.theme_changed.connect(self._apply_theme)
 
-    def _selected_entries(self) -> List[CommandHistoryEntry]:
-        entries: List[CommandHistoryEntry] = []
+    def _selected_entries(self) -> list[CommandHistoryEntry]:
+        entries: list[CommandHistoryEntry] = []
         for index in self._table.selectionModel().selectedRows():
             source_index = self._proxy_model.mapToSource(index)
             entry = self._table_model.entry_at(source_index.row())
@@ -152,8 +151,8 @@ class CommandHistoryDialog(QtWidgets.QDialog):
                 entries.append(entry)
         return entries
 
-    def _selected_rows(self) -> List[int]:
-        rows: List[int] = []
+    def _selected_rows(self) -> list[int]:
+        rows: list[int] = []
         for index in self._table.selectionModel().selectedRows():
             rows.append(self._proxy_model.mapToSource(index).row())
         return rows

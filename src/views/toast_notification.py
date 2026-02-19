@@ -11,7 +11,6 @@ Features:
 
 from PySide6 import QtWidgets, QtCore, QtGui
 import logging
-from typing import Optional
 
 from src.styles.constants import ToastConfig
 
@@ -203,7 +202,7 @@ class ToastManager(QtCore.QObject):
     def show_info(
         self,
         message: str,
-        title: Optional[str] = None,
+        title: str | None = None,
         duration_ms: int = ToastConfig.TOAST_DURATION_MS
     ) -> ToastNotification:
         """Show info toast."""
@@ -212,7 +211,7 @@ class ToastManager(QtCore.QObject):
     def show_success(
         self,
         message: str,
-        title: Optional[str] = None,
+        title: str | None = None,
         duration_ms: int = ToastConfig.TOAST_DURATION_MS
     ) -> ToastNotification:
         """Show success toast."""
@@ -221,7 +220,7 @@ class ToastManager(QtCore.QObject):
     def show_warning(
         self,
         message: str,
-        title: Optional[str] = None,
+        title: str | None = None,
         duration_ms: int = ToastConfig.TOAST_DURATION_MS
     ) -> ToastNotification:
         """Show warning toast."""
@@ -230,7 +229,7 @@ class ToastManager(QtCore.QObject):
     def show_error(
         self,
         message: str,
-        title: Optional[str] = None,
+        title: str | None = None,
         error_code: int | None = None,
         duration_ms: int = 5000
     ) -> ToastNotification:

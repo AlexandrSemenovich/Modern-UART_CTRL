@@ -15,7 +15,6 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QIcon, QFont, QColor, QKeySequence, QShortcut, QActionGroup, QAction
 from PySide6.QtWidgets import QSystemTrayIcon
-from typing import Dict, Optional, List
 import os
 import platform
 import sys
@@ -104,24 +103,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self._viewmodel_factory = viewmodel_factory or get_viewmodel_factory()
         
         # Port ViewModels (one per port)
-        self._port_viewmodels: Dict[int, ComPortViewModel] = {}
-        self._port_views: Dict[int, PortPanelView] = {}
-        self._port_states: Dict[int, PortConnectionState] = {}
-        self._error_dialogs: List[QtWidgets.QMessageBox] = []
-        self._themed_buttons: List[QtWidgets.QPushButton] = []
-        
+        self._port_viewmodels: dict[int, ComPortViewModel] = {}
+        self._port_views: dict[int, PortPanelView] = {}
+        self._port_states: dict[int, PortConnectionState] = {}
+        self._error_dialogs: list[QtWidgets.QMessageBox] = []
+        self._themed_buttons: list[QtWidgets.QPushButton] = []
+
         # Console panel
-        self._console_panel: Optional[ConsolePanelView] = None
-        
+        self._console_panel: ConsolePanelView | None = None
+
         # System tray
-        self._tray_icon: Optional[QSystemTrayIcon] = None
+        self._tray_icon: QSystemTrayIcon | None = None
         
         # Toast notifications
         self._toast_manager = None
         
         # Command history - use factory for composition
         self._history_model = self._viewmodel_factory.create_history_model(parent=self)
-        self._history_dialog: Optional[CommandHistoryDialog] = None
+        self._history_dialog: CommandHistoryDialog | None = None
         
         # Setup window properties
         self._setup_window()
@@ -584,11 +583,11 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         
         # Counter labels
-        self._counter_labels: Dict[str, QtWidgets.QLabel] = {}
+        self._counter_labels: dict[str, QtWidgets.QLabel] = {}
         
         self._counter_ports = ["cpu1", "cpu2", "tlm"]
 
-        self._counter_label_widgets: List[QtWidgets.QLabel] = []
+        self._counter_label_widgets: list[QtWidgets.QLabel] = []
 
         for port_key in self._counter_ports:
             # Create a card-like container for each port
@@ -674,7 +673,7 @@ class MainWindow(QtWidgets.QMainWindow):
         menubar = self.menuBar()
         menubar.clear()
         
-        self._language_actions: Dict[str, QtGui.QAction] = {}
+        self._language_actions: dict[str, QtGui.QAction] = {}
 
         # File menu
         file_menu = menubar.addMenu(tr("file", "File"))
@@ -1266,7 +1265,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _register_button(
         self,
         button: QtWidgets.QPushButton,
-        class_name: Optional[str] = None,
+        class_name: str | None = None,
     ) -> None:
         if class_name:
             existing = button.property("class")

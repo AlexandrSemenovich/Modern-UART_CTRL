@@ -48,7 +48,7 @@ class ViewModelFactory:
 
     def create_history_model(
         self,
-        parent: Optional[object] = None,
+        parent: object | None = None,
     ) -> CommandHistoryModelProtocol:
         """
         Create a command history model instance.
@@ -63,7 +63,7 @@ class ViewModelFactory:
 
 
 # Singleton instance for application-wide use
-_default_factory: Optional[ViewModelFactory] = None
+_default_factory: ViewModelFactory | None = None
 
 
 def get_viewmodel_factory() -> ViewModelFactoryProtocol:

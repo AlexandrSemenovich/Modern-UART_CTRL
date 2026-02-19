@@ -34,7 +34,7 @@ class ComPortViewModelProtocol(Protocol):
         ...
 
     @property
-    def port_name(self) -> Optional[str]:
+    def port_name(self) -> str | None:
         """Return the selected COM port name."""
         ...
 
@@ -137,7 +137,7 @@ class ViewModelFactoryProtocol(Protocol):
 
     def create_history_model(
         self,
-        parent: Optional[object] = None,
+        parent: object | None = None,
     ) -> CommandHistoryModelProtocol:
         """Create a command history model instance."""
         ...

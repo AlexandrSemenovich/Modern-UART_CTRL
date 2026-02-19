@@ -14,7 +14,7 @@ Refactored with:
 
 from PySide6 import QtCore
 from PySide6.QtCore import Signal, QThread
-from typing import Optional, Dict, Any
+from typing import Any
 import logging
 import queue
 import time
@@ -139,7 +139,7 @@ class SerialWorker(QThread):
     # Max write batch size - prevent queue starvation
     MAX_WRITE_BATCH = 100
     
-    def __init__(self, port_label: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, port_label: str, config: dict[str, Any] | None = None):
         """
         Initialize SerialWorker.
         
@@ -155,7 +155,7 @@ class SerialWorker(QThread):
         self._config = config or {}
         
         # Serial connection state
-        self._port_name: Optional[str] = None
+        self._port_name: str | None = None
         self._baud: int = self.DEFAULT_BAUD
         self._timeout: float = self._config.get('timeout', self.DEFAULT_TIMEOUT)
         self._read_interval: float = self._config.get('read_interval', self.READ_INTERVAL)
@@ -164,7 +164,7 @@ class SerialWorker(QThread):
         self._charset: str = self._config.get('charset', 'utf-8')
         self._charset_errors: str = self._config.get('charset_errors', 'replace')  # 'replace', 'ignore', 'strict'
         self._charset_auto_detect: bool = self._config.get('charset_auto_detect', False)
-        self._detected_charset: Optional[str] = None
+        self._detected_charset: str | None = None
         
         # Thread control
         self._running: bool = False
@@ -174,7 +174,7 @@ class SerialWorker(QThread):
         self._read_buffer: str = ""
         
         # Serial port instance
-        self._ser: Optional[Any] = None
+        self._ser: Any | None = None
         
         # Error tracking
         self._consecutive_errors: int = 0
@@ -194,7 +194,7 @@ class SerialWorker(QThread):
         self._connection_attempts: int = 0
         
         # Logging level override
-        self._log_level: Optional[int] = self._config.get('log_level')
+        self._log_level: int | None = self._config.get('log_level')
         if self._log_level:
             logger.setLevel(self._log_level)
     
@@ -204,7 +204,7 @@ class SerialWorker(QThread):
         return self._charset
     
     @property
-    def detected_charset(self) -> Optional[str]:
+    def detected_charset(self) -> str | None:
         """Get auto-detected charset if available."""
         return self._detected_charset
     
@@ -227,8 +227,8 @@ class SerialWorker(QThread):
         self, 
         port: str, 
         baud: int, 
-        timeout: Optional[float] = None,
-        charset: Optional[str] = None,
+        timeout: float | None = None,
+        charset: str | None = None,
         charset_auto_detect: bool = False
     ) -> None:
         """
@@ -251,7 +251,7 @@ class SerialWorker(QThread):
         
         logger.info(f"Configured {self._port_label}: port={port}, baud={baud}, timeout={self._timeout}, charset={charset}")
     
-    def configure_from_dict(self, config: Dict[str, Any]) -> None:
+    def configure_from_dict(self, config: dict[str, Any]) -> None:
         """
         Configure from dictionary.
         
@@ -282,7 +282,7 @@ class SerialWorker(QThread):
         
         logger.info(f"Configured {self._port_label} from dict: port={self._port_name}, baud={self._baud}, charset={self._charset}")
     
-    def _detect_charset(self, data: bytes) -> Optional[str]:
+    def _detect_charset(self, data: bytes) -> str | None:
         """
         Attempt to detect charset from raw data bytes.
         
@@ -312,7 +312,7 @@ class SerialWorker(QThread):
         # Default to latin-1 if no specific charset detected (handles most serial data)
         return 'latin-1'
     
-    def _open_connection(self) -> Optional[Any]:
+    def _open_connection(self) -> Any | None:
         """
         Open serial connection with proper error handling and timeout.
         
@@ -399,8 +399,8 @@ class SerialWorker(QThread):
         self._connection_start_time = time.monotonic()
         self._connection_timeout_reached = False
         
-        ser: Optional[Any] = None
-        connection_error: Optional[str] = None
+        ser: Any | None = None
+        connection_error: str | None = None
         
         # Attempt to open the port
         try:
@@ -497,7 +497,7 @@ class SerialWorker(QThread):
             self._cleanup(ser)
             self.finished.emit()
     
-    def _cleanup(self, ser: Optional[Any]) -> None:
+    def _cleanup(self, ser: Any | None) -> None:
         """Cleanup resources."""
         self._running = False
         self._should_stop = True
@@ -512,7 +512,7 @@ class SerialWorker(QThread):
         
         self._emit_status(tr("worker_disconnected_from", f"Disconnected from {{port_name}}", port_name=self._port_name or "N/A"))
     
-    def _process_read(self, ser: Optional[Any]) -> bool:
+    def _process_read(self, ser: Any | None) -> bool:
         """
         Process incoming data from serial port.
         

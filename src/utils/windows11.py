@@ -12,7 +12,7 @@ import sys
 import ctypes
 from ctypes import wintypes
 from functools import cache
-from typing import Optional, Callable, Dict, List
+from typing import Callable
 
 # Windows API constants
 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
@@ -52,7 +52,7 @@ def is_windows_11_or_later() -> bool:
         return False
 
 
-def _get_dwmapi_dll() -> Optional[ctypes.CDLL]:
+def _get_dwmapi_dll() -> ctypes.CDLL | None:
     """Get dwmapi.dll handle."""
     try:
         return ctypes.windll.dwmapi
@@ -226,7 +226,7 @@ class GlobalHotkeyManager:
             hwnd: Window handle to receive hotkey messages
         """
         self._hwnd = hwnd
-        self._hotkeys: Dict[int, Callable] = {}
+        self._hotkeys: dict[int, callable] = {}
         self._next_id = 1
         self._user32 = None
         
@@ -240,8 +240,8 @@ class GlobalHotkeyManager:
         self, 
         key: int, 
         modifiers: int, 
-        callback: Callable
-    ) -> Optional[int]:
+        callback: callable
+    ) -> int | None:
         """
         Register a global hotkey.
         

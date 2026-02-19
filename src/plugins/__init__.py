@@ -136,21 +136,21 @@ class PluginRegistry:
         """Register a UI extension."""
         self._ui_extensions[name] = extension_class
     
-    def get_driver(self, name: str) -> Optional[type[SerialPortDriver]]:
+    def get_driver(self, name: str) -> type[SerialPortDriver] | None:
         """Get a registered driver class."""
         return self._drivers.get(name)
     
-    def get_processor(self, name: str) -> Optional[type[DataProcessor]]:
+    def get_processor(self, name: str) -> type[DataProcessor] | None:
         """Get a registered processor class."""
         return self._processors.get(name)
     
-    def get_ui_extension(self, name: str) -> Optional[type[UIExtension]]:
+    def get_ui_extension(self, name: str) -> type[UIExtension] | None:
         """Get a registered UI extension class."""
         return self._ui_extensions.get(name)
 
 
 # Global plugin registry
-_registry: Optional[PluginRegistry] = None
+_registry: PluginRegistry | None = None
 
 
 def get_plugin_registry() -> PluginRegistry:
