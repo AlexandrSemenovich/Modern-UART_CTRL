@@ -44,6 +44,7 @@ class ComPortViewModel(QObject):
     state_changed = Signal(str)  # ConnectionState
     data_received = Signal(str)   # Formatted RX data
     data_sent = Signal(str)      # Formatted TX data
+    send_completed = Signal()    # Emitted when TX is complete (success or error)
     error_occurred = Signal(str) # Error message
     counter_updated = Signal(int, int)  # rx_count, tx_count
     
@@ -80,9 +81,7 @@ class ComPortViewModel(QObject):
         self._rx_bytes: int = 0
         self._tx_bytes: int = 0
         self._error_count: int = 0
-        self._connection_time: float = 0.0  # Unix timestamp when connected
-        self._last_rx_time: float = 0.0  # For throughput calculation
-        self._last_tx_time: float = 0.0
+        self._connection_time: float = 0.0  # Monotonic time when connected
         
         # Serial worker
         self._worker: SerialWorker | None = None
@@ -138,7 +137,7 @@ class ComPortViewModel(QObject):
     def connection_time(self) -> float:
         """Get connection duration in seconds."""
         if self._connection_time > 0:
-            return time.time() - self._connection_time
+            return time.monotonic() - self._connection_time
         return 0.0
     
     @property
@@ -317,16 +316,19 @@ class ComPortViewModel(QObject):
         """
         if not self._worker or self._state != PortConnectionState.CONNECTED:
             self._emit_error(tr("error_not_connected", "Port not connected"))
+            self.send_completed.emit()  # Reset animation even on error
             return False
         
         # Validate command length
         if len(data) > CommandConfig.MAX_COMMAND_LENGTH:
             self._emit_error(tr("error_command_too_long", f"Command too long (max {{max_length}} chars)", max_length=CommandConfig.MAX_COMMAND_LENGTH))
+            self.send_completed.emit()  # Reset animation even on error
             return False
         
         # Validate characters (allow only printable ASCII + CR + LF)
         if not all(c in CommandConfig.VALID_CHARS for c in data):
             self._emit_error(tr("error_invalid_chars", "Invalid characters in command"))
+            self.send_completed.emit()  # Reset animation even on error
             return False
         
         # Queue data for sending
@@ -338,6 +340,9 @@ class ComPortViewModel(QObject):
         
         # Emit TX data for display (View will format)
         self.data_sent.emit(data)
+        
+        # Emit send completed signal for animation reset
+        self.send_completed.emit()
         
         logger.debug(f"TX to {self._port_label}: {data}")
         return True
@@ -364,7 +369,7 @@ class ComPortViewModel(QObject):
         self._rx_bytes = 0
         self._tx_bytes = 0
         self._error_count = 0
-        self._connection_time = 0.0
+        self._connection_time = 0.0  # Will return 0.0 from property when disconnected
         self._emit_counter_update()
     
     def _set_state(self, new_state: PortConnectionState | str) -> None:
@@ -425,6 +430,9 @@ class ComPortViewModel(QObject):
         # Surface error to UI and mark the port as faulted
         self._set_state(PortConnectionState.ERROR)
         self._emit_error(error_message)
+        
+        # Emit send completed to reset animation
+        self.send_completed.emit()
 
         # Ensure worker is stopped
         self._safe_stop_worker()
@@ -445,8 +453,8 @@ class ComPortViewModel(QObject):
 
         if status_message == connected_msg:
             self._set_state(PortConnectionState.CONNECTED)
-            # Track connection time
-            self._connection_time = time.time()
+            # Track connection time using monotonic time (immune to system time changes)
+            self._connection_time = time.monotonic()
         elif status_message == disconnected_msg:
             self._set_state(PortConnectionState.DISCONNECTED)
         elif status_message == connecting_msg:

@@ -1001,8 +1001,8 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "en": "Confirm Clear",
     },
     "confirm_clear_message": {
-        "ru": "Вы уверены, что хотите очистить все логи? Это действие нельзя отменить.",
-        "en": "Are you sure you want to clear all logs? This action cannot be undone.",
+        "ru": "Вы уверены, что хотите очистить все логи и счетчики? Это действие нельзя отменить.",
+        "en": "Are you sure you want to clear all logs and counters? This action cannot be undone.",
     },
     
     # Accessibility hints (a11y)

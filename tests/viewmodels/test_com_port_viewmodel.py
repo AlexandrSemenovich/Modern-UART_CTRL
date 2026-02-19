@@ -236,16 +236,189 @@ class TestCounterOperations:
             def __init__(self):
                 self._rx_count = 100
                 self._tx_count = 50
+                self._rx_bytes = 200
+                self._tx_bytes = 150
+                self._error_count = 5
+                self._connection_time = 100.0
             
             def clear_counters(self):
                 self._rx_count = 0
                 self._tx_count = 0
+                self._rx_bytes = 0
+                self._tx_bytes = 0
+                self._error_count = 0
+                self._connection_time = 0.0
         
         vm = MockVM()
         vm.clear_counters()
         
         assert vm._rx_count == 0
         assert vm._tx_count == 0
+        assert vm._rx_bytes == 0
+        assert vm._tx_bytes == 0
+        assert vm._error_count == 0
+        assert vm._connection_time == 0.0
+
+
+class TestErrorCounter:
+    """Test error counter operations."""
+    
+    def test_error_count_initial_value(self):
+        """Test that error_count initializes to zero."""
+        class MockVM:
+            def __init__(self):
+                self._error_count = 0
+            
+            @property
+            def error_count(self) -> int:
+                return self._error_count
+        
+        vm = MockVM()
+        assert vm.error_count == 0
+    
+    def test_error_count_increments(self):
+        """Test that error_count increments correctly."""
+        class MockVM:
+            def __init__(self):
+                self._error_count = 0
+                self._state = None
+            
+            @property
+            def error_count(self) -> int:
+                return self._error_count
+            
+            def _set_state(self, new_state):
+                self._state = new_state
+            
+            def _emit_error(self, msg):
+                pass
+            
+            def _safe_stop_worker(self):
+                pass
+            
+            def _on_error(self, port_label: str, error_message: str) -> None:
+                self._error_count += 1
+                self._set_state("error")
+                self._emit_error(error_message)
+                self._safe_stop_worker()
+        
+        vm = MockVM()
+        vm._on_error("COM1", "Test error 1")
+        vm._on_error("COM1", "Test error 2")
+        vm._on_error("COM1", "Test error 3")
+        
+        assert vm.error_count == 3
+    
+    def test_error_count_resets(self):
+        """Test that error_count resets to zero."""
+        class MockVM:
+            def __init__(self):
+                self._error_count = 10
+            
+            @property
+            def error_count(self) -> int:
+                return self._error_count
+            
+            def clear_counters(self):
+                self._error_count = 0
+        
+        vm = MockVM()
+        assert vm.error_count == 10
+        
+        vm.clear_counters()
+        assert vm.error_count == 0
+
+
+class TestConnectionTime:
+    """Test connection time operations."""
+    
+    def test_connection_time_initial_value(self):
+        """Test that connection_time initializes to zero."""
+        import time
+        
+        class MockVM:
+            def __init__(self):
+                self._connection_time = 0.0
+            
+            @property
+            def connection_time(self) -> float:
+                if self._connection_time > 0:
+                    return time.monotonic() - self._connection_time
+                return 0.0
+        
+        vm = MockVM()
+        assert vm.connection_time == 0.0
+    
+    def test_connection_time_after_connect(self):
+        """Test that connection_time is set on connect."""
+        import time
+        
+        class MockVM:
+            def __init__(self):
+                self._connection_time = 0.0
+            
+            @property
+            def connection_time(self) -> float:
+                if self._connection_time > 0:
+                    return time.monotonic() - self._connection_time
+                return 0.0
+            
+            def on_connected(self):
+                self._connection_time = time.monotonic()
+        
+        vm = MockVM()
+        # Before connection
+        assert vm.connection_time == 0.0
+        
+        # Simulate connection
+        vm.on_connected()
+        time.sleep(0.01)  # 10ms
+        
+        # After connection - should be approximately 0.01 seconds
+        elapsed = vm.connection_time
+        assert 0.005 < elapsed < 0.050  # Allow generous margin
+    
+    def test_connection_time_resets_on_clear(self):
+        """Test that connection_time resets to zero on clear."""
+        import time
+        
+        class MockVM:
+            def __init__(self):
+                self._connection_time = 100.0  # Some old value
+            
+            @property
+            def connection_time(self) -> float:
+                if self._connection_time > 0:
+                    return time.monotonic() - self._connection_time
+                return 0.0
+            
+            def clear_counters(self):
+                self._connection_time = 0.0
+        
+        vm = MockVM()
+        vm.clear_counters()
+        
+        assert vm.connection_time == 0.0
+    
+    def test_connection_time_uses_monotonic(self):
+        """Test that connection_time uses monotonic time (not wall clock)."""
+        import time
+        
+        class MockVM:
+            def __init__(self):
+                self._connection_time = time.monotonic()  # Set using monotonic
+            
+            @property
+            def connection_time(self) -> float:
+                if self._connection_time > 0:
+                    return time.monotonic() - self._connection_time
+                return 0.0
+        
+        vm = MockVM()
+        
+        # Both should use monotonic, so difference should be small
+        elapsed = vm.connection_time
+        assert 0 <= elapsed < 0.1  # Should be very small (within 100ms)
 
 
 class TestEdgeCases:

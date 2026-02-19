@@ -118,6 +118,11 @@ class MainWindow(QtWidgets.QMainWindow):
         # Toast notifications
         self._toast_manager = None
         
+        # TX animation state - prevents re-animation during active flash
+        self._tx_animation_active: bool = False
+        self._original_button_styles: dict[int, str] = {}  # port_num -> original style
+        self._input_animation_active: bool = False  # Track input field animation
+        
         # Command history - use factory for composition
         self._history_model = self._viewmodel_factory.create_history_model(parent=self)
         self._history_dialog: CommandHistoryDialog | None = None
@@ -805,6 +810,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # Get button(s) to animate for visual feedback
         buttons_to_animate = self._get_buttons_for_port(port_num)
         
+        # Start animation FIRST - before sending command
+        # Visual feedback - animate button(s) to show TX activity
+        self._animate_buttons_flash(buttons_to_animate)
+        
+        # Also animate command input field for additional feedback
+        self._animate_command_input_flash()
+        
         # Add to history
         self._history_model.add_entry(command, self._port_label_for_num(port_num))
         
@@ -816,12 +828,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     self._port_viewmodels[num].send_command(command)
         elif port_num in self._port_viewmodels:
             self._port_viewmodels[port_num].send_command(command)
-        
-        # Visual feedback - animate button(s) to show TX activity
-        self._animate_buttons_flash(buttons_to_animate)
-        
-        # Also animate command input field for additional feedback
-        self._animate_command_input_flash()
     
     def _get_buttons_for_port(self, port_num: int) -> list:
         """Get buttons that correspond to the given port number for animation."""
@@ -840,15 +846,25 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Animate button flash to provide visual feedback when command is sent.
         Uses theme-aware subtle colors for a professional look.
+        
+        This method is idempotent - if animation is already in progress,
+        subsequent calls are ignored to prevent style corruption from rapid sends.
         """
         if not buttons:
             return
+        
+        # Prevent re-animation while already flashing - this prevents the bug
+        # where rapid sends capture flash style as "original" and get stuck
+        if self._tx_animation_active:
+            return
+        
+        self._tx_animation_active = True
         
         # Get theme-aware colors from constants
         is_dark = theme_manager.is_dark_theme()
         flash_style = FlashAnimation.get_button_flash_style(is_dark)
         
-        # Store original styles
+        # Store original styles (captured only once when animation starts)
         original_styles = []
         for btn in buttons:
             original_styles.append(btn.styleSheet())
@@ -859,6 +875,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Restore original style after duration from constants
         def restore_styles():
+            self._tx_animation_active = False
             for btn, original in zip(buttons, original_styles):
                 if btn:
                     btn.setStyleSheet(original)
@@ -869,9 +886,18 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Animate command input field to provide visual feedback when command is sent.
         Uses theme-aware subtle colors for a professional look.
+        
+        This method is idempotent - if animation is already in progress,
+        subsequent calls are ignored to prevent style corruption from rapid sends.
         """
         if not hasattr(self, '_le_command') or not self._le_command:
             return
+        
+        # Prevent re-animation while already flashing
+        if self._input_animation_active:
+            return
+        
+        self._input_animation_active = True
         
         # Store original style
         original_style = self._le_command.styleSheet()
@@ -884,6 +910,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Restore original style after duration from constants
         def restore_style():
+            self._input_animation_active = False
             if self._le_command:
                 self._le_command.setStyleSheet(original_style)
         
@@ -933,6 +960,34 @@ class MainWindow(QtWidgets.QMainWindow):
         def handler(msg: str):
             self._handle_port_error(tr(port_key, port_key.upper()), viewmodel, msg)
         return handler
+
+    def _make_send_completed_handler(self, port_num: int):
+        """Create a bound handler for send completed signal to reset TX animation."""
+        def handler():
+            self._reset_tx_animation(port_num)
+        return handler
+
+    def _reset_tx_animation(self, port_num: int) -> None:
+        """Reset TX button animation for the given port."""
+        buttons = self._get_buttons_for_port(port_num)
+        if not buttons:
+            return
+        
+        # Get theme-aware colors
+        is_dark = theme_manager.is_dark_theme()
+        flash_style = FlashAnimation.get_button_flash_style(is_dark)
+        
+        # Only reset if the button still has the flash style
+        # (otherwise the timer-based animation has already restored it)
+        for btn in buttons:
+            if btn and btn.styleSheet() == flash_style:
+                btn.setStyleSheet("")
+        
+        # Also reset command input field animation (same logic)
+        if hasattr(self, '_le_command') and self._le_command:
+            input_flash_style = FlashAnimation.get_input_flash_style(is_dark)
+            if self._le_command.styleSheet() == input_flash_style:
+                self._le_command.setStyleSheet("")
 
     def _make_state_handler(self, port_num: int):
         """Create a bound handler for state changed signal to avoid lambda closure issues."""
@@ -1012,11 +1067,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._refresh_widget_style(button)
     
     def _clear_all_logs(self) -> None:
-        """Clear all console logs with confirmation."""
+        """Clear all console logs and counters with confirmation."""
         reply = QtWidgets.QMessageBox.question(
             self,
             tr("confirm_clear", "Confirm Clear"),
-            tr("confirm_clear_message", "Are you sure you want to clear all logs? This action cannot be undone."),
+            tr("confirm_clear_message", "Are you sure you want to clear all logs and counters? This action cannot be undone."),
             QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
             QtWidgets.QMessageBox.StandardButton.No
         )
@@ -1024,6 +1079,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             if self._console_panel:
                 self._console_panel.clear_all()
+            # Clear all port counters
+            for viewmodel in self._port_viewmodels.values():
+                viewmodel.clear_counters()
     
     def _toggle_console_search(self) -> None:
         """Toggle the console search bar visibility."""
