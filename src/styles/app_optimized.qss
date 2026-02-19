@@ -51,20 +51,20 @@ QWidget, QFrame, QGroupBox {
     border-radius: 4px;
 }
 
-/* Unified Group boxes - symmetric padding to prevent asymmetric overflow */
+/* Unified Group boxes - title in border area */
 QGroupBox {
     border-radius: 8px;
-    margin-top: 8px;
-    padding: 8px;
     border: 1px solid palette(mid);
     background: palette(base);
-    margin-bottom: 8px;
+    padding: 12px;
+    margin: 8px 0px;
 }
 
 QGroupBox::title {
-    subcontrol-origin: margin;
+    subcontrol-origin: padding;
     subcontrol-position: top left;
     padding: 4px 8px;
+    margin-left: 4px;
     color: palette(window-text);
 }
 
