@@ -45,6 +45,7 @@ from src.views.port_panel_view import PortPanelView
 from src.views.console_panel_view import ConsolePanelView
 from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
 from src.viewmodels.command_history_viewmodel import CommandHistoryModel
+from src.viewmodels.factory import ViewModelFactory, get_viewmodel_factory
 from src.views.command_history_dialog import CommandHistoryDialog
 
 
@@ -86,8 +87,21 @@ class MainWindow(QtWidgets.QMainWindow):
     MVVM View that uses ComPortViewModel for each port's business logic.
     """
     
-    def __init__(self):
+    def __init__(
+        self,
+        viewmodel_factory: ViewModelFactory | None = None,
+    ):
+        """
+        Initialize MainWindow.
+        
+        Args:
+            viewmodel_factory: Optional factory for creating ViewModels.
+                              If None, uses the default factory.
+        """
         super().__init__()
+        
+        # Use provided factory or get default
+        self._viewmodel_factory = viewmodel_factory or get_viewmodel_factory()
         
         # Port ViewModels (one per port)
         self._port_viewmodels: Dict[int, ComPortViewModel] = {}
@@ -105,8 +119,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Toast notifications
         self._toast_manager = None
         
-        # Command history
-        self._history_model = CommandHistoryModel(self)
+        # Command history - use factory for composition
+        self._history_model = self._viewmodel_factory.create_history_model(parent=self)
         self._history_dialog: Optional[CommandHistoryDialog] = None
         
         # Setup window properties
@@ -374,8 +388,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for port_num, port_key in port_ids:
             port_label = tr(port_key, port_key.upper())
-            # Create ViewModel
-            viewmodel = ComPortViewModel(port_label, port_num)
+            # Create ViewModel using factory (composition pattern)
+            viewmodel = self._viewmodel_factory.create_port_viewmodel(
+                port_label=port_label,
+                port_number=port_num,
+            )
             self._port_viewmodels[port_num] = viewmodel
             self._port_states[port_num] = viewmodel.state
              

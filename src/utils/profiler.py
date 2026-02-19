@@ -99,6 +99,7 @@ def profile_method(method: Callable) -> Callable:
 
 class PerformanceTimer:
     """Simple context manager for timing code sections."""
+    __slots__ = ('name', 'log_level', 'start_time', 'end_time')
     
     def __init__(self, name: str, log_level: int = logging.DEBUG):
         self.name = name

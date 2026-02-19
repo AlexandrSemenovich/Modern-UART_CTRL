@@ -19,6 +19,8 @@ from src.utils.icon_cache import get_icon, IconCache
 
 class LogWidget:
     """Container for log widget and its label."""
+    __slots__ = ('label', 'text_edit')
+    
     def __init__(self):
         self.label: Optional[QtWidgets.QLabel] = None
         self.text_edit: Optional[QtWidgets.QTextEdit] = None
@@ -574,6 +576,8 @@ class ConsolePanelView(QtWidgets.QWidget):
                                 break
                             # Create a simple match object
                             class SimpleMatch:
+                                __slots__ = ('_start', '_end')
+                                
                                 def __init__(self, start_pos, end_pos):
                                     self._start = start_pos
                                     self._end = end_pos

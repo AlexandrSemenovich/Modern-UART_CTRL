@@ -15,9 +15,12 @@ from PySide6 import QtCore
 from src.utils.paths import get_config_file
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class CommandHistoryEntry:
-    """Represents a single record inside the command history."""
+    """Represents a single record inside the command history.
+    
+    Using frozen=True for immutability and slots=True for memory efficiency.
+    """
 
     command: str
     port: str
@@ -26,6 +29,9 @@ class CommandHistoryEntry:
 
     def to_display_tuple(self) -> tuple[str, str, str, str]:
         return (self.command, self.port, self.status, self.timestamp)
+
+    def __repr__(self) -> str:
+        return f"CommandHistoryEntry(command={self.command!r}, port={self.port!r}, status={self.status!r}, timestamp={self.timestamp!r})"
 
 
 class CommandHistoryModel(QtCore.QObject):
