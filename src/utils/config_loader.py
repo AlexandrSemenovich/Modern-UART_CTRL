@@ -5,9 +5,17 @@ from __future__ import annotations
 import configparser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional
+from typing import NamedTuple
 
 from src.utils.paths import get_config_file
+
+
+class Margins(NamedTuple):
+    """Immutable margins tuple (left, top, right, bottom)."""
+    left: int
+    top: int
+    right: int
+    bottom: int
 
 
 @dataclass
@@ -19,6 +27,9 @@ class ThemeColors:
     tx_label: str
     sys_text: str
     sys_label: str
+    
+    def __repr__(self) -> str:
+        return f"ThemeColors(timestamp={self.timestamp!r}, rx_text={self.rx_text!r}, ...)"
 
 
 @dataclass
@@ -38,6 +49,9 @@ class ButtonColors:
     command_text_active: str
     command_text_connecting: str
     command_text_inactive: str
+    
+    def __repr__(self) -> str:
+        return f"ButtonColors(command_combo_active={self.command_combo_active!r}, ...)"
 
 
 @dataclass
@@ -49,6 +63,9 @@ class FontConfig:
     caption_size: int
     monospace_family: str
     monospace_size: int
+    
+    def __repr__(self) -> str:
+        return f"FontConfig(default_family={self.default_family!r}, default_size={self.default_size!r}, ...)"
 
 
 @dataclass
@@ -72,6 +89,9 @@ class SizeConfig:
     button_save_max_width: int
     input_min_height: int
     search_field_max_width: int
+    
+    def __repr__(self) -> str:
+        return f"SizeConfig(window_min_width={self.window_min_width}, ...)"
 
 
 @dataclass
@@ -87,6 +107,9 @@ class PaletteColors:
     link: str
     highlight: str
     highlighted_text: str
+    
+    def __repr__(self) -> str:
+        return f"PaletteColors(window={self.window!r}, base={self.base!r}, ...)"
 
 
 @dataclass
@@ -97,6 +120,9 @@ class ConsoleConfig:
     max_document_lines: int
     trim_chunk_size: int
     max_cache_lines: int
+    
+    def __repr__(self) -> str:
+        return f"ConsoleConfig(max_html_length={self.max_html_length}, max_document_lines={self.max_document_lines}, ...)"
 
 
 @dataclass
@@ -109,14 +135,17 @@ class ToastConfig:
     toast_spacing: int
     toast_icon_size: int
     toast_close_button_size: int
-    toast_margins: tuple[int, int, int, int]
+    toast_margins: Margins
     toast_corner_radius: int
+    
+    def __repr__(self) -> str:
+        return f"ToastConfig(toast_min_width={self.toast_min_width}, toast_duration_ms={self.toast_duration_ms}, ...)"
 
 
 class ConfigLoader:
     """Loads application settings from config/config.ini with defaults."""
 
-    def __init__(self, config_path: Optional[Path] = None) -> None:
+    def __init__(self, config_path: Path | None = None) -> None:
         self._config = configparser.ConfigParser()
         # Single entry point for configuration
         default_path = get_config_file("config.ini")
@@ -214,7 +243,7 @@ class ConfigLoader:
             ),
         }
 
-    def _get_section(self, section: str) -> Dict[str, str]:
+    def _get_section(self, section: str) -> dict[str, str]:
         if self._config.has_section(section):
             return dict(self._config[section])
         return {}
@@ -240,7 +269,7 @@ class ConfigLoader:
                 return default
         return default
 
-    def _get_int(self, section: Dict[str, str], key: str, default: int) -> int:
+    def _get_int(self, section: dict[str, str], key: str, default: int) -> int:
         return self._parse_int_value(section.get(key, default), default)
 
     def get_colors(self, theme: str) -> ThemeColors:
@@ -337,13 +366,13 @@ class ConfigLoader:
             search_field_max_width=self._get_int(section, "search_field_max_width", 200),
         )
 
-    def get_serial_config(self) -> Dict[str, str]:
+    def get_serial_config(self) -> dict[str, str]:
         return self._get_section("serial_config")
 
-    def get_ports_config(self) -> Dict[str, str]:
+    def get_ports_config(self) -> dict[str, str]:
         return self._get_section("ports")
 
-    def get_serial_timing(self) -> Dict[str, float]:
+    def get_serial_timing(self) -> dict[str, float]:
         """Get serial worker timing settings."""
         section = self._get_section("serial")
         return {
@@ -405,11 +434,12 @@ class ConfigLoader:
         # Parse margins tuple
         margins_str = section.get("toast_margins", "12, 8, 12, 8")
         try:
-            margins = tuple(int(x.strip()) for x in margins_str.split(","))
-            if len(margins) != 4:
-                margins = (12, 8, 12, 8)
+            values = tuple(int(x.strip()) for x in margins_str.split(","))
+            if len(values) != 4:
+                values = (12, 8, 12, 8)
         except ValueError:
-            margins = (12, 8, 12, 8)
+            values = (12, 8, 12, 8)
+        margins = Margins(*values)
         
         return ToastConfig(
             toast_min_width=self._get_int(section, "toast_min_width", 300),

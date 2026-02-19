@@ -386,6 +386,13 @@ def calculate_baud_timing(baud: int) -> dict:
     return timing_dict
 ```
 
+**Status: ✅ COMPLETED**
+- Added `@cache` to pure functions in multiple modules:
+  - `src/utils/state_utils.py`: `normalize_state()`, `is_terminal_state()`, `is_active_state()`
+  - `src/utils/windows11.py`: `is_windows_11_or_later()`
+  - `src/utils/paths.py`: `_is_frozen()`, `get_root_dir()`, `get_config_dir()`, `get_config_file()`, `get_stylesheet_path()`
+- All 224 tests pass
+
 ### 7. Add `__repr__` for All Data Classes
 ```python
 @dataclass
@@ -396,6 +403,12 @@ class CommandHistoryEntry:
     def __repr__(self) -> str:
         return f"CommandHistoryEntry(command={self.command!r}, timestamp={self.timestamp!r})"
 ```
+
+**Status: ✅ COMPLETED**
+- Added `__repr__` to all dataclasses:
+  - `src/utils/config_loader.py`: `ThemeColors`, `ButtonColors`, `FontConfig`, `SizeConfig`, `PaletteColors`, `ConsoleConfig`, `ToastConfig`
+  - `src/viewmodels/command_history_viewmodel.py`: `CommandHistoryEntry` (already had)
+- All 224 tests pass
 
 ### 8. Use `NamedTuple` for Immutable Sequences
 ```python
@@ -408,6 +421,11 @@ class PortStatus(NamedTuple):
     bytes_sent: int
     bytes_received: int
 ```
+
+**Status: ✅ COMPLETED**
+- Added `CommandHistoryDisplay` NamedTuple in `src/viewmodels/command_history_viewmodel.py`
+- Added `Margins` NamedTuple in `src/utils/config_loader.py`
+- All 224 tests pass
 
 ### 9. Add Context Managers for Resources
 ```python
@@ -425,6 +443,11 @@ with SerialConnection("COM1", 9600) as conn:
     conn.write(b"data")
 ```
 
+**Status: ✅ COMPLETED**
+- Added `open_config_file()` context manager in `src/utils/paths.py`
+- Added `open_stylesheet()` context manager in `src/utils/paths.py`
+- All 224 tests pass
+
 ### 10. Add Type Guard Functions
 ```python
 # RECOMMENDED: Improve type narrowing
@@ -434,6 +457,13 @@ def is_valid_port_name(name: str) -> TypeGuard[str]:
     # Return True only if name is a valid COM port
     return bool(re.match(r"^COM\d+$", name))
 ```
+
+**Status: ✅ COMPLETED**
+- Added TypeGuard functions to multiple modules:
+  - `src/utils/state_utils.py`: `is_port_connection_state()`, `is_valid_state_string()`
+  - `src/utils/port_manager.py`: `is_valid_port_name()`
+- All TypeGuard functions properly narrow types for static analysis tools
+- All 224 tests pass
 
 ---
 

@@ -26,6 +26,7 @@ from src.utils.translator import tr
 from src.utils.config_loader import config_loader
 from src.styles.constants import CharsetConfig
 from src.utils.profiler import PerformanceTimer
+from src.exceptions import SerialWriteError
 
 # Enable/disable profiling via environment variable
 _ENABLE_PROFILING = os.environ.get('APP_PROFILE', '').lower() == 'true'
@@ -704,8 +705,12 @@ class SerialWorker(QThread):
 
                 return True
             else:
-                # Not connected
-                raise RuntimeError("Port not open")
+                # Not connected - use custom exception with context
+                raise SerialWriteError(
+                    "Port not open",
+                    port=self._port_name,
+                    bytes_written=0,
+                )
         
         except Exception as e:
             logger.exception(f"Write error on {self._port_label}: {e}")

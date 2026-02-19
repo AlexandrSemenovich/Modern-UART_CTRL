@@ -11,6 +11,7 @@ Features:
 
 from PySide6 import QtWidgets, QtCore, QtGui
 import logging
+from typing import Optional
 
 from src.styles.constants import ToastConfig
 

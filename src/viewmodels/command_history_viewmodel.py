@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import List, Iterable
+from typing import List, Iterable, NamedTuple
 import json
 import datetime
 import configparser
@@ -13,6 +13,17 @@ import logging
 from PySide6 import QtCore
 
 from src.utils.paths import get_config_file
+
+
+class CommandHistoryDisplay(NamedTuple):
+    """Immutable display tuple for command history entry.
+    
+    Using NamedTuple for fixed-size immutable sequence with named fields.
+    """
+    command: str
+    port: str
+    status: str
+    timestamp: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,8 +38,14 @@ class CommandHistoryEntry:
     status: str
     timestamp: str
 
-    def to_display_tuple(self) -> tuple[str, str, str, str]:
-        return (self.command, self.port, self.status, self.timestamp)
+    def to_display_tuple(self) -> CommandHistoryDisplay:
+        """Return display tuple with named fields."""
+        return CommandHistoryDisplay(
+            self.command,
+            self.port,
+            self.status,
+            self.timestamp,
+        )
 
     def __repr__(self) -> str:
         return f"CommandHistoryEntry(command={self.command!r}, port={self.port!r}, status={self.status!r}, timestamp={self.timestamp!r})"

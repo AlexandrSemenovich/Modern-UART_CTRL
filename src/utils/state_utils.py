@@ -4,7 +4,8 @@ Provides enums and helper functions for state management.
 """
 
 from enum import Enum
-from typing import Union
+from functools import cache
+from typing import Union, TypeGuard
 
 
 class PortConnectionState(Enum):
@@ -15,6 +16,33 @@ class PortConnectionState(Enum):
     ERROR = "error"
 
 
+def is_port_connection_state(value: object) -> TypeGuard[PortConnectionState]:
+    """Type guard to check if value is a PortConnectionState enum.
+    
+    Args:
+        value: Object to check
+        
+    Returns:
+        True if value is a PortConnectionState enum member
+    """
+    return isinstance(value, PortConnectionState)
+
+
+def is_valid_state_string(value: object) -> TypeGuard[str]:
+    """Type guard to check if value is a valid state string.
+    
+    Args:
+        value: Object to check
+        
+    Returns:
+        True if value is a string representing a valid state
+    """
+    if not isinstance(value, str):
+        return False
+    return value.lower() in ('disconnected', 'connecting', 'connected', 'error')
+
+
+@cache
 def normalize_state(state: Union[str, PortConnectionState]) -> PortConnectionState:
     """
     Normalize state value to PortConnectionState enum.
@@ -35,6 +63,7 @@ def normalize_state(state: Union[str, PortConnectionState]) -> PortConnectionSta
     return PortConnectionState.DISCONNECTED
 
 
+@cache
 def is_terminal_state(state: Union[str, PortConnectionState]) -> bool:
     """
     Check if state is terminal (no further transitions expected).
@@ -49,6 +78,7 @@ def is_terminal_state(state: Union[str, PortConnectionState]) -> bool:
     return normalized in (PortConnectionState.DISCONNECTED, PortConnectionState.ERROR)
 
 
+@cache
 def is_active_state(state: Union[str, PortConnectionState]) -> bool:
     """
     Check if state represents active connection.

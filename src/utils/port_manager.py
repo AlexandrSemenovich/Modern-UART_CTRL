@@ -3,8 +3,23 @@ Port Manager - thread-safe singleton for tracking active serial ports.
 Provides atomic acquire/release operations to prevent race conditions.
 """
 
+import re
 import threading
-from typing import Set
+from typing import TypeGuard
+
+
+def is_valid_port_name(name: object) -> TypeGuard[str]:
+    """Type guard to check if name is a valid COM port name.
+    
+    Args:
+        name: Object to check
+        
+    Returns:
+        True if name is a valid COM port string (e.g., 'COM1', 'COM10')
+    """
+    if not isinstance(name, str):
+        return False
+    return bool(re.match(r"^COM\d+$", name, re.IGNORECASE))
 
 
 class PortManager:
@@ -24,9 +39,13 @@ class PortManager:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._active_ports: Set[str] = set()
-                    cls._instance._ports_lock = threading.Lock()
         return cls._instance
+    
+    def __init__(self) -> None:
+        """Initialize instance attributes (called after __new__)."""
+        if not hasattr(self, '_active_ports'):
+            self._active_ports: set[str] = set()
+            self._ports_lock = threading.Lock()
     
     def acquire(self, port_name: str) -> bool:
         """
@@ -67,7 +86,7 @@ class PortManager:
         with self._ports_lock:
             return port_name in self._active_ports
     
-    def get_active_ports(self) -> Set[str]:
+    def get_active_ports(self) -> set[str]:
         """
         Get a copy of all currently active ports.
         

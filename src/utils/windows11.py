@@ -11,6 +11,7 @@ Provides:
 import sys
 import ctypes
 from ctypes import wintypes
+from functools import cache
 from typing import Optional, Callable, Dict, List
 
 # Windows API constants
@@ -40,6 +41,7 @@ MOD_NOREPEAT = 0x4000
 WM_HOTKEY = 0x0312
 
 
+@cache
 def is_windows_11_or_later() -> bool:
     """Check if running on Windows 11 or later."""
     try:

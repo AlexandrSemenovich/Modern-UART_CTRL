@@ -10,14 +10,19 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import contextmanager
+from functools import cache
 from pathlib import Path
+from typing import Generator, TextIO
 
 
+@cache
 def _is_frozen() -> bool:
     """Determine if the application is running in packed form (PyInstaller, etc.)."""
     return bool(getattr(sys, "frozen", False))
 
 
+@cache
 def get_root_dir() -> Path:
     """
     Project/application root.
@@ -31,6 +36,7 @@ def get_root_dir() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+@cache
 def get_config_dir() -> Path:
     """
     Configuration directory.
@@ -63,6 +69,7 @@ def ensure_dir(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
+@cache
 def get_config_file(name: str) -> Path:
     """Full path to a configuration file in the configuration directory."""
     cfg_dir = get_config_dir()
@@ -71,6 +78,7 @@ def get_config_file(name: str) -> Path:
     return cfg_path
 
 
+@cache
 def get_stylesheet_path(name: str) -> Path:
     """
     Path to QSS style.
@@ -87,4 +95,48 @@ def get_stylesheet_path(name: str) -> Path:
             return candidate
     # Return first candidate by default - calling code will handle missing file
     return candidates[0]
+
+
+@contextmanager
+def open_config_file(name: str, mode: str = 'r') -> Generator[TextIO, None, None]:
+    """Context manager for safely opening configuration files.
+    
+    Args:
+        name: Configuration file name
+        mode: File open mode ('r', 'w', 'a')
+        
+    Yields:
+        File handle for the configuration file
+        
+    Example:
+        with open_config_file('settings.ini', 'r') as f:
+            content = f.read()
+    """
+    cfg_path = get_config_file(name)
+    ensure_dir(cfg_path.parent)
+    
+    with open(cfg_path, mode, encoding='utf-8') as f:
+        yield f
+
+
+@contextmanager
+def open_stylesheet(name: str, mode: str = 'r') -> Generator[TextIO, None, None]:
+    """Context manager for safely opening stylesheet files.
+    
+    Args:
+        name: Stylesheet file name
+        mode: File open mode ('r', 'w', 'a')
+        
+    Yields:
+        File handle for the stylesheet file
+        
+    Example:
+        with open_stylesheet('theme.qss', 'r') as f:
+            stylesheet = f.read()
+    """
+    style_path = get_stylesheet_path(name)
+    ensure_dir(style_path.parent)
+    
+    with open(style_path, mode, encoding='utf-8') as f:
+        yield f
 
