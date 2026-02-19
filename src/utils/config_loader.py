@@ -269,8 +269,13 @@ class ConfigLoader:
                 return default
         return default
 
-    def _get_int(self, section: dict[str, str], key: str, default: int) -> int:
-        return self._parse_int_value(section.get(key, default), default)
+    def _get_int(self, section: dict[str, str], key: str, default: int | None = None) -> int:
+        """Get integer value from section. If default is None, the key is required in config.ini."""
+        if key not in section:
+            if default is None:
+                raise ValueError(f"Required config key '{key}' not found in config.ini")
+            return default
+        return self._parse_int_value(section[key], default)
 
     def get_colors(self, theme: str) -> ThemeColors:
         section = self._get_section(f"colors.{theme}")
@@ -333,37 +338,37 @@ class ConfigLoader:
     def get_fonts(self) -> FontConfig:
         section = self._get_section("fonts")
         return FontConfig(
-            default_family=section.get("default_family", "Segoe UI"),
-            default_size=self._get_int(section, "default_size", 12),
-            title_size=self._get_int(section, "title_size", 12),
-            button_size=self._get_int(section, "button_size", 12),
-            caption_size=self._get_int(section, "caption_size", 12),
-            monospace_family=section.get("monospace_family", "Courier New"),
-            monospace_size=self._get_int(section, "monospace_size", 10),
+            default_family=section.get("default_family"),
+            default_size=self._get_int(section, "default_size"),
+            title_size=self._get_int(section, "title_size"),
+            button_size=self._get_int(section, "button_size"),
+            caption_size=self._get_int(section, "caption_size"),
+            monospace_family=section.get("monospace_family"),
+            monospace_size=self._get_int(section, "monospace_size"),
         )
 
     def get_sizes(self) -> SizeConfig:
         section = self._get_section("sizes")
         return SizeConfig(
-            window_min_width=self._get_int(section, "window_min_width", 800),
-            window_min_height=self._get_int(section, "window_min_height", 600),
-            window_default_width=self._get_int(section, "window_default_width", 1_200),
-            window_default_height=self._get_int(section, "window_default_height", 800),
-            left_panel_min_width=self._get_int(section, "left_panel_min_width", 320),
-            left_panel_max_width=self._get_int(section, "left_panel_max_width", 380),
-            center_panel_min_width=self._get_int(section, "center_panel_min_width", 400),
-            right_panel_min_width=self._get_int(section, "right_panel_min_width", 200),
-            right_panel_max_width=self._get_int(section, "right_panel_max_width", 350),
-            layout_spacing=self._get_int(section, "layout_spacing", 5),
-            layout_margin=self._get_int(section, "layout_margin", 5),
-            toolbar_spacing=self._get_int(section, "toolbar_spacing", 5),
-            toolbar_margin=self._get_int(section, "toolbar_margin", 0),
-            button_min_height=self._get_int(section, "button_min_height", 26),
-            button_max_width=self._get_int(section, "button_max_width", 110),
-            button_clear_max_width=self._get_int(section, "button_clear_max_width", 80),
-            button_save_max_width=self._get_int(section, "button_save_max_width", 80),
-            input_min_height=self._get_int(section, "input_min_height", 32),
-            search_field_max_width=self._get_int(section, "search_field_max_width", 200),
+            window_min_width=self._get_int(section, "window_min_width"),
+            window_min_height=self._get_int(section, "window_min_height"),
+            window_default_width=self._get_int(section, "window_default_width"),
+            window_default_height=self._get_int(section, "window_default_height"),
+            left_panel_min_width=self._get_int(section, "left_panel_min_width"),
+            left_panel_max_width=self._get_int(section, "left_panel_max_width"),
+            center_panel_min_width=self._get_int(section, "center_panel_min_width"),
+            right_panel_min_width=self._get_int(section, "right_panel_min_width"),
+            right_panel_max_width=self._get_int(section, "right_panel_max_width"),
+            layout_spacing=self._get_int(section, "layout_spacing"),
+            layout_margin=self._get_int(section, "layout_margin"),
+            toolbar_spacing=self._get_int(section, "toolbar_spacing"),
+            toolbar_margin=self._get_int(section, "toolbar_margin"),
+            button_min_height=self._get_int(section, "button_min_height"),
+            button_max_width=self._get_int(section, "button_max_width"),
+            button_clear_max_width=self._get_int(section, "button_clear_max_width"),
+            button_save_max_width=self._get_int(section, "button_save_max_width"),
+            input_min_height=self._get_int(section, "input_min_height"),
+            search_field_max_width=self._get_int(section, "search_field_max_width"),
         )
 
     def get_serial_config(self) -> dict[str, str]:
@@ -417,10 +422,10 @@ class ConfigLoader:
         """
         section = self._get_section("console")
         return ConsoleConfig(
-            max_html_length=self._get_int(section, "max_html_length", 10_000),
-            max_document_lines=self._get_int(section, "max_document_lines", 1_000),
-            trim_chunk_size=self._get_int(section, "trim_chunk_size", 500),
-            max_cache_lines=self._get_int(section, "max_cache_lines", 10_000),
+            max_html_length=self._get_int(section, "max_html_length"),
+            max_document_lines=self._get_int(section, "max_document_lines"),
+            trim_chunk_size=self._get_int(section, "trim_chunk_size"),
+            max_cache_lines=self._get_int(section, "max_cache_lines"),
         )
 
     def get_toast_config(self) -> ToastConfig:
@@ -432,24 +437,26 @@ class ConfigLoader:
         section = self._get_section("toast")
         
         # Parse margins tuple
-        margins_str = section.get("toast_margins", "12, 8, 12, 8")
+        margins_str = section.get("toast_margins")
+        if margins_str is None:
+            raise ValueError("Required config key 'toast_margins' not found in config.ini")
         try:
             values = tuple(int(x.strip()) for x in margins_str.split(","))
             if len(values) != 4:
-                values = (12, 8, 12, 8)
+                raise ValueError("toast_margins must have 4 values")
         except ValueError:
-            values = (12, 8, 12, 8)
+            raise ValueError("Invalid toast_margins format in config.ini")
         margins = Margins(*values)
         
         return ToastConfig(
-            toast_min_width=self._get_int(section, "toast_min_width", 300),
-            toast_max_width=self._get_int(section, "toast_max_width", 500),
-            toast_duration_ms=self._get_int(section, "toast_duration_ms", 4000),
-            toast_spacing=self._get_int(section, "toast_spacing", 8),
-            toast_icon_size=self._get_int(section, "toast_icon_size", 20),
-            toast_close_button_size=self._get_int(section, "toast_close_button_size", 20),
+            toast_min_width=self._get_int(section, "toast_min_width"),
+            toast_max_width=self._get_int(section, "toast_max_width"),
+            toast_duration_ms=self._get_int(section, "toast_duration_ms"),
+            toast_spacing=self._get_int(section, "toast_spacing"),
+            toast_icon_size=self._get_int(section, "toast_icon_size"),
+            toast_close_button_size=self._get_int(section, "toast_close_button_size"),
             toast_margins=margins,
-            toast_corner_radius=self._get_int(section, "toast_corner_radius", 6),
+            toast_corner_radius=self._get_int(section, "toast_corner_radius"),
         )
 
 

@@ -325,9 +325,11 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Create horizontal splitter for panels
         hsplit = QtWidgets.QSplitter(Qt.Horizontal)
+        self._hsplit = hsplit  # Store reference for resize handler
         
         # LEFT PANEL: Port controls
-        left_panel = self._create_left_panel()
+        self._left_panel = self._create_left_panel()
+        left_panel = self._left_panel
         left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
         left_panel.setMaximumWidth(Sizes.LEFT_PANEL_MAX_WIDTH)
         left_panel.setObjectName("left_panel")
@@ -350,6 +352,19 @@ class MainWindow(QtWidgets.QMainWindow):
         hsplit.setStretchFactor(0, 0)  # Left - fixed
         hsplit.setStretchFactor(1, 1)  # Center - expandable
         hsplit.setStretchFactor(2, 0)  # Right - fixed
+        
+        # Both left and right panels can be collapsed via splitter
+        hsplit.setCollapsible(0, True)  # Left panel can be fully collapsed
+        hsplit.setCollapsible(1, False)  # Center panel cannot be collapsed
+        hsplit.setCollapsible(2, True)  # Right panel can be fully collapsed
+        
+        # Connect splitter resize handler for auto-collapse at minimum width
+        hsplit.splitterMoved.connect(self._on_right_panel_resize)
+        self._right_panel_was_visible = True  # Track previous visibility state
+        self._left_panel_was_visible = True  # Track previous visibility state for left panel
+        
+        # Set initial sizes to ensure minimum widths are respected
+        hsplit.setSizes([Sizes.LEFT_PANEL_MIN_WIDTH, Sizes.CENTER_PANEL_MIN_WIDTH, Sizes.RIGHT_PANEL_MIN_WIDTH])
         
         main_layout.addWidget(hsplit)
         central_widget.setLayout(main_layout)
@@ -566,13 +581,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def _create_right_panel(self) -> QtWidgets.QWidget:
         """Create right panel with counters wrapped in a scroll area."""
         scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setObjectName("right_panel_scroll")
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
 
         content = QtWidgets.QWidget()
+        content.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         layout = QtWidgets.QVBoxLayout(content)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
+        # Ensure symmetric margins (8px on both sides)
         layout.setContentsMargins(
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
@@ -602,12 +621,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 QFrame#counter_card {
                     background: palette(base);
                     border-radius: 8px;
-                    padding: 8px;
+                    padding: 8px 8px 8px 8px;
                 }
             """)
             port_card_layout = QtWidgets.QVBoxLayout(port_card)
             port_card_layout.setSpacing(4)
-            port_card_layout.setContentsMargins(12, 8, 12, 8)
+            port_card_layout.setContentsMargins(
+                Sizes.CARD_MARGIN, Sizes.CARD_MARGIN,
+                Sizes.CARD_MARGIN, Sizes.CARD_MARGIN
+            )
             
             # Port header
             port_name = tr(port_key, port_key.upper())
@@ -655,6 +677,10 @@ class MainWindow(QtWidgets.QMainWindow):
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp)
         
+        # Add right-side spacer to ensure panel never touches right edge
+        right_spacer = QtWidgets.QSpacerItem(8, 0, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
+        layout.addSpacerItem(right_spacer)
+        
         layout.addStretch()
         content.setLayout(layout)
         scroll_area.setWidget(content)
@@ -667,11 +693,42 @@ class MainWindow(QtWidgets.QMainWindow):
         grp.hide()
         return grp
     
+    def _on_right_panel_resize(self, pos: int, index: int) -> None:
+        """Handle splitter resize - track panel states for toggle."""
+        if not hasattr(self, '_right_panel') or self._right_panel is None:
+            return
+        
+        # Check if right panel (index 2) is being resized
+        current_sizes = self._hsplit.sizes()
+        if len(current_sizes) < 3:
+            return
+        
+        # Handle right panel (index 2)
+        right_panel_width = current_sizes[2]
+        min_width = Sizes.RIGHT_PANEL_MIN_WIDTH
+        
+        # Track if right panel is collapsed (width is 0 or near 0)
+        if right_panel_width <= 5:  # Nearly collapsed
+            self._right_panel_was_visible = self._right_panel.isVisible()
+        elif right_panel_width > min_width and not self._right_panel.isVisible():
+            # User expanded past minimum - show the panel
+            self._right_panel.show()
+        
+        # Handle left panel (index 0)
+        left_panel_width = current_sizes[0]
+        left_min_width = Sizes.LEFT_PANEL_MIN_WIDTH
+        
+        if left_panel_width <= 5:  # Nearly collapsed
+            self._left_panel_was_visible = self._left_panel.isVisible()
+        elif left_panel_width > left_min_width and not self._left_panel.isVisible():
+            self._left_panel.show()
+
     def _toggle_right_panel(self) -> None:
         """Toggle visibility of the right panel (counters)."""
         if hasattr(self, '_right_panel') and self._right_panel is not None:
             is_visible = self._right_panel.isVisible()
             self._right_panel.setVisible(not is_visible)
+            self._right_panel_was_visible = not is_visible
     
     def _setup_menu(self) -> None:
         """Setup application menu bar."""

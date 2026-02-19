@@ -141,6 +141,7 @@ class Sizes:
     RIGHT_PANEL_MAX_WIDTH = _cfg.right_panel_max_width
     LAYOUT_SPACING = _cfg.layout_spacing
     LAYOUT_MARGIN = _cfg.layout_margin
+    CARD_MARGIN = 8  # Inner margin for card-style widgets (left, right, top, bottom)
     TOOLBAR_SPACING = _cfg.toolbar_spacing
     TOOLBAR_MARGIN = _cfg.toolbar_margin
     BUTTON_MIN_HEIGHT = _cfg.button_min_height

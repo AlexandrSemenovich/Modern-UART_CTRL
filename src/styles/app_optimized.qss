@@ -26,22 +26,6 @@ QComboBox:focus {
     outline-offset: 1px;
 }
 
-/* Group boxes */
-QGroupBox {
-    border-radius: 8px;
-    margin-top: 6px;
-    padding: 8px 10px;
-    border: 1px solid palette(mid);
-    background: palette(window);
-    margin-bottom: 8px;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 8px;
-    padding: 0 3px;
-    color: palette(window-text);
-}
-
 /* Buttons */
 QPushButton {
     border-radius: 4px;
@@ -67,13 +51,14 @@ QWidget, QFrame, QGroupBox {
     border-radius: 4px;
 }
 
-/* Group boxes with Windows 11 style */
+/* Unified Group boxes - symmetric padding to prevent asymmetric overflow */
 QGroupBox {
-    background: palette(base);
-    border: 1px solid palette(mid);
     border-radius: 8px;
-    margin-top: 12px;
-    padding-top: 8px;
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px solid palette(mid);
+    background: palette(base);
+    margin-bottom: 8px;
 }
 
 QGroupBox::title {
@@ -311,13 +296,28 @@ QSplitter::handle:hover { background: #3b82f6; }
 QSplitter::handle:pressed { background: #2563eb; }
 
 /* Panels */
-QWidget#left_panel, QWidget#right_panel { background: palette(window); }
-QWidget#console_panel { background: palette(base); }
+QWidget#left_panel, QWidget#right_panel { 
+    background: palette(window); 
+    margin: 0;
+    padding: 0;
+}
+QWidget#console_panel { 
+    background: palette(base);
+    margin: 0;
+    padding: 0;
+}
 
 /* Scroll Area */
 QScrollArea {
     background: palette(window);
     border: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Right panel scroll area - ensure 8px right margin */
+QScrollArea#right_panel_scroll {
+    margin-right: 8px;
 }
 
 /* Scrollbars */
