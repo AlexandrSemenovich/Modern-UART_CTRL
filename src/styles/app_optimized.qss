@@ -396,9 +396,9 @@ QWidget#console_toolbar_container[themeClass="light"] QToolButton:pressed {
 
 /* Console tabs wrapper frame draws the unified outline */
 QFrame#console_tab_frame {
-    border: 2px solid #ef4444;
+    border: none;
     border-radius: 16px;
-    background: palette(base);
+    background: palette(window);
     margin: 4px 4px 4px 4px;
     padding: 4px;
 }
@@ -412,7 +412,7 @@ QTabWidget#console_tabs {
 }
 
 QTabWidget#console_tabs::pane {
-    border: none;
+    border-top: 1px solid transparent;
     margin: 0;
     padding: 0;
     background: transparent;
@@ -423,7 +423,7 @@ QWidget#console_tabs QWidget#qt_tabwidget_stackedwidget {
     border: none;
     margin: 0;
     padding: 16px;
-    background: palette(base);
+    background: transparent;
 }
 
 QTabWidget#console_tabs::tab-bar {
@@ -440,46 +440,32 @@ QTabWidget#console_tabs QTabBar {
 }
 
 /* Console tab bar */
-QTabWidget#console_tabs[themeClass="dark"] QTabBar::tab {
+QTabWidget#console_tabs QTabBar::tab {
+    border: none;
+    border-radius: 0;
+    margin: 0 12px 0 0;
+    padding: 6px 20px 10px 20px;
+    font-weight: 400;
     background: transparent;
-    color: #9ca3af;
-    padding: 6px 14px;
-    margin-right: 4px;
-    border: 2px solid transparent;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
 }
 
-QTabWidget#console_tabs[themeClass="dark"] QTabBar::tab:selected {
-    background: palette(base);
-    color: #e5e7eb;
-    border: 2px solid #ef4444;
-    border-bottom-color: #ef4444;
-    margin-bottom: -2px;
+QTabWidget#console_tabs[themeClass="dark"] QTabBar::tab {
+    color: #94a3b8;
+}
+
+QTabWidget#console_tabs[themeClass="light"] QTabBar::tab {
+    color: #475569;
+}
+
+QTabWidget#console_tabs QTabBar::tab:selected {
+    font-weight: 600;
+    color: palette(window-text);
 }
 
 QWidget.console-tab-page[themeClass="dark"],
 QWidget.console-tab-page[themeClass="light"] {
     margin: 0;
     padding: 0;
-}
-
-QTabWidget#console_tabs[themeClass="light"] QTabBar::tab {
-    background: transparent;
-    color: #4b5563;
-    padding: 6px 14px;
-    margin-right: 4px;
-    border: 2px solid transparent;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-QTabWidget#console_tabs[themeClass="light"] QTabBar::tab:selected {
-    background: palette(base);
-    color: #0f172a;
-    border: 2px solid #ef4444;
-    border-bottom-color: #ef4444;
-    margin-bottom: -2px;
 }
 
 
@@ -561,7 +547,7 @@ QFrame#toast_frame[toastType="warning"] {
 }
 
 QFrame#toast_frame[toastType="error"] {
-    background-color: #ef4444;
+    background-color: #dc2626;
     color: #ffffff;
 }
 

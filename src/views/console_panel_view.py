@@ -15,7 +15,6 @@ from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
 from src.utils.icon_cache import get_icon, IconCache
 
-
 class LogWidget:
     """Container for log widget and its label."""
     __slots__ = ('label', 'text_edit')
@@ -84,6 +83,85 @@ class DropableTextEdit(QtWidgets.QTextEdit):
             event.accept()
             return
         super().keyPressEvent(event)
+
+
+class ContourTabWidget(QtWidgets.QTabWidget):
+    """QTabWidget с эффектом единого контура вокруг активной вкладки."""
+
+    _CONTOUR_COLORS = {
+        "dark": QtGui.QColor("#22c55e"),
+        "light": QtGui.QColor("#16a34a"),
+    }
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._theme_class: str = "dark"
+        self._outline_width: int = 2
+        self._inner_offset: int = 4
+        self._top_offset: int = 0
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, False)
+
+    def set_theme_class(self, theme_class: str) -> None:
+        if theme_class not in {"dark", "light"}:
+            return
+        if self._theme_class == theme_class:
+            return
+        self._theme_class = theme_class
+        self.update()
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # type: ignore[override]
+        super().paintEvent(event)
+
+        if self.count() == 0:
+            return
+
+        tab_bar = self.tabBar()
+        if tab_bar is None:
+            return
+
+        index = self.currentIndex()
+        if index < 0 or index >= tab_bar.count():
+            return
+
+        tab_rect = tab_bar.tabRect(index)
+        tab_rect.moveTopLeft(tab_bar.mapTo(self, tab_rect.topLeft()))
+
+        inner_rect = self.rect().adjusted(
+            self._inner_offset,
+            self._top_offset,
+            -self._inner_offset,
+            -self._inner_offset,
+        )
+
+        baseline = max(tab_rect.bottom(), inner_rect.top())
+        baseline = min(baseline, inner_rect.bottom())
+
+        tab_left = max(tab_rect.left(), inner_rect.left())
+        tab_right = min(tab_rect.right(), inner_rect.right())
+        tab_top = max(tab_rect.top() + self._outline_width, inner_rect.top())
+
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+
+        color = self._CONTOUR_COLORS.get(self._theme_class, QtGui.QColor("#22c55e"))
+        pen = QtGui.QPen(color, self._outline_width)
+        pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+
+        path = QtGui.QPainterPath()
+        path.moveTo(inner_rect.left(), baseline)
+        path.lineTo(inner_rect.left(), inner_rect.bottom())
+        path.lineTo(inner_rect.right(), inner_rect.bottom())
+        path.lineTo(inner_rect.right(), baseline)
+        path.lineTo(tab_right, baseline)
+        path.lineTo(tab_right, tab_top)
+        path.lineTo(tab_left, tab_top)
+        path.lineTo(tab_left, baseline)
+        path.lineTo(inner_rect.left(), baseline)
+
+        painter.drawPath(path)
 
 
 class ConsolePanelView(QtWidgets.QWidget):
@@ -196,11 +274,13 @@ class ConsolePanelView(QtWidgets.QWidget):
         layout.addWidget(self._toolbar_container)
         
         # Tab widget for different log views
-        self._tab_widget = QtWidgets.QTabWidget()
+        self._tab_widget = ContourTabWidget()
         self._tab_widget.setObjectName("console_tabs")
         self._tab_widget.setProperty("themeClass", theme_class)
+        self._tab_widget.set_theme_class(theme_class)
         self._tab_widget.setDocumentMode(True)
         self._tab_widget.setTabsClosable(False)
+        self._tab_widget.tabBar().setDrawBase(False)
         # Prevent text truncation in tabs
         self._tab_widget.setElideMode(QtCore.Qt.ElideNone)
         
@@ -352,7 +432,7 @@ class ConsolePanelView(QtWidgets.QWidget):
             "CPU2": "paper-plane",
             "TLM": "magnifying-glass",
         }
-        
+
         # Combined tab (CPU1 + CPU2)
         combined_widget = self._create_combined_widget()
         self._tab_widget.addTab(combined_widget, tr("combined", "1+2"))
@@ -1058,6 +1138,8 @@ class ConsolePanelView(QtWidgets.QWidget):
 
         if hasattr(self, '_tab_widget'):
             self._tab_widget.setProperty("themeClass", theme_class)
+            if isinstance(self._tab_widget, ContourTabWidget):
+                self._tab_widget.set_theme_class(theme_class)
             self._tab_widget.style().unpolish(self._tab_widget)
             self._tab_widget.style().polish(self._tab_widget)
             self._tab_widget.update()
