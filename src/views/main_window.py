@@ -1158,41 +1158,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         app = QtWidgets.QApplication.instance()
         if app:
-            # Get font sizes from config (with scale factor applied)
-            default_size = int(Fonts.get_default_size_pt() * scale_factor)
-            button_size = int(Fonts.get_button_size_pt() * scale_factor)
-            caption_size = int(Fonts.get_caption_size_pt() * scale_factor)
-            monospace_size = int(Fonts.get_monospace_size_pt() * scale_factor)
-            
-            # Set the application-wide scale factor with proper typography hierarchy
-            app.setStyleSheet(f"""
-                QWidget {{
-                    font-size: {default_size}pt;
-                }}
-                QPushButton {{
-                    font-size: {button_size}pt;
-                }}
-                QLabel {{
-                    font-size: {default_size}pt;
-                }}
-                QLineEdit {{
-                    font-size: {default_size}pt;
-                }}
-                QTextEdit {{
-                    font-size: {default_size}pt;
-                }}
-                QComboBox {{
-                    font-size: {default_size}pt;
-                }}
-                /* Console uses larger monospace font for readability */
-                QTextEdit[objectName^="console"] {{
-                    font-size: {monospace_size}pt;
-                }}
-                /* Status bar and captions use smaller font */
-                QStatusBar, QLabel[class~="caption"] {{
-                    font-size: {caption_size}pt;
-                }}
-            """)
+            app.setProperty("scaleFactor", scale_factor)
+            theme_manager.set_scale_factor(scale_factor)
     
     def _save_logs(self) -> None:
         """Save logs to file."""

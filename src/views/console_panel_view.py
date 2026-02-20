@@ -137,7 +137,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         
         # Display options
         self._show_time: bool = True
-        self._show_source: bool = True
+        self._show_source: bool = False
         
         # Search filter
         self._search_text: str = ""

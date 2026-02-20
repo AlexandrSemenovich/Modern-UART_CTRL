@@ -12,6 +12,7 @@ from PySide6.QtGui import QPalette, QColor
 
 from src.utils.config_loader import config_loader
 from src.utils.paths import get_stylesheet_path
+from src.styles.constants import Fonts
 
 
 class ThemeManager(QObject):
@@ -31,6 +32,7 @@ class ThemeManager(QObject):
         self._theme_applied = False      # flag for tracking theme application
         self._last_applied_theme = None  # last applied effective theme
         self._last_logical_theme = None  # last logical theme
+        self._scale_factor: float = 1.0
         self.load_theme()
 
     def load_theme(self):
@@ -124,13 +126,10 @@ class ThemeManager(QObject):
         effective = self._get_effective_theme()
         logical = self.current_theme
         
-        # Prevent double application of the same theme
-        # Check if the same effective theme has already been applied
-        # Ignore if logical theme changes (e.g., light->system)
-        if self._theme_applied and not force:
-            if self._last_applied_theme == effective and logical == self._last_logical_theme:
-                # Same theme already applied, don't apply again
-                return
+        # Always apply stylesheet on theme change - this ensures proper style application
+        # even when switching between same themes
+        # Invalidate stylesheet cache to ensure fresh load
+        self._stylesheet_cache = None
 
         # Apply theme only if it changed or forced
         if effective == "light":
@@ -149,6 +148,27 @@ class ThemeManager(QObject):
         self._theme_applied = True
         self._last_applied_theme = effective  # save last applied theme
         self._last_logical_theme = logical  # save last logical theme
+
+    def set_scale_factor(self, scale: float) -> bool:
+        """Update UI scale factor and re-apply stylesheets."""
+        try:
+            scale = float(scale)
+        except (TypeError, ValueError):
+            self._logger.warning("Invalid scale factor provided: %s", scale)
+            return False
+
+        if scale <= 0:
+            self._logger.warning("Scale factor must be positive, got %s", scale)
+            return False
+
+        if abs(self._scale_factor - scale) < 1e-3:
+            return False
+
+        self._scale_factor = scale
+        app = QApplication.instance()
+        if app:
+            self.apply_theme(force=True)
+        return True
 
     def _apply_light_theme(self, app: QApplication) -> None:
         """Apply light theme palette: white-blue clean shades."""
@@ -215,15 +235,20 @@ class ThemeManager(QObject):
             current_modified = 0.0
         
         # Invalidate cache if file changed or theme requires fresh load
+        # Also invalidate if cache is empty to ensure styles are always applied
         if (
             self._stylesheet_cache is None or
-            current_modified > self._last_modified
+            current_modified > self._last_modified or
+            not self._stylesheet_cache
         ):
             self._stylesheet_cache = self._load_stylesheet()
             self._last_modified = current_modified
 
         if self._stylesheet_cache:
             themed_stylesheet = self._format_stylesheet(self._stylesheet_cache)
+            scale_stylesheet = self._build_scale_stylesheet()
+            if scale_stylesheet:
+                themed_stylesheet = f"{themed_stylesheet}\n{scale_stylesheet}"
             app.setStyleSheet(themed_stylesheet)
 
     def _load_stylesheet(self) -> str:
@@ -264,6 +289,41 @@ class ThemeManager(QObject):
         for token, value in palette.items():
             themed = themed.replace(token, value)
         return themed
+
+    def _build_scale_stylesheet(self) -> str:
+        """Build stylesheet fragment with typography scaled by user factor."""
+        scale = self._scale_factor
+        default_size = max(1, int(Fonts.get_default_size_pt() * scale))
+        button_size = max(1, int(Fonts.get_button_size_pt() * scale))
+        caption_size = max(1, int(Fonts.get_caption_size_pt() * scale))
+        monospace_size = max(1, int(Fonts.get_monospace_size_pt() * scale))
+
+        return (
+            "QWidget {\n"
+            f"    font-size: {default_size}pt;\n"
+            "}\n"
+            "QPushButton {\n"
+            f"    font-size: {button_size}pt;\n"
+            "}\n"
+            "QLabel {\n"
+            f"    font-size: {default_size}pt;\n"
+            "}\n"
+            "QLineEdit {\n"
+            f"    font-size: {default_size}pt;\n"
+            "}\n"
+            "QTextEdit {\n"
+            f"    font-size: {default_size}pt;\n"
+            "}\n"
+            "QComboBox {\n"
+            f"    font-size: {default_size}pt;\n"
+            "}\n"
+            "QTextEdit[objectName^=\"console\"] {\n"
+            f"    font-size: {monospace_size}pt;\n"
+            "}\n"
+            "QStatusBar, QLabel[class~=\"caption\"] {\n"
+            f"    font-size: {caption_size}pt;\n"
+            "}\n"
+        )
 
     def is_dark_theme(self) -> bool:
         """Check if current effective theme is dark."""

@@ -1,353 +1,307 @@
 /* 
- * OPTIMIZED QSS - Palette-based theming (FIXED)
+ * UNIFIED BUTTON SYSTEM v2.0
  * 
- * Typography:
- * - All UI: 12pt
- * - Console: 10pt monospace
+ * Button Types:
+ * - btn-primary: Main actions (Connect, Send, Save)
+ * - btn-secondary: Secondary actions (Scan, Settings, Cancel)
+ * - btn-danger: Destructive actions (Delete, Clear, Disconnect)
+ * - btn-ghost: Minimal actions (toolbar, icons)
+ * - btn-icon: Icon-only buttons (navigation arrows)
+ * - btn-toggle: Toggle/checkbox behavior
+ * 
+ * Typography: 13pt for all buttons (unified)
+ * Height: 28px min-height (unified from 20px)
  */
 
-/* General */
-QWidget {
-    font-family: "Segoe UI", "Helvetica", Arial;
-    font-size: 12pt;
-    background: palette(window);
-    color: palette(window-text);
-}
+/* ==================== BASE BUTTON STYLES ==================== */
 
-/* Console log classes */
-.timestamp { color: gray; }
-.error { font-weight: bold; color: red; }
-
-/* Focus - only for input widgets, not buttons */
-QTextEdit:focus,
-QLineEdit:focus,
-QComboBox:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: 1px;
-}
-
-/* Buttons */
+/* Base QPushButton - all buttons inherit from this */
 QPushButton {
     border-radius: 4px;
-    padding: 2px 10px;
-    min-height: 20px;
-    max-height: 20px;
-    min-width: 84px;
+    padding: 0px 12px;
+    min-height: 26px;
+    min-width: 100px;
     font-weight: 500;
-    font-size: 11px;
+    font-size: 12px;
+    font-family: "Segoe UI", "Helvetica", Arial;
     qproperty-iconSize: 16px 16px;
     border: 1px solid palette(mid);
     background: palette(button);
     color: palette(button-text);
+    outline: none;
 }
 
-/* Main window styling */
-QMainWindow {
-    border-radius: 8px;
+/* Focus state for all buttons */
+QPushButton:focus {
+    outline: none;
+    border-color: palette(highlight);
 }
 
-/* All frames and containers - rounded corners for Windows 11 look */
-QWidget, QFrame, QGroupBox {
-    border-radius: 4px;
+/* Disabled state - all buttons */
+QPushButton:disabled {
+    background: transparent;
+    color: palette(mid);
+    border-color: palette(mid);
+    opacity: 0.6;
 }
 
-/* Unified Group boxes - title in border area */
-QGroupBox {
-    border-radius: 8px;
-    border: 1px solid palette(mid);
-    background: palette(base);
-    padding: 12px;
-    margin: 8px 0px;
-}
-
-QGroupBox::title {
-    subcontrol-origin: padding;
-    subcontrol-position: top left;
-    padding: 4px 8px;
-    margin-left: 4px;
-    color: palette(window-text);
-}
-
-/* Note: Qt QSS does not support CSS transitions like 'transition: all 150ms ease'.
-   Animations must be implemented using QPropertyAnimation or QGraphicsEffect in Python code. */
-
-/* Primary button */
+/* ==================== PRIMARY BUTTONS ==================== */
+/* Main actions - highest visibility */
+QPushButton[class~="btn-primary"],
 QPushButton[class~="primary"] {
     background: #3b82f6;
     color: white;
     border-color: #3b82f6;
+    font-weight: 600;
 }
-QPushButton[class~="primary"]:hover { background: #2563eb; }
-QPushButton[class~="primary"]:pressed { background: #1e40af; }
+QPushButton[class~="btn-primary"]:hover,
+QPushButton[class~="primary"]:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+QPushButton[class~="btn-primary"]:pressed,
+QPushButton[class~="primary"]:pressed {
+    background: #1e40af;
+    border-color: #1e40af;
+}
+QPushButton[class~="btn-primary"]:disabled,
+QPushButton[class~="primary"]:disabled {
+    background: #94a3b8;
+    border-color: #94a3b8;
+    color: #e2e8f0;
+}
 
-/* Secondary button */
+/* ==================== SECONDARY BUTTONS ==================== */
+/* Secondary actions - moderate visibility */
+QPushButton[class~="btn-secondary"],
 QPushButton[class~="secondary"] {
-    background: transparent;
+    background: palette(base);
     color: palette(window-text);
     border-color: palette(mid);
 }
-QPushButton[class~="secondary"]:hover { background: palette(light); }
+QPushButton[class~="btn-secondary"]:hover,
+QPushButton[class~="secondary"]:hover {
+    background: palette(base);
+    border-color: palette(highlight);
+}
+QPushButton[class~="btn-secondary"]:pressed,
+QPushButton[class~="secondary"]:pressed {
+    background: palette(mid);
+    border-color: palette(highlight);
+}
+QPushButton[class~="btn-secondary"]:disabled,
+QPushButton[class~="secondary"]:disabled {
+    background: transparent;
+    color: palette(mid);
+    border-color: palette(mid);
+}
 
-/* Danger button */
+/* ==================== DANGER BUTTONS ==================== */
+/* Destructive actions - warning visibility */
+QPushButton[class~="btn-danger"],
 QPushButton[class~="danger"] {
-    background: #b91c1c;
+    background: #dc2626;
     color: white;
+    border-color: #dc2626;
+    font-weight: 600;
+}
+QPushButton[class~="btn-danger"]:hover,
+QPushButton[class~="danger"]:hover {
+    background: #b91c1c;
     border-color: #b91c1c;
 }
-QPushButton[class~="danger"]:hover { background: #dc2626; }
+QPushButton[class~="btn-danger"]:pressed,
+QPushButton[class~="danger"]:pressed {
+    background: #991b1b;
+    border-color: #991b1b;
+}
+QPushButton[class~="btn-danger"]:disabled,
+QPushButton[class~="danger"]:disabled {
+    background: #fca5a5;
+    border-color: #fca5a5;
+    color: #fef2f2;
+}
 
-/* Ghost button */
-QPushButton[class~="ghost"]:hover { background: rgba(148, 163, 184, 0.12); }
+/* ==================== GHOST BUTTONS ==================== */
+/* Minimal actions - lowest visibility */
+QPushButton[class~="btn-ghost"],
+QPushButton[class~="ghost"] {
+    background: transparent;
+    color: palette(window-text);
+    border: none;
+    min-width: 64px;
+    padding: 4px 12px;
+    min-height: 24px;
+}
+QPushButton[class~="btn-ghost"]:hover,
+QPushButton[class~="ghost"]:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border: none;
+}
+QPushButton[class~="btn-ghost"]:pressed,
+QPushButton[class~="ghost"]:pressed {
+    background: rgba(59, 130, 246, 0.16);
+}
 
-/* Command buttons with semanticRole - use palette for base, accent colors hardcoded */
-QPushButton[semanticRole="command_combo"][dataActive="true"],
+/* ==================== ICON BUTTONS ==================== */
+/* Icon-only buttons - for toolbars */
+QPushButton[class~="btn-icon"] {
+    background: transparent;
+    border: none;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 4px;
+    border-radius: 4px;
+}
+QPushButton[class~="btn-icon"]:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border: none;
+}
+QPushButton[class~="btn-icon"]:pressed {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+/* ==================== TOGGLE BUTTONS ==================== */
+/* Toggle/checkbox behavior buttons */
+QPushButton[class~="btn-toggle"] {
+    background: palette(base);
+    color: palette(window-text);
+    border: 1px solid palette(mid);
+    padding: 4px 12px;
+    min-height: 24px;
+}
+QPushButton[class~="btn-toggle"]:checked {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+QPushButton[class~="btn-toggle"]:hover {
+    border-color: #3b82f6;
+}
+QPushButton[class~="btn-toggle"]:disabled {
+    background: transparent;
+    color: palette(mid);
+    border-color: palette(mid);
+}
+
+/* ==================== COMMAND BUTTONS (SPECIAL) ==================== */
+/* Semantic roles for command buttons - mapped to unified system */
+
+/* Combo button (1+2) - send to both CPU1 and CPU2 */
+QPushButton[semanticRole="command_combo"] {
+    background: #3b82f6;
+    color: white;
+    border: 2px solid #3b82f6;
+    font-weight: 700;
+    font-size: 12px;
+    min-width: 130px;
+    padding: 0px 12px;
+    min-height: 26px;
+}
+QPushButton[semanticRole="command_combo"]:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+QPushButton[semanticRole="command_combo"]:pressed {
+    background: #1e40af;
+    border-color: #1e40af;
+}
+QPushButton[semanticRole="command_combo"][dataActive="true"] {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+QPushButton[semanticRole="command_combo"][dataState="connecting"] {
+    background: #64748b;
+    border-color: #64748b;
+    color: #e2e8f0;
+}
+
+/* Regular command buttons (CPU1, CPU2, TLM) */
+QPushButton[semanticRole="command_cpu1"],
+QPushButton[semanticRole="command_cpu2"],
+QPushButton[semanticRole="command_tlm"] {
+    background: palette(base);
+    color: palette(window-text);
+    border: 1px solid palette(mid);
+    font-weight: 500;
+    font-size: 12px;
+    min-width: 108px;
+    padding: 0px 12px;
+    min-height: 26px;
+}
+QPushButton[semanticRole="command_cpu1"]:hover,
+QPushButton[semanticRole="command_cpu2"]:hover,
+QPushButton[semanticRole="command_tlm"]:hover {
+    background: palette(light);
+    border-color: #3b82f6;
+}
+QPushButton[semanticRole="command_cpu1"]:pressed,
+QPushButton[semanticRole="command_cpu2"]:pressed,
+QPushButton[semanticRole="command_tlm"]:pressed {
+    background: palette(mid);
+}
 QPushButton[semanticRole="command_cpu1"][dataActive="true"],
 QPushButton[semanticRole="command_cpu2"][dataActive="true"],
 QPushButton[semanticRole="command_tlm"][dataActive="true"] {
     background: #3b82f6;
     color: white;
+    border-color: #3b82f6;
 }
-QPushButton[semanticRole="command_combo"][dataState="connecting"],
 QPushButton[semanticRole="command_cpu1"][dataState="connecting"],
 QPushButton[semanticRole="command_cpu2"][dataState="connecting"],
 QPushButton[semanticRole="command_tlm"][dataState="connecting"] {
-    background: #0f172a;
-    color: #9ca3af;
+    background: #64748b;
+    color: #e2e8f0;
+    border-color: #64748b;
 }
 
-/* Combo button (1+2) - primary action, accent via border/outline only */
-QPushButton[semanticRole="command_combo"] {
-    font-weight: bold;
-    font-size: 13px;
-    min-width: 90px;
-    max-width: 130px;
-    border: 2px solid #3b82f6;
-    border-radius: 4px;
-    background: transparent;
-    color: #3b82f6;
-    padding: 6px 12px;
-}
-
-QPushButton[semanticRole="command_combo"]:hover {
-    background: #3b82f6;
-    color: white;
-}
-
-QPushButton[semanticRole="command_combo"]:pressed {
-    background: #2563eb;
-    border-color: #2563eb;
-    color: white;
-}
-
-/* Regular command buttons - equal sizing, subtle styling */
-QPushButton[semanticRole="command_cpu1"],
-QPushButton[semanticRole="command_cpu2"],
-QPushButton[semanticRole="command_tlm"] {
-    font-weight: normal;
-    font-size: 13px;
-    min-width: 80px;
-    max-width: 120px;
-    border-radius: 4px;
-    padding: 6px 12px;
-}
-
-/* Tab icons styling */
-QTabBar::tab::icon {
-    width: 60px;
-    height: 16px;
-    margin-right: 2px;
-}
-
-QTabBar::tab {
-    text-align: left;
-    padding-left: 8px;
-    padding-right: 8px;
-}
-
-/* LineEdit */
-QLineEdit {
-    border: 1px solid palette(mid);
-    border-radius: 4px;
-    padding: 4px 8px;
-    background: palette(base);
-    color: palette(text);
-}
-QLineEdit:focus { border-color: #3b82f6; background: palette(window); outline: none; }
-
-/* ComboBox */
-QComboBox {
-    border: 1px solid palette(mid);
-    border-radius: 4px;
-    padding: 4px 8px;
-    background: palette(base);
-    color: palette(text);
-}
-QComboBox:hover { border-color: #3b82f6; }
-QComboBox:focus { border-color: #3b82f6; background: palette(window); }
-QComboBox::drop-down { border: none; width: 20px; }
-QComboBox::down-arrow { border-top-color: palette(mid-text); }
-QComboBox QAbstractItemView {
-    background: palette(window);
-    border: 1px solid palette(mid);
-}
-QComboBox QAbstractItemView::item {
-    padding: 8px 12px;
-    color: palette(window-text);
-}
-QComboBox QAbstractItemView::item:hover {
-    background: palette(highlight);
-    color: palette(highlighted-text);
-}
-QComboBox QAbstractItemView::item:selected {
-    background: palette(highlight);
-    color: palette(highlighted-text);
-}
-
-/* Tabs */
-QTabWidget#console_tabs { background: palette(window); }
-QTabWidget::pane {
-    border: 1px solid palette(mid);
-    background: palette(window);
-}
-QTabBar::tab {
-    border: 1px solid palette(mid);
-    border-bottom: none;
-    padding: 6px 12px;
-    background: palette(window);
-    color: palette(window-text);
-}
-QTabBar::tab:hover { background: palette(light); }
-QTabBar::tab:selected { background: palette(base); border-bottom: 2px solid #3b82f6; }
-
-/* TextEdit */
-QTextEdit {
-    border: 1px solid palette(mid);
-    border-radius: 4px;
-    background: palette(base);
-    color: palette(text);
-}
-
-/* Labels */
-QLabel {
-    background: transparent;
-    color: palette(window-text);
-}
-
-/* CheckBox */
-QCheckBox {
-    color: palette(window-text);
-    spacing: 8px;
-}
-QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
-    border: 1px solid palette(mid);
-    border-radius: 3px;
-    background: palette(window);
-}
-QCheckBox::indicator:checked { background: #3b82f6; border-color: #3b82f6; }
-
-/* Frames */
-QFrame { background: transparent; }
-
-/* MessageBox */
-QMessageBox { background: palette(window); }
-QMessageBox QLabel { color: palette(window-text); }
-
-/* Tables */
-QTableView {
-    background: transparent;
-    alternate-background-color: palette(base);
-    color: palette(text);
-}
-QHeaderView::section {
-    background: palette(window);
-    color: palette(window-text);
-    padding: 4px;
-    border: 1px solid palette(mid);
-}
-
-/* Toolbar */
-QWidget#console_toolbar_container QToolBar {
-    background: transparent;
-    border: none;
-}
+/* ==================== QTOOLBUTTON STYLES ==================== */
 QToolButton {
     background: transparent;
     border: none;
     padding: 4px;
-}
-QToolButton:hover { background: palette(light); }
-
-/* Search results label in toolbar */
-#console_toolbar_container QLabel {
-    padding: 0 4px;
     border-radius: 4px;
-    font-size: 10pt;
+    min-width: 24px;
+    min-height: 24px;
+}
+QToolButton:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+QToolButton:pressed {
+    background: rgba(59, 130, 246, 0.2);
+}
+QToolButton:disabled {
+    opacity: 0.5;
 }
 
-/* Splitter */
-QSplitter::handle {
-    background: palette(mid);
-    width: 4px;  /* Increased from default 2px for better visibility */
-    height: 4px;
+/* ToolButton with icon */
+QToolButton[popupMode="0"] {  /* Instant popup */
+    background: transparent;
 }
-QSplitter::handle:hover { background: #3b82f6; }
-QSplitter::handle:pressed { background: #2563eb; }
+QToolButton[popupMode="1"] {  /* Menu follows */
+    background: transparent;
+}
+QToolButton[popupMode="2"] {  /* Menu on button */
+    background: transparent;
+}
 
-/* Panels */
-QWidget#left_panel, QWidget#right_panel { 
+/* Arrow buttons in toolbars */
+QToolButton::left-arrow,
+QToolButton::right-arrow,
+QToolButton::up-arrow,
+QToolButton::down-arrow {
+    width: 12px;
+    height: 12px;
+}
+
+/* ==================== SPLASH SCREEN ==================== */
+QLabel#SplashCard { 
     background: palette(window); 
-    margin: 0;
-    padding: 0;
+    border-radius: 12px;
+    border: 1px solid palette(mid);
 }
-QWidget#console_panel { 
-    background: palette(base);
-    margin: 0;
-    padding: 0;
-}
-
-/* Scroll Area */
-QScrollArea {
-    background: palette(window);
-    border: none;
-    margin: 0;
-    padding: 0;
-}
-
-/* Right panel scroll area - ensure 8px right margin */
-QScrollArea#right_panel_scroll {
-    margin-right: 8px;
-}
-
-/* Scrollbars */
-QScrollBar:vertical {
-    background: transparent;
-    width: 8px;
-    margin: 0;
-}
-QScrollBar::handle:vertical {
-    background: rgba(55, 65, 81, 0.4);
-    border-radius: 4px;
-    min-height: 30px;
-}
-QScrollBar:horizontal {
-    background: transparent;
-    height: 8px;
-    margin: 0;
-}
-QScrollBar::handle:horizontal {
-    background: rgba(55, 65, 81, 0.4);
-    border-radius: 4px;
-    min-width: 30px;
-}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { height: 0px; }
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
-
-/* Splash Screen */
-QLabel#SplashCard { background: palette(window); border-radius: 8px; }
 QLabel#SplashIcon, QLabel#SplashTitle { color: palette(window-text); }
 QLabel#SplashSubtitle { color: palette(mid-text); }
 QLabel#SplashStatus { background: transparent; }
@@ -357,52 +311,22 @@ QProgressBar#SplashProgress {
     border-radius: 4px;
 }
 QProgressBar#SplashProgress::chunk { background: #3b82f6; }
-
-/* Menu Bar */
-QMenuBar {
-    background: palette(window);
-    color: palette(window-text);
-}
-QMenuBar::item {
-    background: transparent;
-    padding: 4px 8px;
-}
-QMenuBar::item:selected { background: palette(highlight); color: palette(highlighted-text); }
-QMenuBar::item:pressed { background: palette(dark); }
-QMenuBar::item:disabled { color: palette(mid); }
-
-/* Menus */
-QMenu {
-    background: palette(window);
-    color: palette(window-text);
+/* Checkbox styling */
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
     border: 1px solid palette(mid);
-}
-QMenu::item { padding: 6px 24px 6px 12px; }
-QMenu::item:selected { background: palette(highlight); color: palette(highlighted-text); }
-QMenu::item:checked { color: #3b82f6; }
-QMenu::item:disabled { color: palette(mid); }
-QMenu::separator {
-    height: 1px;
-    background: palette(mid);
-    margin: 4px 0;
-}
-QMenu::indicator { width: 12px; height: 12px; margin-left: 4px; }
-QMenu::indicator:checked { background: #3b82f6; }
-
-/* Status Bar */
-QStatusBar {
-    background: palette(window);
-    color: palette(window-text);
-}
-QStatusBar::item { border: none; }
-
-/* Form Layout */
-QFormLayout QLabel {
     background: transparent;
-    color: palette(window-text);
 }
 
-/* Additional */
-QGroupBox { font-weight: 500; }
-QLineEdit, QComboBox { border-width: 1px; }
-QPushButton:disabled { background: transparent; color: palette(mid); }
+QCheckBox::indicator:checked {
+    background: #2563eb;
+    border-color: #2563eb;
+    image: none;
+}
+
+QCheckBox::indicator:unchecked {
+    background: transparent;
+    image: none;
+}

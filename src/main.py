@@ -5,6 +5,11 @@ import logging
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Enable High DPI scaling before creating QApplication
+# This ensures proper scaling on Windows when DPI changes
+os.environ.setdefault('QT_ENABLE_HIGHDPI_SCALING', '1')
+os.environ.setdefault('QT_SCALE_FACTOR_ROUNDING_POLICY', 'RoundPreferFloor')
+
 # Configure logging with enhanced logger module
 from src.utils.logger import setup_logging, get_logger
 
@@ -34,6 +39,25 @@ def main():
     
     # Set application style
     app.setStyle('Fusion')
+    
+    # Track previous DPI for change detection
+    _previous_dpi = None
+    
+    def handle_screen_change():
+        """Handle screen/DPI changes by reapplying theme."""
+        global _previous_dpi
+        screen = app.primaryScreen()
+        if screen:
+            current_dpi = screen.logicalDotsPerInch()
+            if _previous_dpi is not None and current_dpi != _previous_dpi:
+                # DPI changed - reapply theme
+                logger.info(f"DPI changed from {_previous_dpi} to {current_dpi}, reapplying theme")
+                theme_manager.apply_theme(force=True)
+            _previous_dpi = current_dpi
+    
+    # Connect screen change handler
+    app.screenAdded.connect(handle_screen_change)
+    app.screenRemoved.connect(handle_screen_change)
     
     # Make sure theme is loaded and applied BEFORE splash creation
     # This is important for correct system theme detection
