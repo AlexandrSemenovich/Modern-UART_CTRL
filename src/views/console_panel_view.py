@@ -146,17 +146,19 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._pending_updates: dict[str, list[tuple]] = {}
         self._update_timer: QTimer | None = None
         self._update_interval_ms: int = 50  # Batch updates every 50ms
-        
+
         # Search debounce timer (300ms)
         self._search_timer: QTimer | None = None
         self._search_debounce_ms: int = 300
-        
+
         # Search highlighting state
         self._search_results: list[tuple] = []  # (port_label, line_idx, block_pos, match_offset, match_length, matched_text)
         self._current_result_index: int = -1
         self._current_highlight_color: str = ""  # Track current theme for highlight updates
-        
+
         self._themed_buttons: list[QtWidgets.QPushButton] = []
+        self._log_text_edits: list[QtWidgets.QTextEdit] = []
+        self._console_pages: list[QtWidgets.QWidget] = []
         self._setup_ui()
         translator.language_changed.connect(self.retranslate_ui)
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -175,7 +177,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         # Toolbar in separate container for styling
         self._toolbar_container = QtWidgets.QWidget()
         self._toolbar_container.setObjectName("console_toolbar_container")
-        self._toolbar_container.setMinimumHeight(50)  # Minimum height for correct centering
+        self._toolbar_container.setMinimumHeight(50)
         self._toolbar_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         
         # Set themeClass based on effective theme for consistent style application
@@ -184,8 +186,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._toolbar_container.setProperty("themeClass", theme_class)
         
         toolbar_layout = QtWidgets.QVBoxLayout(self._toolbar_container)
-        toolbar_layout.setContentsMargins(10, 0, 10, 8)
-        toolbar_layout.setSpacing(8)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        toolbar_layout.setSpacing(Sizes.TOOLBAR_SPACING)
 
         search_row, controls_row = self._create_toolbar()
         toolbar_layout.addLayout(search_row)
@@ -196,15 +198,26 @@ class ConsolePanelView(QtWidgets.QWidget):
         # Tab widget for different log views
         self._tab_widget = QtWidgets.QTabWidget()
         self._tab_widget.setObjectName("console_tabs")
+        self._tab_widget.setProperty("themeClass", theme_class)
         self._tab_widget.setDocumentMode(True)
         self._tab_widget.setTabsClosable(False)
         # Prevent text truncation in tabs
         self._tab_widget.setElideMode(QtCore.Qt.ElideNone)
         
+        # Wrap tab widget in frame to draw unified border
+        self._tab_frame = QtWidgets.QFrame()
+        self._tab_frame.setObjectName("console_tab_frame")
+        tab_frame_layout = QtWidgets.QVBoxLayout(self._tab_frame)
+        tab_frame_layout.setContentsMargins(0, 0, 0, 0)
+        tab_frame_layout.setSpacing(0)
+        tab_frame_layout.addWidget(self._tab_widget)
+        
         # Create tabs for each port
         self._create_log_tabs()
+        self._tab_widget.currentChanged.connect(self._on_tab_changed)
+        self._update_tab_page_states()
         
-        layout.addWidget(self._tab_widget, 1)
+        layout.addWidget(self._tab_frame, 1)
         
         self.setLayout(layout)
 
@@ -232,7 +245,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_edit.textChanged.connect(self._on_search_changed)
         self._search_edit.setVisible(False)
         search_row.addWidget(self._search_edit, 1, Qt.AlignVCenter)
-        
+        search_row.addStretch(1)
+
         # Regex checkbox
         self._chk_regex = QtWidgets.QCheckBox(tr("regex", "Regex"))
         self._chk_regex.setFixedHeight(control_height)
@@ -256,7 +270,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         search_meta_layout.addWidget(self._search_results_label)
 
         self._btn_prev_result = QtWidgets.QToolButton()
-        self._btn_prev_result.setArrowType(Qt.LeftArrow)
+        self._btn_prev_result.setText("<")
         self._btn_prev_result.setObjectName("console_prev_match")
         self._btn_prev_result.setFixedSize(control_height, control_height)
         self._btn_prev_result.setAccessibleName(tr("prev_match", "Previous match"))
@@ -266,7 +280,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         search_meta_layout.addWidget(self._btn_prev_result)
 
         self._btn_next_result = QtWidgets.QToolButton()
-        self._btn_next_result.setArrowType(Qt.RightArrow)
+        self._btn_next_result.setText(">")
         self._btn_next_result.setObjectName("console_next_match")
         self._btn_next_result.setFixedSize(control_height, control_height)
         self._btn_next_result.setAccessibleName(tr("next_match", "Next match"))
@@ -304,7 +318,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._chk_source.stateChanged.connect(self._on_display_option_changed)
         controls_row.addWidget(self._chk_source, 0, Qt.AlignVCenter)
 
-        controls_row.addStretch()
+        controls_row.addSpacerItem(QtWidgets.QSpacerItem(32, 0, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum))
+        controls_row.addStretch(1)
 
         self._btn_clear = QtWidgets.QPushButton(" " + tr("clear", "Clear"))
         self._btn_clear.setIcon(get_icon("trash"))
@@ -354,6 +369,7 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _create_combined_widget(self) -> QtWidgets.QWidget:
         """Create combined view with CPU1 and CPU2 side by side."""
         widget = QtWidgets.QWidget()
+        widget.setProperty("class", "console-tab-page")
         layout = QtWidgets.QHBoxLayout(widget)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -361,9 +377,6 @@ class ConsolePanelView(QtWidgets.QWidget):
         # CPU1 column
         cpu1_layout = QtWidgets.QVBoxLayout()
         cpu1_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
-        
-        cpu1_label = QtWidgets.QLabel(tr("send_to_cpu1", "CPU1"))
-        cpu1_layout.addWidget(cpu1_label, 0)
         
         cpu1_log = self._create_log_edit()
         self._combined_log_widgets['CPU1'] = cpu1_log
@@ -375,27 +388,22 @@ class ConsolePanelView(QtWidgets.QWidget):
         cpu2_layout = QtWidgets.QVBoxLayout()
         cpu2_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
         
-        cpu2_label = QtWidgets.QLabel(tr("send_to_cpu2", "CPU2"))
-        cpu2_layout.addWidget(cpu2_label, 0)
-        
         cpu2_log = self._create_log_edit()
         self._combined_log_widgets['CPU2'] = cpu2_log
         cpu2_layout.addWidget(cpu2_log, 1)
         
         layout.addLayout(cpu2_layout, 1)
         
+        self._register_console_page(widget)
         return widget
     
     def _create_single_log_widget(self, port_label: str) -> QtWidgets.QWidget:
         """Create a single log widget for one port."""
         widget = QtWidgets.QWidget()
+        widget.setProperty("class", "console-tab-page")
         layout = QtWidgets.QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
-        
-        # Header
-        header = self._create_tab_header(port_label)
-        layout.addWidget(header)
         
         # Log text edit
         log_edit = self._create_log_edit()
@@ -403,13 +411,14 @@ class ConsolePanelView(QtWidgets.QWidget):
         
         # Store reference
         log_widget = LogWidget()
-        log_widget.label = header
+        log_widget.label = None
         log_widget.text_edit = log_edit
         self._log_widgets[port_label] = log_widget
         
         # Initialize cache for this port
         self._log_cache[port_label] = []
         
+        self._register_console_page(widget)
         return widget
     
     def _create_log_edit(self) -> QtWidgets.QTextEdit:
@@ -421,11 +430,12 @@ class ConsolePanelView(QtWidgets.QWidget):
         edit.setUndoRedoEnabled(False)
         # Set maximum line count as safety net
         edit.document().setMaximumBlockCount(ConsoleLimits.MAX_DOCUMENT_LINES)
-        
+
         # Enable context menu
         edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         edit.customContextMenuRequested.connect(lambda pos: self._show_context_menu(edit, pos))
-        
+
+        self._register_log_edit(edit)
         return edit
     
     def _show_context_menu(self, text_edit: QtWidgets.QTextEdit, pos: QtCore.QPoint) -> None:
@@ -436,7 +446,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         menu.addSeparator()
         
         # Copy all visible text
-        copy_all_action = QtWidgets.QAction(tr("copy_all", "Copy All"), menu)
+        copy_all_action = QtGui.QAction(tr("copy_all", "Copy All"), menu)
         copy_all_action.triggered.connect(lambda: self._copy_all_text(text_edit))
         menu.addAction(copy_all_action)
         
@@ -444,7 +454,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         cursor = text_edit.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()
-            filter_action = QtWidgets.QAction(f"{tr('filter', 'Filter')}: {selected_text[:20]}...", menu)
+            filter_action = QtGui.QAction(f"{tr('filter', 'Filter')}: {selected_text[:20]}...", menu)
             filter_action.triggered.connect(lambda: self._filter_by_text(selected_text))
             menu.addAction(filter_action)
         
@@ -462,6 +472,7 @@ class ConsolePanelView(QtWidgets.QWidget):
     def _create_tab_header(self, port_label: str) -> QtWidgets.QLabel:
         """Create header label for a log tab."""
         label = QtWidgets.QLabel(port_label)
+        label.setProperty("class", "console-section-label")
         return label
     
     def _truncate_html(self, html_content: str) -> str:
@@ -1027,28 +1038,57 @@ class ConsolePanelView(QtWidgets.QWidget):
         # Process events to ensure icons are updated
         from PySide6.QtWidgets import QApplication
         QApplication.processEvents()
-        
+
+        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+
         # Apply theme to toolbar container and all its child widgets
         if hasattr(self, '_toolbar_container'):
             # Update themeClass on container
-            theme_class = "light" if theme_manager.is_light_theme() else "dark"
             self._toolbar_container.setProperty("themeClass", theme_class)
-            
+
             # Apply theme to all child widgets in toolbar for consistency
             toolbar_widgets = self._toolbar_container.findChildren(QtWidgets.QWidget)
             for widget in toolbar_widgets:
                 widget.setProperty("themeClass", theme_class)
-            
+
             # Use polish for smooth style update without full redraw
             self._toolbar_container.style().unpolish(self._toolbar_container)
             self._toolbar_container.style().polish(self._toolbar_container)
             self._toolbar_container.update()
+
+        if hasattr(self, '_tab_widget'):
+            self._tab_widget.setProperty("themeClass", theme_class)
+            self._tab_widget.style().unpolish(self._tab_widget)
+            self._tab_widget.style().polish(self._tab_widget)
+            self._tab_widget.update()
+
+        for edit in getattr(self, '_log_text_edits', []):
+            self._apply_theme_to_log_edit(edit)
+
+        for page in getattr(self, '_console_pages', []):
+            self._apply_theme_to_console_page(page)
 
     def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
         """Apply theme class to a single button for consistent styling."""
         is_light = theme_manager.is_light_theme()
         class_name = "light" if is_light else "dark"
         button.setProperty("class", class_name)
+
+    def _apply_theme_to_log_edit(self, edit: QtWidgets.QTextEdit) -> None:
+        """Set theme-dependent properties on console log editors."""
+        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+        edit.setProperty("themeClass", theme_class)
+        self._refresh_widget_style(edit)
+
+    def _apply_theme_to_console_page(self, widget: QtWidgets.QWidget) -> None:
+        theme_class = "light" if theme_manager.is_light_theme() else "dark"
+        widget.setProperty("themeClass", theme_class)
+        self._refresh_widget_style(widget)
+
+    def _refresh_widget_style(self, widget: QtWidgets.QWidget) -> None:
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        widget.update()
 
     def _update_icons_on_theme_change(self) -> None:
         """Update all button icons when theme changes."""
@@ -1235,3 +1275,44 @@ class ConsolePanelView(QtWidgets.QWidget):
                 button.setProperty("class", " ".join(sorted(classes)))
             else:
                 button.setProperty("class", class_name)
+        self._themed_buttons.append(button)
+        self._apply_theme_to_button(button)
+
+    def _register_log_edit(self, edit: QtWidgets.QTextEdit) -> None:
+        existing = edit.property("class")
+        if existing:
+            classes = set(str(existing).split())
+            classes.add("console-log")
+            edit.setProperty("class", " ".join(sorted(classes)))
+        else:
+            edit.setProperty("class", "console-log")
+
+        self._log_text_edits.append(edit)
+        self._apply_theme_to_log_edit(edit)
+
+    def _register_console_page(self, widget: QtWidgets.QWidget) -> None:
+        existing = widget.property("class")
+        if existing:
+            classes = set(str(existing).split())
+            classes.add("console-tab-page")
+            widget.setProperty("class", " ".join(sorted(classes)))
+        else:
+            widget.setProperty("class", "console-tab-page")
+
+        if widget not in self._console_pages:
+            self._console_pages.append(widget)
+        self._apply_theme_to_console_page(widget)
+        self._update_tab_page_states()
+
+    def _on_tab_changed(self, index: int) -> None:
+        self._update_tab_page_states()
+
+    def _update_tab_page_states(self) -> None:
+        if not hasattr(self, '_tab_widget'):
+            return
+        current_index = self._tab_widget.currentIndex()
+        current_widget = self._tab_widget.widget(current_index) if current_index >= 0 else None
+        for page in self._console_pages:
+            is_active = page is current_widget
+            page.setProperty("activeTab", "true" if is_active else "false")
+            self._refresh_widget_style(page)

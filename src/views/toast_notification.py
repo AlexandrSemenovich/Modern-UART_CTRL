@@ -60,15 +60,15 @@ class ToastNotification(QtWidgets.QFrame):
         
         # Main layout
         layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(10)
-        
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
         # Icon label
         self._icon_label = QtWidgets.QLabel()
         self._icon_label.setFixedSize(20, 20)
         self._icon_label.setAlignment(QtCore.Qt.AlignCenter)
         layout.addWidget(self._icon_label)
-        
+
         # Message label (compact - just the message)
         self._message_label = QtWidgets.QLabel(self._message)
         self._message_label.setObjectName("toast_message")
@@ -88,57 +88,14 @@ class ToastNotification(QtWidgets.QFrame):
         self._close_btn.clicked.connect(self._close)
         self._close_btn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         layout.addWidget(self._close_btn)
-        
+
     def _apply_style(self) -> None:
         """Apply styling based on toast type and theme."""
-        is_dark = False
-        if self.window():
-            try:
-                from src.utils.theme_manager import theme_manager
-                is_dark = theme_manager.is_dark_theme()
-            except Exception:
-                pass
-        
-        if self._toast_type == self.INFO:
-            bg_color = "#2563eb" if is_dark else "#3b82f6"
-            text_color = "#ffffff"
-        elif self._toast_type == self.SUCCESS:
-            bg_color = "#16a34a" if is_dark else "#22c55e"
-            text_color = "#ffffff"
-        elif self._toast_type == self.WARNING:
-            bg_color = "#d97706" if is_dark else "#f59e0b"
-            text_color = "#ffffff"
-        elif self._toast_type == self.ERROR:
-            bg_color = "#dc2626" if is_dark else "#ef4444"
-            text_color = "#ffffff"
-        else:
-            bg_color = "#6b7280"
-            text_color = "#ffffff"
-        
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {bg_color};
-                color: {text_color};
-                border-radius: 6px;
-            }}
-            #toast_message {{
-                color: {text_color};
-                font-size: 11px;
-                font-weight: normal;
-            }}
-            #toast_close {{
-                background: transparent;
-                border: none;
-                color: {text_color};
-                font-size: 16px;
-                font-weight: bold;
-                padding: 0px;
-            }}
-            #toast_close:hover {{
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 4px;
-            }}
-        """)
+        self.setProperty("toastType", self._toast_type)
+        self.setObjectName("toast_frame")
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
         
         # Set icon based on type
         icon_map = {

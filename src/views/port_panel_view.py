@@ -96,6 +96,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         # LED status indicator
         self._led_indicator = QtWidgets.QLabel()
         self._led_indicator.setFixedSize(12, 12)
+        self._led_indicator.setProperty("class", "led-indicator")
         self._led_indicator.setAccessibleName(tr("led_status_a11y", "Connection status indicator"))
         self._led_indicator.setAccessibleDescription(tr("led_status_desc_a11y", "Green = connected, yellow = connecting, gray = disconnected"))
         # Initial gray color (disconnected)
@@ -313,25 +314,21 @@ class PortPanelView(QtWidgets.QGroupBox):
         
         if normalized_state == PortConnectionState.CONNECTED:
             # Green for connected
-            color = "#22c55e"
+            state_name = "connected"
             self._stop_led_pulse_animation()
         elif normalized_state == PortConnectionState.CONNECTING:
             # Yellow/orange for connecting
-            color = "#f59e0b"
+            state_name = "connecting"
             self._start_led_pulse_animation()
         else:
             # Gray for disconnected
-            color = "#6b7280" if is_dark else "#9ca3af"
+            state_name = "disconnected"
             self._stop_led_pulse_animation()
-        
-        # Create circular indicator using stylesheet
-        self._led_indicator.setStyleSheet(f"""
-            QLabel {{
-                background-color: {color};
-                border-radius: 6px;
-                border: 1px solid {'#374151' if is_dark else '#d1d5db'};
-            }}
-        """)
+
+        self._led_indicator.setProperty("ledState", state_name)
+        self._led_indicator.style().unpolish(self._led_indicator)
+        self._led_indicator.style().polish(self._led_indicator)
+        self._led_indicator.update()
 
     def _update_connect_button_text(self, state: str | PortConnectionState) -> None:
         """Switch connect button label depending on state."""

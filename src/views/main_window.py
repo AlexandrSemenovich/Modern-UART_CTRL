@@ -617,13 +617,6 @@ class MainWindow(QtWidgets.QMainWindow):
             # Create a card-like container for each port
             port_card = QtWidgets.QFrame()
             port_card.setObjectName("counter_card")
-            port_card.setStyleSheet("""
-                QFrame#counter_card {
-                    background: palette(base);
-                    border-radius: 8px;
-                    padding: 8px 8px 8px 8px;
-                }
-            """)
             port_card_layout = QtWidgets.QVBoxLayout(port_card)
             port_card_layout.setSpacing(4)
             port_card_layout.setContentsMargins(
@@ -917,26 +910,25 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self._tx_animation_active = True
         
-        # Get theme-aware colors from constants
-        is_dark = theme_manager.is_dark_theme()
-        flash_style = FlashAnimation.get_button_flash_style(is_dark)
-        
-        # Store original styles (captured only once when animation starts)
-        original_styles = []
         for btn in buttons:
-            original_styles.append(btn.styleSheet())
-        
-        # Apply flash effect
-        for btn in buttons:
-            btn.setStyleSheet(flash_style)
+            if not btn:
+                continue
+            btn.setProperty("flashState", "active")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            btn.update()
         
         # Restore original style after duration from constants
         def restore_styles():
             self._tx_animation_active = False
-            for btn, original in zip(buttons, original_styles):
-                if btn:
-                    btn.setStyleSheet(original)
-        
+            for btn in buttons:
+                if not btn:
+                    continue
+                btn.setProperty("flashState", "")
+                btn.style().unpolish(btn)
+                btn.style().polish(btn)
+                btn.update()
+
         QTimer.singleShot(FlashAnimation.FLASH_DURATION_MS, restore_styles)
     
     def _animate_command_input_flash(self) -> None:
@@ -956,20 +948,19 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self._input_animation_active = True
         
-        # Store original style
-        original_style = self._le_command.styleSheet()
-        
-        # Get theme-aware colors from constants (matches button colors)
-        is_dark = theme_manager.is_dark_theme()
-        flash_style = FlashAnimation.get_input_flash_style(is_dark)
-        
-        self._le_command.setStyleSheet(flash_style)
+        self._le_command.setProperty("inputFlash", "active")
+        self._le_command.style().unpolish(self._le_command)
+        self._le_command.style().polish(self._le_command)
+        self._le_command.update()
         
         # Restore original style after duration from constants
         def restore_style():
             self._input_animation_active = False
             if self._le_command:
-                self._le_command.setStyleSheet(original_style)
+                self._le_command.setProperty("inputFlash", "")
+                self._le_command.style().unpolish(self._le_command)
+                self._le_command.style().polish(self._le_command)
+                self._le_command.update()
         
         QTimer.singleShot(FlashAnimation.FLASH_DURATION_MS, restore_style)
     
