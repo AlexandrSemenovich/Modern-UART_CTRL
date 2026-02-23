@@ -27,6 +27,7 @@ class ThemeColors:
     tx_label: str
     sys_text: str
     sys_label: str
+    console_contour: str
     
     def __repr__(self) -> str:
         return f"ThemeColors(timestamp={self.timestamp!r}, rx_text={self.rx_text!r}, ...)"
@@ -168,6 +169,7 @@ class ConfigLoader:
                 tx_label="#ffdd57",
                 sys_text="#cccccc",
                 sys_label="#bbbbbb",
+                console_contour="#3b82f6",
             ),
             "light": ThemeColors(
                 timestamp="#666666",
@@ -177,21 +179,22 @@ class ConfigLoader:
                 tx_label="#c78a00",
                 sys_text="#666666",
                 sys_label="#888888",
+                console_contour="#3b82f6",
             ),
         }
 
         self._default_button_colors = {
             "dark": ButtonColors(
-                command_combo_active="#2563eb",
+                command_combo_active="#3b82f6",
                 command_combo_connecting="#3b82f6",
                 command_combo_inactive="#1e3a5f",
-                command_cpu1_active="#2563eb",
+                command_cpu1_active="#3b82f6",
                 command_cpu1_connecting="#3b82f6",
                 command_cpu1_inactive="#1e3a5f",
-                command_cpu2_active="#2563eb",
+                command_cpu2_active="#3b82f6",
                 command_cpu2_connecting="#3b82f6",
                 command_cpu2_inactive="#1e3a5f",
-                command_tlm_active="#2563eb",
+                command_tlm_active="#3b82f6",
                 command_tlm_connecting="#3b82f6",
                 command_tlm_inactive="#1e3a5f",
                 command_text_active="#f8fafc",
@@ -199,16 +202,16 @@ class ConfigLoader:
                 command_text_inactive="#7f8596",
             ),
             "light": ButtonColors(
-                command_combo_active="#2563eb",
+                command_combo_active="#3b82f6",
                 command_combo_connecting="#3b82f6",
                 command_combo_inactive="#dbeafe",
-                command_cpu1_active="#2563eb",
+                command_cpu1_active="#3b82f6",
                 command_cpu1_connecting="#3b82f6",
                 command_cpu1_inactive="#dbeafe",
-                command_cpu2_active="#2563eb",
+                command_cpu2_active="#3b82f6",
                 command_cpu2_connecting="#3b82f6",
                 command_cpu2_inactive="#dbeafe",
-                command_tlm_active="#2563eb",
+                command_tlm_active="#3b82f6",
                 command_tlm_connecting="#3b82f6",
                 command_tlm_inactive="#dbeafe",
                 command_text_active="#ffffff",
@@ -237,8 +240,8 @@ class ConfigLoader:
                 text="#0f172a",
                 button="#e3edff",
                 button_text="#0f172a",
-                link="#2563eb",
-                highlight="#2563eb",
+                link="#3b82f6",
+                highlight="#3b82f6",
                 highlighted_text="#ffffff",
             ),
         }
@@ -288,6 +291,7 @@ class ConfigLoader:
             tx_label=section.get("tx_label", defaults.tx_label),
             sys_text=section.get("sys_text", defaults.sys_text),
             sys_label=section.get("sys_label", defaults.sys_label),
+            console_contour=section.get("console_contour", defaults.console_contour),
         )
 
     def get_button_colors(self, theme: str) -> ButtonColors:

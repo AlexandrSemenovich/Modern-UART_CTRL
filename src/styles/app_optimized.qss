@@ -54,10 +54,10 @@ QPushButton[class~="primary"] {
     border-color: #3b82f6;
     font-weight: 600;
 }
-QPushButton[class~="btn-primary"]:hover,
+QPushButton[class~="btn-primary"],
 QPushButton[class~="primary"]:hover {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: #3b82f6;
+    border-color: #3b82f6;
 }
 QPushButton[class~="btn-primary"]:pressed,
 QPushButton[class~="primary"]:pressed {
@@ -201,8 +201,8 @@ QPushButton[semanticRole="command_combo"] {
     min-height: 26px;
 }
 QPushButton[semanticRole="command_combo"]:hover {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: #3b82f6;
+    border-color: #3b82f6;
 }
 QPushButton[semanticRole="command_combo"]:pressed {
     background: #1e40af;
@@ -321,8 +321,8 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: #3b82f6;
+    border-color: #3b82f6;
     image: none;
 }
 
@@ -386,7 +386,7 @@ QWidget#console_toolbar_container QLineEdit {
 }
 
 QWidget#console_toolbar_container[themeClass="light"] QToolButton:hover {
-    border-color: #2563eb;
+    border-color: #3b82f6;
     background: rgba(59, 130, 246, 0.2);
 }
 

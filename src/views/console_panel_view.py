@@ -88,11 +88,6 @@ class DropableTextEdit(QtWidgets.QTextEdit):
 class ContourTabWidget(QtWidgets.QTabWidget):
     """QTabWidget с эффектом единого контура вокруг активной вкладки."""
 
-    _CONTOUR_COLORS = {
-        "dark": QtGui.QColor("#22c55e"),
-        "light": QtGui.QColor("#16a34a"),
-    }
-
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._theme_class: str = "dark"
@@ -145,7 +140,9 @@ class ContourTabWidget(QtWidgets.QTabWidget):
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
 
-        color = self._CONTOUR_COLORS.get(self._theme_class, QtGui.QColor("#22c55e"))
+        from src.styles.constants import Colors  # local import to avoid circular refs
+        theme_colors = Colors().get_theme_colors(self._theme_class)
+        color = QtGui.QColor(theme_colors.console_contour)
         pen = QtGui.QPen(color, self._outline_width)
         pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)
