@@ -11,6 +11,8 @@ Features:
 - Port management via ComPortViewModel
 """
 
+from functools import partial
+
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QIcon, QFont, QColor, QKeySequence, QShortcut, QActionGroup, QAction
@@ -36,6 +38,7 @@ if sys.platform == "win32":
 else:
     HAS_WIN32_API = False
 
+from src.utils import get_config_loader
 from src.utils.theme_manager import theme_manager
 from src.utils.windows11 import apply_windows_11_style, is_windows_11_or_later, GlobalHotkeyManager, VK, MOD_CONTROL, MOD_ALT, MOD_SHIFT
 from src.utils.translator import translator, tr
@@ -46,6 +49,7 @@ from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionSt
 from src.viewmodels.command_history_viewmodel import CommandHistoryModel
 from src.viewmodels.factory import ViewModelFactory, get_viewmodel_factory
 from src.views.command_history_dialog import CommandHistoryDialog
+from src.utils.config_loader import QuickCommand
 
 
 from PySide6.QtCore import QAbstractNativeEventFilter
@@ -108,6 +112,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self._port_states: dict[int, PortConnectionState] = {}
         self._error_dialogs: list[QtWidgets.QMessageBox] = []
         self._themed_buttons: list[QtWidgets.QPushButton] = []
+        self._quick_command_buttons: list[QtWidgets.QPushButton] = []
+        self._quick_port_buttons: dict[int, QtWidgets.QAbstractButton] = {}
+        self._quick_port_button_group: QtWidgets.QButtonGroup | None = None
+        self._quick_group: QtWidgets.QGroupBox | None = None
+        self._quick_port_label: QtWidgets.QLabel | None = None
+        self._quick_hint_label: QtWidgets.QLabel | None = None
 
         # Console panel
         self._console_panel: ConsolePanelView | None = None
@@ -122,10 +132,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self._tx_animation_active: bool = False
         self._original_button_styles: dict[int, str] = {}  # port_num -> original style
         self._input_animation_active: bool = False  # Track input field animation
-        
+        self._last_command_port: int = 1
+        self._quick_send_port: int = 1
+
         # Command history - use factory for composition
         self._history_model = self._viewmodel_factory.create_history_model(parent=self)
         self._history_dialog: CommandHistoryDialog | None = None
+
+        # Config-driven features
+        self._config_loader = get_config_loader()
+        self._quick_commands: list[QuickCommand] = self._config_loader.get_quick_commands()
         
         # Setup window properties
         self._setup_window()
@@ -340,8 +356,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._console_panel.setMinimumWidth(Sizes.CENTER_PANEL_MIN_WIDTH)
         self._console_panel.setObjectName("console_panel")
         hsplit.addWidget(self._console_panel)
-        
-        # RIGHT PANEL: Counters
+
+        # RIGHT PANEL: Counters + Quick Send
         self._right_panel = self._create_right_panel()
         self._right_panel.setMinimumWidth(Sizes.RIGHT_PANEL_MIN_WIDTH)
         self._right_panel.setMaximumWidth(Sizes.RIGHT_PANEL_MAX_WIDTH)
@@ -414,7 +430,7 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self._port_viewmodels[port_num] = viewmodel
             self._port_states[port_num] = viewmodel.state
-             
+
             # Create View
             port_view = PortPanelView(viewmodel)
             self._port_views[port_num] = port_view
@@ -574,12 +590,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         history_layout.addLayout(summary_layout)
         layout.addLayout(history_layout)
-        
+
         grp.setLayout(layout)
         return grp
     
     def _create_right_panel(self) -> QtWidgets.QWidget:
-        """Create right panel with counters wrapped in a scroll area."""
+        """Create right panel with counters, quick commands and spacer."""
         scroll_area = QtWidgets.QScrollArea()
         scroll_area.setObjectName("right_panel_scroll")
         scroll_area.setWidgetResizable(True)
@@ -669,6 +685,11 @@ class MainWindow(QtWidgets.QMainWindow):
         
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp)
+
+        quick_grp = self._create_quick_commands_group()
+        if quick_grp is not None:
+            layout.addWidget(quick_grp)
+
         
         # Add right-side spacer to ensure panel never touches right edge
         right_spacer = QtWidgets.QSpacerItem(8, 0, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
@@ -812,24 +833,29 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def _setup_shortcuts(self) -> None:
         """Setup keyboard shortcuts."""
-        # Send with Ctrl+Enter
-        shortcut_send = QShortcut(QKeySequence("Ctrl+Enter"), self)
+        # Send with Ctrl+Enter/Ctrl+Return
+        shortcut_send = QShortcut(QKeySequence("Ctrl+Return"), self)
         shortcut_send.activated.connect(self._send_default_command)
+        shortcut_send_enter = QShortcut(QKeySequence("Ctrl+Enter"), self)
+        shortcut_send_enter.activated.connect(self._send_default_command)
         
         # Port selection shortcuts
-        shortcut_cpu1 = QShortcut(QKeySequence("Ctrl+Alt+1"), self)
+        shortcut_cpu1 = QShortcut(QKeySequence("Ctrl+1"), self)
         shortcut_cpu1.activated.connect(lambda: self._send_command(1))
-        
-        shortcut_cpu2 = QShortcut(QKeySequence("Ctrl+Alt+2"), self)
+
+        shortcut_cpu2 = QShortcut(QKeySequence("Ctrl+2"), self)
         shortcut_cpu2.activated.connect(lambda: self._send_command(2))
-        
-        shortcut_tlm = QShortcut(QKeySequence("Ctrl+Alt+3"), self)
+
+        shortcut_tlm = QShortcut(QKeySequence("Ctrl+3"), self)
         shortcut_tlm.activated.connect(lambda: self._send_command(3))
-        
+
+        shortcut_combo = QShortcut(QKeySequence("Ctrl+4"), self)
+        shortcut_combo.activated.connect(lambda: self._send_command(0))
+
         # History dialog
         shortcut_history = QShortcut(QKeySequence("Ctrl+H"), self)
         shortcut_history.activated.connect(self._open_history_dialog)
-        
+
         # Toggle right panel (Ctrl+R)
         shortcut_right_panel = QShortcut(QKeySequence("Ctrl+R"), self)
         shortcut_right_panel.activated.connect(self._toggle_right_panel)
@@ -843,8 +869,11 @@ class MainWindow(QtWidgets.QMainWindow):
         shortcut_find.activated.connect(self._toggle_console_search)
         
         # Reconnect all ports (Ctrl+F5)
-        shortcut_reconnect = QShortcut(QKeySequence("Ctrl+F5"), self)
+        shortcut_reconnect = QShortcut(QKeySequence("F5"), self)
         shortcut_reconnect.activated.connect(self._reconnect_all_ports)
+
+        shortcut_escape = QShortcut(QKeySequence("Escape"), self)
+        shortcut_escape.activated.connect(self.close)
     
     def _send_command(self, port_num: int) -> None:
         """

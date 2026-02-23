@@ -150,6 +150,8 @@ class Sizes:
     BUTTON_SAVE_MAX_WIDTH = _cfg.button_save_max_width
     INPUT_MIN_HEIGHT = _cfg.input_min_height
     SEARCH_FIELD_MAX_WIDTH = _cfg.search_field_max_width
+    QUICK_COMMAND_HEIGHT = _cfg.quick_command_height if hasattr(_cfg, "quick_command_height") else 36
+    QUICK_COMMAND_PER_ROW = _cfg.quick_command_per_row if hasattr(_cfg, "quick_command_per_row") else 3
 
 
 # ==================== Timing ====================
@@ -261,9 +263,7 @@ class SerialConfig:
 class SerialPorts:
     """Common serial port definitions and restrictions."""
 
-    _cfg = config_loader.get_ports_config()
-    # Reserved system ports that must not be used by the application
-    SYSTEM_PORTS = set(p.strip().upper() for p in _cfg.get("system_ports", "COM1,COM2").split(","))
+    SYSTEM_PORTS = {"COM1", "COM2"}
 
 
 class ConsoleLimits:

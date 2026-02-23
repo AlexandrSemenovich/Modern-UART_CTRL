@@ -5,12 +5,14 @@ Supports light, dark and system themes with QSettings persistence.
 
 import logging
 import sys
+import threading
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, Signal, QSettings
 from PySide6.QtGui import QPalette, QColor
 
-from src.utils.config_loader import config_loader
+from src.utils.service_container import service_container
+from src.utils.config_loader import ConfigLoader
 from src.utils.paths import get_stylesheet_path
 from src.styles.constants import Fonts
 
@@ -19,9 +21,22 @@ class ThemeManager(QObject):
     """Singleton manager for application themes."""
 
     theme_changed = Signal(str)
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
+        if getattr(self, "_initialized", False):  # prevent double init
+            return
         super().__init__()
+        self._initialized = True
+        self._config_loader: ConfigLoader = service_container.resolve("config_loader")
         # Stored logical theme: "light" | "dark" | "system"
         self.current_theme = "light"
         self.settings = QSettings("UART_CTRL", "ThemeSettings")
@@ -43,7 +58,7 @@ class ThemeManager(QObject):
         else:
             # Fallback to config default_theme.theme with validation
             try:
-                theme = config_loader.get_default_theme()
+                theme = self._config_loader.get_default_theme()
             except Exception:  # pragma: no cover - defensive
                 theme = "dark"
         
@@ -172,7 +187,7 @@ class ThemeManager(QObject):
 
     def _apply_light_theme(self, app: QApplication) -> None:
         """Apply light theme palette: white-blue clean shades."""
-        colors = config_loader.get_palette_colors("light")
+        colors = self._config_loader.get_palette_colors("light")
         palette = QPalette()
         # Main background for windows and panels
         palette.setColor(QPalette.Window, QColor(colors.window))
@@ -199,7 +214,7 @@ class ThemeManager(QObject):
 
     def _apply_dark_theme(self, app: QApplication) -> None:
         """Apply dark theme palette: dark blue + black."""
-        colors = config_loader.get_palette_colors("dark")
+        colors = self._config_loader.get_palette_colors("dark")
         palette = QPalette()
         # Deep dark background with slight blue tint
         palette.setColor(QPalette.Window, QColor(colors.window))
@@ -266,7 +281,7 @@ class ThemeManager(QObject):
         """Inject theme-specific color values into the stylesheet template."""
         # Use effective theme, not logical (system can be light or dark)
         theme = self._get_effective_theme()
-        button_colors = config_loader.get_button_colors(theme)
+        button_colors = self._config_loader.get_button_colors(theme)
         palette = {
             "$command_combo_active": button_colors.command_combo_active,
             "$command_combo_connecting": button_colors.command_combo_connecting,
@@ -340,3 +355,4 @@ class ThemeManager(QObject):
 
 # Global theme manager instance
 theme_manager = ThemeManager()
+service_container.register_singleton("theme_manager", lambda: theme_manager)

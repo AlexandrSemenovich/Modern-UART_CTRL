@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
+from src.utils.service_container import service_container
 from src.utils.paths import get_config_file
 
 
@@ -143,6 +144,15 @@ class ToastConfig:
         return f"ToastConfig(toast_min_width={self.toast_min_width}, toast_duration_ms={self.toast_duration_ms}, ...)"
 
 
+@dataclass
+class QuickCommand:
+    label: str
+    command: str
+
+    def __repr__(self) -> str:
+        return f"QuickCommand(label={self.label!r}, command={self.command!r})"
+
+
 class ConfigLoader:
     """Loads application settings from config/config.ini with defaults."""
 
@@ -245,6 +255,15 @@ class ConfigLoader:
                 highlighted_text="#ffffff",
             ),
         }
+
+        self._default_quick_commands = [
+            QuickCommand("Reset", "rst\r\n"),
+            QuickCommand("Status", "stat\r\n"),
+            QuickCommand("Version", "ver\r\n"),
+            QuickCommand("Ping", "ping\r\n"),
+            QuickCommand("Start", "start\r\n"),
+            QuickCommand("Stop", "stop\r\n"),
+        ]
 
     def _get_section(self, section: str) -> dict[str, str]:
         if self._config.has_section(section):
@@ -463,5 +482,30 @@ class ConfigLoader:
             toast_corner_radius=self._get_int(section, "toast_corner_radius"),
         )
 
+    def get_quick_commands(self) -> list[QuickCommand]:
+        section = self._get_section("quick_commands")
+        raw = section.get("commands", "")
+        commands: list[QuickCommand] = []
+
+        source = raw or "".join([])
+        if not source:
+            return list(self._default_quick_commands)
+
+        for token in source.split(';'):
+            token = token.strip()
+            if not token:
+                continue
+            if '|' not in token:
+                continue
+            label, cmd = token.split('|', 1)
+            label = label.strip()
+            cmd = cmd.replace('\\n', '\n').replace('\\r', '\r')
+            commands.append(QuickCommand(label or cmd, cmd))
+
+        if not commands:
+            return list(self._default_quick_commands)
+        return commands
+
 
 config_loader = ConfigLoader()
+service_container.register_singleton("config_loader", lambda: config_loader)

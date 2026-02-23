@@ -7,6 +7,8 @@ import re
 import threading
 from typing import TypeGuard
 
+SYSTEM_RESERVED_PORTS = {"COM1", "COM2"}
+
 
 def is_valid_port_name(name: object) -> TypeGuard[str]:
     """Type guard to check if name is a valid COM port name.
@@ -46,6 +48,7 @@ class PortManager:
         if not hasattr(self, '_active_ports'):
             self._active_ports: set[str] = set()
             self._ports_lock = threading.Lock()
+            self._system_ports = SYSTEM_RESERVED_PORTS.copy()
     
     def acquire(self, port_name: str) -> bool:
         """
@@ -57,6 +60,10 @@ class PortManager:
         Returns:
             True if port was acquired successfully, False if already in use
         """
+        port_name = port_name.upper()
+        if port_name in self._system_ports:
+            return False
+
         with self._ports_lock:
             if port_name in self._active_ports:
                 return False

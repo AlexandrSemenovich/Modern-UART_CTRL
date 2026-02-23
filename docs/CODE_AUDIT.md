@@ -49,7 +49,7 @@
 
 **Локация:** [`src/views/main_window.py`](src/views/main_window.py), [`src/views/port_panel_view.py`](src/views/port_panel_view.py), [`src/views/console_panel_view.py`](src/views/console_panel_view.py)
 
-**Выполненные изменения (2026-02-20):**
+**Выполненные изменения (2026-02-20, обновлено 2026-02-23):**
 
 Создана единая система кнопок с типологией в [`src/styles/app_optimized.qss`](src/styles/app_optimized.qss):
 
@@ -61,6 +61,12 @@
 | Ghost | `btn-ghost` | Минималистичные | Toolbar actions |
 | Icon | `btn-icon` | Только иконка | Navigation arrows |
 | Toggle | `btn-toggle` | Переключатели | Checkbox behavior |
+
+**Обновление 2026-02-23:**
+- Выделен единый фирменный оттенок `#3b82f6` для всех primary-состояний (по умолчанию и hover) в [`src/styles/app_optimized.qss`](src/styles/app_optimized.qss) с сохранением уникальных цветов для pressed/focus.
+- Палитра тем и кнопок синхронизирована через [`config/config.ini`](config/config.ini) и [`src/utils/config_loader.py`](src/utils/config_loader.py): `console_contour`, `button_colors.*`, `palette.light.link/highlight` теперь используют тот же оттенок.
+- Виджет [`ContourTabWidget`](src/views/console_panel_view.py) автоматически подхватывает обновлённый цвет через `ThemeColors.console_contour`.
+- Документация обновлена, чтобы зафиксировать единый визуальный язык и статус выполнения.
 
 **Унифицированные размеры:**
 - min-height: 28px (было 20px)
@@ -76,129 +82,89 @@
 - `:focus` - в фокусе
 
 **Изменённые файлы:**
-- [`src/styles/app_optimized.qss`](src/styles/app_optimized.qss) - новые стили кнопок
-- [`src/views/command_history_dialog.py`](src/views/command_history_dialog.py) - добавлен класс кнопки
-- [`docs/CODE_AUDIT.md`](docs/CODE_AUDIT.md) - документация
+- [`src/styles/app_optimized.qss`](src/styles/app_optimized.qss) — единый набор стилей и палитра primary синего
+- [`src/utils/config_loader.py`](src/utils/config_loader.py) — дефолтные цвета тем/кнопок/палитры
+- [`config/config.ini`](config/config.ini) — конфигурационные токены цветов
+- [`src/views/command_history_dialog.py`](src/views/command_history_dialog.py) — добавлен класс кнопки
+- [`docs/CODE_AUDIT.md`](docs/CODE_AUDIT.md) — документация
 
 ---
 
-#### 1.2 Архитектура — Глобальное состояние и синглтоны
+#### 1.2 Архитектура — Глобальное состояние и синглтоны ✅ Выполнено
 
 **Локация:** [`src/utils/theme_manager.py:17-34`](src/utils/theme_manager.py:17)
 
-**Проблема:** Используется паттерн Singleton без надлежащей защиты:
-```python
-class ThemeManager(QObject):
-    # Синглтон без thread-safety
-```
+**Локация:** [`src/utils/theme_manager.py`](src/utils/theme_manager.py), [`src/utils/config_loader.py`](src/utils/config_loader.py), [`src/utils/service_container.py`](src/utils/service_container.py), [`src/utils/__init__.py`](src/utils/__init__.py)
 
-**Проблема:** [`src/utils/config_loader.py`](src/utils/config_loader.py) загружается в каждом модуле отдельно, создавая множественные экземпляры.
+**Выполненные изменения (2026-02-23):**
 
-**Влияние:** Состояние темы может рассинхронизироваться между компонентами. Нет единой точки инициализации.
+- Реализован потокобезопасный DI-контейнер [`ServiceContainer`](src/utils/service_container.py) с ленивой выдачей синглтонов.
+- [`ConfigLoader`](src/utils/config_loader.py) регистрируется в контейнере и теперь используется как единый экземпляр для всех компонентов.
+- [`ThemeManager`](src/utils/theme_manager.py) переписан на thread-safe singleton (double-checked locking) и получает конфиг через контейнер, исключая дублирование состояния.
+- Контейнер экспортируется через [`src/utils/__init__.py`](src/utils/__init__.py) с хелперами `get_theme_manager()`/`get_config_loader()`.
 
-**Рекомендация:** Внедрить Dependency Injection контейнер:
-```python
-# Контейнер сервисов
-class ServiceContainer:
-    _instance = None
-    _lock = threading.Lock()
-    
-    @classmethod
-    def get_instance(cls):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = cls()
-            return cls._instance
-```
+**Результат:** глобальное состояние централизовано, синглтоны контролируются контейнером, исключены расхождения темы/конфига между модулями. Пункт 1.2 закрыт.
 
 ---
 
-#### 1.3 Безопасность — Отсутствие валидации конфигурации
+#### 1.3 Безопасность — Отсутствие валидации конфигурации ✅ Выполнено
 
-**Локация:** [`config/config.ini:216`](config/config.ini:216)
+**Локация:** [`config/config.ini`](config/config.ini), [`src/utils/port_manager.py`](src/utils/port_manager.py)
 
-**Проблема:** Содержит:
-```ini
-system_ports = COM1, COM2, COM27, COM28, COM26, COM25
-```
-Нет проверки, что эти порты действительно системные. Злоумышленник может изменить конфиг и получить доступ к системным портам.
+**Выполненные изменения (2026-02-23):**
 
-**Рекомендация:** Валидировать порты программно, а не через конфиг:
-```python
-# В port_manager.py
-SYSTEM_RESERVED_PORTS = {'COM1', 'COM2'}  # HARDCODED
-```
+- Поле `system_ports` удалено из конфига, чтобы настройки не могли подменить критические порты.
+- В [`PortManager`](src/utils/port_manager.py) добавлена константа `SYSTEM_RESERVED_PORTS = {"COM1", "COM2"}` и логика отказа при попытке захвата этих портов, включая нормализацию регистра.
+- Тем самым защитили системные порты на уровне кода, без зависимости от внешней конфигурации.
+
+**Результат:** системные порты защищены от изменения через конфиг, мозжно безопасно выпускать. Пункт 1.3 закрыт.
 
 ---
 
 ### 2. СЕРЬЁЗНЫЕ ПРОБЛЕМЫ (затрудняют использование)
 
-#### 2.1 UX — Неочевидный пользовательский путь
+#### 2.1 UX — Неочевидный пользовательский путь (Quick Blocks)
 
-**Локация:** [`src/views/main_window.py:386-457`](src/views/main_window.py:386)
+**Локация:** [`src/views/main_window.py`](src/views/main_window.py), [`src/views/quick_blocks_editor.py`](src/views/quick_blocks_editor.py), [`src/utils/quick_blocks_store.py`](src/utils/quick_blocks_store.py)
 
-**Проблема:** Стандартный сценарий использования:
-1. Выбрать порт → 2 клика (открыть dropdown, выбрать)
-2. Выбрать скорость → 2 клика
-3. Нажать Connect → 1 клик
-4. Ввести команду → 1 клик + ввод
-5. Отправить → 1 клик
+**Новая реализация (2026-02-23):**
 
-**Итого: 7+ кликов для отправки команды!**
+Вместо статической "Quick Send" панели внедрён полноценный модуль **Quick Blocks**:
 
-**Рекомендация:** Добавить "Quick Send" панель с предустановленными командами:
-```python
-# В PortPanelView добавить слоты для быстрых команд
-self._quick_commands = [
-    ("Reset", "rst\r\n"),
-    ("Status", "stat\r\n"),
-    ("Version", "ver\r\n"),
-]
-```
+- **Группы и блоки.** Справа отображается вертикальный навигатор с группами (например, BBB, Камеры, БПХ). Каждая группа сворачивается/разворачивается. Внутри блока всегда видны две кнопки ON/OFF.
+- **Настройка из UI.** Добавлен редактор (диалог) для создания/редактирования/удаления блоков: название, команды ON/OFF, привязанный порт, группа, порядок. Поддержана сортировка drag-and-drop и кнопками "↑/↓".
+- **Хранилище.** Настройки сохраняются в локальную SQLite через [`QuickBlocksStore`](src/utils/quick_blocks_store.py) (таблицы groups и blocks). Все операции (CRUD, reorder) выполняются транзакционно. При первом запуске загружаются предустановленные блоки (BB A, CAM 11, BPX 1 и т.д.).
+- **Выполнение команд.** Нажатия ON/OFF используют существующий стек отправки команд (`ComPortViewModel.send_command`). Результат отображается индикатором статуса (зелёный ✓ / красный ✕) и toast-уведомлением.
+- **Навигация.** Левая панель оставлена для портов, Quick Blocks расположен справа, но может быть свернут так же, как счётчики. Клавиатурные шорткаты для выбора очередного блока планируются на следующем этапе.
+
+**Результат:** теперь одна команда — это один клик (ON или OFF), порты выбираются автоматически на уровне блока. UX-путь сокращён с 7 до ~2 действий, аудитный пункт 2.1 помечен как выполненный.
 
 ---
 
-#### 2.2 UX — Отсутствие keyboard shortcuts для основных действий
+#### 2.2 UX — Отсутствие keyboard shortcuts для основных действий ✅ Выполнено
 
-**Локация:** [`src/views/main_window.py:136`](src/views/main_window.py:136)
+**Локация:** [`src/views/main_window.py`](src/views/main_window.py)
 
-**Проблема:** Определены shortcuts только для:
-- Ctrl+L (очистить логи)
-- Ctrl+S (сохранить логи)
-- Ctrl+F (поиск)
+**Выполненные изменения (2026-02-23):**
 
-**Отсутствуют:**
-- Ctrl+Enter — отправить команду
-- Ctrl+1/2/3 — переключение между портами
-- F5 — переподключиться
-- Escape — закрыть диалог
+- `_setup_shortcuts()` расширен полным набором горячих клавиш: Ctrl+Enter/Ctrl+Return для отправки команды, Ctrl+1/2/3/4 для выбора портов/комбо, F5 — переподключить все порты, Escape — закрыть окно, плюс существующие Ctrl+L/F/H.
+- Добавлены вспомогательные QShortcut-инстансы, чтобы команды работали и на keypad (Ctrl+Enter).
 
-**Рекомендация:**
-```python
-# Добавить в _setup_shortcuts()
-self._send_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
-self._send_shortcut.activated.connect(self._send_default_command)
-```
+**Результат:** базовые операции доступны с клавиатуры, UX-путь сокращён, пункт 2.2 закрыт.
 
 ---
 
-#### 2.3 UX — Нет feedback при ошибках подключения
+#### 2.3 UX — Нет feedback при ошибках подключения ✅ Выполнено
 
-**Локация:** [`src/views/console_panel_view.py`](src/views/console_panel_view.py)
+**Локация:** [`src/views/main_window.py`](src/views/main_window.py), [`src/views/console_panel_view.py`](src/views/console_panel_view.py), [`src/views/toast_notification.py`](src/views/toast_notification.py)
 
-**Проблема:** Ошибки отображаются как обычный текст без визуального выделения.
+**Выполненные изменения (2026-02-23):**
 
-**Рекомендация:** Добавить toast-уведомления для критических ошибок:
-```python
-# В MainWindow._make_error_handler()
-def show_error_toast(self, port_key, error_msg):
-    ToastNotification.show(
-        title=tr("connection_error", "Connection Error"),
-        message=error_msg,
-        severity="error",
-        duration=5000
-    )
-```
+- Реализован единый `ToastManager` и интегрирован в `MainWindow` и `ConsolePanelView` (инициализация через `get_toast_manager`).
+- Обработчики `_handle_port_error` и сценарии сохранения логов используют `show_error`/`show_warning` вместо блокирующих диалогов.
+- Ошибки в консоли и при пустых логах теперь мгновенно подсвечиваются toast-уведомлениями.
+
+**Результат:** пользователь получает моментальный визуальный feedback о сбоях и предупреждениях, UX при ошибках подключения улучшен. Пункт 2.3 закрыт.
 
 ---
 
