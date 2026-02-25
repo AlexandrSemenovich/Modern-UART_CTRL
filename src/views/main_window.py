@@ -467,8 +467,9 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(command_group)
 
         quick_panel = self._create_quick_blocks_panel()
+        self._quick_blocks_group: QtWidgets.QGroupBox | None = None
         if quick_panel:
-            quick_group = QtWidgets.QGroupBox(tr("quick_blocks", "Quick Blocks"))
+            self._quick_blocks_group = QtWidgets.QGroupBox()
             quick_layout = QtWidgets.QVBoxLayout()
             quick_layout.setSpacing(Sizes.LAYOUT_SPACING)
             quick_layout.setContentsMargins(
@@ -476,10 +477,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
             )
             quick_layout.addWidget(quick_panel)
-            quick_group.setLayout(quick_layout)
-            quick_group.setObjectName("quick_blocks_group")
-            quick_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-            layout.addWidget(quick_group)
+            self._quick_blocks_group.setLayout(quick_layout)
+            self._quick_blocks_group.setObjectName("quick_blocks_group")
+            self._quick_blocks_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+            self._quick_blocks_group.setTitle(tr("quick_blocks", "Quick Blocks"))
+            layout.addWidget(self._quick_blocks_group)
 
         self._update_command_controls()
 
@@ -1339,6 +1341,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._btn_open_history.setText(tr("history_open", "History"))
         self._update_history_summary()
         self._command_group.setTitle(tr("data_transmission", "Data Transmission"))
+        if getattr(self, "_quick_blocks_group", None):
+            self._quick_blocks_group.setTitle(tr("quick_blocks", "Quick Blocks"))
         self._le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
         self._btn_combo.setText(tr("send_to_both", "1+2"))
         self._btn_cpu1.setText(tr("send_to_cpu1", "CPU1"))

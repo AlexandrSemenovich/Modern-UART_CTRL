@@ -1,66 +1,43 @@
 version: 1
 groups:
-- id: default
-  name: Камеры
+
+- id: config_group
+  name: Config
   collapsed: false
   order: 0
   blocks:
-  - id: cam_11
-    title: CAM 11
-    command_on: port set 1 1
-    command_off: port clear 1 1
+  - id: arm
+    title: arm
+    command_on: arm
     send_to_combo: true
     order: 0
-    mode: dual
+    mode: single
     icon: null
-    port: cpu1
+    port: combo
     hotkey: null
-    group_id: default
-  - id: cam_12
-    title: CAM 12
-    command_on: port set 1 2
-    command_off: port clear 1 2
+    group_id: config_group
+  - id: status
+    title: status
+    command_on: status
     send_to_combo: true
     order: 1
-    mode: dual
+    mode: single
     icon: null
     port: combo
     hotkey: null
-    group_id: default
-  - id: cam_13
-    title: CAM 13
-    command_on: port set 1 3
-    command_off: port clear 1 3
+    group_id: config_group
+  - id: bb_status
+    title: bb
+    command_on: bb
     send_to_combo: true
     order: 2
-    mode: dual
+    mode: single
     icon: null
     port: combo
     hotkey: null
-    group_id: default
-  - id: cam_14
-    title: CAM 14
-    command_on: port set 2 4
-    command_off: port clear 2 4
-    send_to_combo: true
-    order: 3
-    mode: dual
-    icon: null
-    port: combo
-    hotkey: null
-    group_id: default
-  - id: cam_15
-    title: CAM 15
-    command_on: port set 2 5
-    command_off: port clear 2 5
-    send_to_combo: true
-    order: 4
-    mode: dual
-    icon: null
-    port: combo
-    hotkey: null
-    group_id: default
-- id: default
+    group_id: config_group
+
+- id: bb_group
   name: BeagleBone
   collapsed: false
   order: 1
@@ -75,7 +52,7 @@ groups:
     icon: null
     port: combo
     hotkey: null
-    group_id: default
+    group_id: bb_group
   - id: bb_b
     title: BB B
     command_on: bb b on
@@ -86,4 +63,122 @@ groups:
     icon: null
     port: combo
     hotkey: null
-    group_id: default
+    group_id: bb_group
+
+- id: buk_group
+  name: БУК
+  collapsed: false
+  order: 2
+  blocks:
+  - id: buk_1
+    title: БУК 1
+    command_on: port set 1
+    command_off: port clear 1
+    send_to_combo: true
+    order: 0
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: buk_group
+  - id: buk_2
+    title: БУК 2
+    command_on: port set 2
+    command_off: port clear 2
+    send_to_combo: true
+    order: 1
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: buk_group
+
+
+- id: cam_group
+  name: Камеры
+  collapsed: false
+  order: 3
+  blocks:
+  - id: cam_11
+    title: CAM 11
+    command_on: port set 1 1
+    command_off: port clear 1 1
+    send_to_combo: true
+    order: 0
+    mode: dual
+    icon: null
+    port: cpu1
+    hotkey: null
+    group_id: cam_group
+  - id: cam_12
+    title: CAM 12
+    command_on: port set 1 2
+    command_off: port clear 1 2
+    send_to_combo: true
+    order: 1
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: cam_group
+  - id: cam_13
+    title: CAM 13
+    command_on: port set 1 3
+    command_off: port clear 1 3
+    send_to_combo: true
+    order: 2
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: cam_group
+  - id: cam_14
+    title: CAM 14
+    command_on: port set 2 4
+    command_off: port clear 2 4
+    send_to_combo: true
+    order: 3
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: cam_group
+  - id: cam_15
+    title: CAM 15
+    command_on: port set 2 5
+    command_off: port clear 2 5
+    send_to_combo: true
+    order: 4
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: cam_group
+
+- id: bpx_group
+  name: БП-Х
+  collapsed: false
+  order: 4
+  blocks:
+  - id: bpx_1_3_5
+    title: БП-Х 1-3-5
+    command_on: port set 3
+    command_off: port clear 3
+    send_to_combo: true
+    order: 0
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: bpx_group
+  - id: bpx_2_4_6
+    title: БП-Х 2-4-6
+    command_on: port set 4
+    command_off: port clear 4
+    send_to_combo: true
+    order: 1
+    mode: dual
+    icon: null
+    port: combo
+    hotkey: null
+    group_id: bpx_group

@@ -518,6 +518,77 @@ QLabel.led-indicator[ledState="disconnected"] {
     background-color: #9ca3af;
 }
 
+/* ==================== QUICK BLOCKS PANEL ==================== */
+QWidget#quick-block-card {
+    border: 1px solid palette(mid);
+    border-radius: 12px;
+    background: palette(base);
+    margin-bottom: 12px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+QWidget#quick-block-card-body {
+    background: transparent;
+}
+
+QLabel#quick-block-card-title {
+    font-weight: 600;
+    padding-left: 0;
+}
+
+QFrame#quick-block-divider {
+    background: palette(midlight);
+}
+
+QFrame#quick-block-row {
+    border-radius: 8px;
+    padding: 4px;
+    border-left: 3px solid transparent;
+}
+
+QFrame#quick-block-row[selected="true"] {
+    background: palette(alternate-base);
+    border: 1px solid palette(highlight);
+    border-left: 3px solid palette(highlight);
+}
+
+QLabel#quick-block-title {
+    font-weight: 500;
+    color: palette(text);
+}
+
+QLabel#quick-block-indicator {
+    border-radius: 6px;
+    background: palette(mid);
+}
+
+QLabel#quick-block-indicator[blockState="success"] {
+    background: #22c55e;
+}
+
+QLabel#quick-block-indicator[blockState="error"] {
+    background: #dc2626;
+}
+
+QLabel#quick-block-indicator[blockState="pending"] {
+    background: #f59e0b;
+}
+
+QLabel#quick-block-indicator[blockState="idle"] {
+    background: palette(midlight);
+}
+
+QPushButton[semanticRole="quick_block_on"] {
+    background: palette(base);
+    border: 1px solid palette(mid);
+}
+
+QPushButton[semanticRole="quick_block_off"] {
+    background: palette(base);
+    border: 1px solid palette(mid);
+}
+
 /* Counter cards */
 QFrame#counter_card {
     background: palette(base);

@@ -64,6 +64,10 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Удалить",
         "en": "Delete",
     },
+    "duplicate": {
+        "ru": "Дубликат",
+        "en": "Duplicate",
+    },
     "edit": {
         "ru": "Редактировать",
         "en": "Edit",
@@ -496,6 +500,14 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Старт",
         "en": "Start",
     },
+    "quick_block_on": {
+        "ru": "ВКЛ",
+        "en": "ON",
+    },
+    "quick_block_off": {
+        "ru": "ВЫКЛ",
+        "en": "OFF",
+    },
     "stop": {
         "ru": "Стоп",
         "en": "Stop",
@@ -519,6 +531,18 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "refresh": {
         "ru": "Обновить",
         "en": "Refresh",
+    },
+    "reload": {
+        "ru": "Перезагрузить",
+        "en": "Reload",
+    },
+    "quick_blocks": {
+        "ru": "Быстрые команды",
+        "en": "Quick comands",
+    },
+    "reload": {
+        "ru": "Перезагрузить",
+        "en": "Reload",
     },
     "export": {
         "ru": "Экспорт",

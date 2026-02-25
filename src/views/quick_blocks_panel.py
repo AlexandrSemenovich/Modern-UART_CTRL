@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from functools import partial
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.styles.constants import Sizes
 from src.utils.quick_blocks_repository import QuickBlock, QuickBlocksRepository
-from src.utils.translator import tr
+from src.utils.translator import tr, translator
 from src.views.quick_block_editor_dialog import create_block
 
 
@@ -17,55 +17,116 @@ class BlockRow(QtWidgets.QFrame):
 
     triggered = QtCore.Signal(str, str)
     selected = QtCore.Signal(str)
+    context_action = QtCore.Signal(str, str)
 
     def __init__(self, block: QuickBlock, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.block = block
         self.setObjectName("quick-block-row")
+        self._selected = False
+        self._indicator_state = "idle"
+        self._indicator: QtWidgets.QLabel | None = None
+        self.setProperty("selected", False)
 
         grid = QtWidgets.QGridLayout(self)
-        grid.setContentsMargins(Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2 + 6, Sizes.CARD_MARGIN // 2)
-        grid.setHorizontalSpacing(4)
+        grid.setContentsMargins(Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2 + Sizes.LAYOUT_SPACING // 2, Sizes.CARD_MARGIN // 2)
+        grid.setHorizontalSpacing(Sizes.LAYOUT_SPACING // 2)
         grid.setVerticalSpacing(2)
 
-        title_btn = QtWidgets.QPushButton(f"\uf0c1  {block.title}")
-        title_btn.setProperty("semanticRole", "quick_block_title")
-        title_btn.setFlat(True)
-        title_btn.setCursor(QtCore.Qt.PointingHandCursor)
-        title_btn.clicked.connect(lambda: self.selected.emit(block.id))
-        title_btn.setFixedHeight(Sizes.INPUT_MIN_HEIGHT)
-        title_btn.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        grid.addWidget(title_btn, 0, 0)
+        title_label = QtWidgets.QLabel(block.title)
+        title_label.setObjectName("quick-block-title")
+        title_label.setCursor(QtCore.Qt.PointingHandCursor)
+        title_label.installEventFilter(self)
+        grid.addWidget(title_label, 0, 0)
 
         indicator = QtWidgets.QLabel()
         indicator.setObjectName("quick-block-indicator")
         indicator.setFixedSize(12, 12)
         indicator.setAlignment(QtCore.Qt.AlignCenter)
+        indicator.setProperty("blockState", self._indicator_state)
         grid.addWidget(indicator, 0, 1, QtCore.Qt.AlignCenter)
+        self._indicator = indicator
 
         controls = QtWidgets.QWidget()
         controls_layout = QtWidgets.QHBoxLayout(controls)
         controls_layout.setContentsMargins(0, 0, 0, 0)
-        controls_layout.setSpacing(4)
+        controls_layout.setSpacing(Sizes.LAYOUT_SPACING // 3)
 
-        on_btn = QtWidgets.QPushButton("ON")
+        self._btn_on = QtWidgets.QPushButton()
+        on_btn = self._btn_on
         on_btn.setProperty("semanticRole", "quick_block_on")
         on_btn.setFixedHeight(Sizes.INPUT_MIN_HEIGHT)
+        on_btn.setMinimumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH // 2)
         on_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
         on_btn.clicked.connect(lambda: self.triggered.emit(block.id, "on"))
         controls_layout.addWidget(on_btn)
 
         if block.mode != "single":
-            off_btn = QtWidgets.QPushButton("OFF")
+            self._btn_off = QtWidgets.QPushButton()
+            off_btn = self._btn_off
             off_btn.setProperty("semanticRole", "quick_block_off")
             off_btn.setFixedHeight(Sizes.INPUT_MIN_HEIGHT)
+            off_btn.setMinimumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH // 2)
             off_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
             off_btn.clicked.connect(lambda: self.triggered.emit(block.id, "off"))
             controls_layout.addWidget(off_btn)
+        else:
+            self._btn_off = None
 
         controls.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         grid.addWidget(controls, 0, 2, QtCore.Qt.AlignRight)
         grid.setColumnStretch(0, 1)
+
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+
+        self._retranslate_controls()
+        translator.language_changed.connect(self._on_language_changed)
+
+    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:  # type: ignore[override]
+        if watched.objectName() == "quick-block-title" and event.type() == QtCore.QEvent.MouseButtonPress:
+            mouse_event = QtGui.QMouseEvent(event)
+            if mouse_event.button() == QtCore.Qt.LeftButton:
+                self.selected.emit(self.block.id)
+        return super().eventFilter(watched, event)
+
+    def _show_context_menu(self, pos: QtCore.QPoint) -> None:
+        menu = QtWidgets.QMenu(self)
+        action_edit = menu.addAction(tr("edit", "Edit"))
+        action_duplicate = menu.addAction(tr("duplicate", "Duplicate"))
+        action_delete = menu.addAction(tr("delete", "Delete"))
+        chosen = menu.exec(self.mapToGlobal(pos))
+        if chosen == action_edit:
+            self.context_action.emit(self.block.id, "edit")
+        elif chosen == action_duplicate:
+            self.context_action.emit(self.block.id, "duplicate")
+        elif chosen == action_delete:
+            self.context_action.emit(self.block.id, "delete")
+
+    def set_selected(self, is_selected: bool) -> None:
+        if self._selected == is_selected:
+            return
+        self._selected = is_selected
+        self.setProperty("selected", is_selected)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+    def set_indicator_state(self, state: str | None) -> None:
+        self._indicator_state = state or "idle"
+        if self._indicator:
+            self._indicator.setProperty("blockState", self._indicator_state)
+            self._indicator.style().unpolish(self._indicator)
+            self._indicator.style().polish(self._indicator)
+            self._indicator.update()
+
+    def _retranslate_controls(self) -> None:
+        self._btn_on.setText(tr("quick_block_on", "ON"))
+        if self._btn_off:
+            self._btn_off.setText(tr("quick_block_off", "OFF"))
+
+    def _on_language_changed(self, _: str) -> None:
+        self._retranslate_controls()
 
 
 
@@ -75,10 +136,16 @@ class GroupCard(QtWidgets.QFrame):
     block_triggered = QtCore.Signal(str, str)
     block_selected = QtCore.Signal(str)
     collapse_changed = QtCore.Signal(str, bool)
+    context_action = QtCore.Signal(str, str)
 
     def __init__(self, group_id: str, title: str, collapsed: bool, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.group_id = group_id
+        self._title = title
+        self._block_count = 0
+        self._rows: list[BlockRow] = []
+        self._selected_block_id: str | None = None
+        self._context_handler: QtCore.SignalInstance | None = None
         self.setObjectName("quick-block-card")
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -86,13 +153,19 @@ class GroupCard(QtWidgets.QFrame):
 
         header = QtWidgets.QHBoxLayout()
         header.setContentsMargins(Sizes.CARD_MARGIN, Sizes.CARD_MARGIN, Sizes.CARD_MARGIN, Sizes.CARD_MARGIN)
+        header.setSpacing(Sizes.LAYOUT_SPACING // 2)
         self._toggle = QtWidgets.QToolButton()
         self._toggle.setCheckable(True)
         self._toggle.setChecked(not collapsed)
-        self._toggle.setText(self._text_for_state(not collapsed, title))
-        self._toggle.clicked.connect(partial(self._on_toggle, title))
+        self._toggle.setArrowType(QtCore.Qt.DownArrow if not collapsed else QtCore.Qt.RightArrow)
+        self._toggle.clicked.connect(self._on_toggle)
         header.addWidget(self._toggle)
+
+        self._title_label = QtWidgets.QLabel()
+        self._title_label.setObjectName("quick-block-card-title")
+        header.addWidget(self._title_label)
         header.addStretch(1)
+
         layout.addLayout(header)
 
         self._body = QtWidgets.QWidget()
@@ -103,33 +176,56 @@ class GroupCard(QtWidgets.QFrame):
         layout.addWidget(self._body)
         self._body.setVisible(not collapsed)
 
+        self._update_title()
+
     def set_blocks(self, blocks: list[QuickBlock]) -> None:
+        self._block_count = len(blocks)
+        self._rows.clear()
         while self._body_layout.count():
             item = self._body_layout.takeAt(0)
             if (widget := item.widget()) is not None:
                 widget.deleteLater()
         for idx, block in enumerate(blocks):
             row = BlockRow(block)
-            row.triggered.connect(self.block_triggered)
+            row.triggered.connect(partial(self._on_row_triggered, row))
             row.selected.connect(self.block_selected)
+            row.context_action.connect(self._on_context_action)
             self._body_layout.addWidget(row)
-            if idx != len(blocks) - 1:
-                divider = QtWidgets.QFrame()
-                divider.setFrameShape(QtWidgets.QFrame.HLine)
-                divider.setObjectName("quick-block-divider")
-                divider.setFixedHeight(1)
-                self._body_layout.addWidget(divider)
+            self._rows.append(row)
+        self._update_title()
+        self.set_selected_block(self._selected_block_id)
 
-    def _on_toggle(self, title: str) -> None:
+    def _update_title(self) -> None:
+        suffix = f"({self._block_count})"
+        self._title_label.setText(f"{self._title} {suffix}")
         expanded = self._toggle.isChecked()
-        self._toggle.setText(self._text_for_state(expanded, title))
+        self._toggle.setArrowType(QtCore.Qt.DownArrow if expanded else QtCore.Qt.RightArrow)
+
+    def set_selected_block(self, block_id: str | None) -> None:
+        self._selected_block_id = block_id
+        for row in self._rows:
+            row.set_selected(row.block.id == block_id)
+
+    def update_block_state(self, block_id: str, state: str | None) -> bool:
+        for row in self._rows:
+            if row.block.id == block_id:
+                row.set_indicator_state(state)
+                return True
+        return False
+
+    def _on_toggle(self) -> None:
+        expanded = self._toggle.isChecked()
         self._body.setVisible(expanded)
+        self._update_title()
         self.collapse_changed.emit(self.group_id, not expanded)
 
-    @staticmethod
-    def _text_for_state(expanded: bool, title: str) -> str:
-        symbol = "[-]" if expanded else "[+]"
-        return f"{symbol} {title}"
+    def _on_row_triggered(self, row: BlockRow, block_id: str, action: str) -> None:
+        row.set_indicator_state("pending")
+        self.block_triggered.emit(block_id, action)
+
+    def _on_context_action(self, block_id: str, action: str) -> None:
+        self.block_selected.emit(block_id)
+        self.context_action.emit(block_id, action)
 
 
 class QuickBlocksPanel(QtWidgets.QWidget):
@@ -141,71 +237,77 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         super().__init__(parent)
         self._repository = repository
         self._selected_block: str | None = None
+        self._group_cards: list[GroupCard] = []
+        self._btn_reload: QtWidgets.QPushButton | None = None
+        self._btn_add: QtWidgets.QPushButton | None = None
+        self._btn_edit: QtWidgets.QPushButton | None = None
 
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
         root = QtWidgets.QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        root.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, 0)
         root.setSpacing(Sizes.LAYOUT_SPACING // 2)
 
         toolbar = self._create_toolbar()
         root.addLayout(toolbar)
 
-        self._content_container = QtWidgets.QWidget()
-        self._content_container.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding,
-        )
-        self._content = QtWidgets.QWidget(self._content_container)
+        self._content = QtWidgets.QWidget()
+        self._content.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self._content_layout = QtWidgets.QVBoxLayout(self._content)
-        self._content_layout.setContentsMargins(0, 0, 8, 0)
+        self._content_layout.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, 0)
         self._content_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
         self._content_layout.addStretch(1)
-        container_layout = QtWidgets.QVBoxLayout(self._content_container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(0)
-        container_layout.addWidget(self._content)
-        root.addWidget(self._content_container, 1)
+        root.addWidget(self._content)
 
+        translator.language_changed.connect(lambda _: self._retranslate_ui())
         self.refresh()
+        self._retranslate_ui()
 
-    def _create_toolbar(self) -> QtWidgets.QVBoxLayout:
-        layout = QtWidgets.QVBoxLayout()
-        layout.setSpacing(4)
+    def _create_toolbar(self) -> QtWidgets.QHBoxLayout:
+        layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(Sizes.TOOLBAR_MARGIN, 0, Sizes.TOOLBAR_MARGIN, 0)
+        layout.setSpacing(Sizes.TOOLBAR_SPACING)
 
-        row1 = QtWidgets.QHBoxLayout()
-        row1.setSpacing(4)
-        row2 = QtWidgets.QHBoxLayout()
-        row2.setSpacing(4)
+        layout.addStretch(1)
 
-        btn_add = QtWidgets.QPushButton(tr("add", "Add"))
-        btn_add.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
-        btn_add.clicked.connect(self._on_add_block)
-        row1.addWidget(btn_add)
+        self._btn_add = QtWidgets.QPushButton()
+        self._btn_add.setProperty("semanticRole", "quick_toolbar_action")
+        self._btn_add.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self._btn_add.clicked.connect(self._on_add_block)
+        layout.addWidget(self._btn_add)
 
-        btn_edit = QtWidgets.QPushButton(tr("edit", "Edit"))
-        btn_edit.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
-        btn_edit.clicked.connect(self._on_edit_block)
-        row1.addWidget(btn_edit)
+        self._btn_edit = QtWidgets.QPushButton()
+        self._btn_edit.setProperty("semanticRole", "quick_toolbar_action")
+        self._btn_edit.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self._btn_edit.clicked.connect(self._on_edit_block)
+        layout.addWidget(self._btn_edit)
 
-        btn_more = QtWidgets.QPushButton(tr("more_actions", "More"))
-        btn_more.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
-        menu = QtWidgets.QMenu(btn_more)
-        action_delete = menu.addAction(tr("delete", "Delete"))
-        action_delete.triggered.connect(self._on_delete)
-        action_duplicate = menu.addAction(tr("duplicate", "Duplicate"))
-        action_duplicate.triggered.connect(self._on_duplicate)
-        action_reload = menu.addAction(tr("reload", "Reload"))
-        action_reload.triggered.connect(self._on_reload)
-        btn_more.setMenu(menu)
-        row1.addWidget(btn_more)
+        self._btn_reload = QtWidgets.QPushButton()
+        self._btn_reload.setProperty("semanticRole", "quick_toolbar_action")
+        self._btn_reload.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self._btn_reload.clicked.connect(self._on_reload)
+        layout.addWidget(self._btn_reload)
 
-        row1.addStretch(1)
+        layout.addStretch(1)
 
-        layout.addLayout(row1)
-        layout.addLayout(row2)
         return layout
 
+    def _retranslate_ui(self) -> None:
+        if self._btn_add:
+            self._btn_add.setText(tr("add", "Add"))
+        if self._btn_edit:
+            self._btn_edit.setText(tr("edit", "Edit"))
+        if self._btn_reload:
+            self._btn_reload.setText(tr("reload", "Reload"))
+        for card in self._group_cards:
+            card.update()
+
+    def changeEvent(self, event: QtCore.QEvent) -> None:
+        if event.type() == QtCore.QEvent.LanguageChange:
+            self._retranslate_ui()
+        super().changeEvent(event)
+
     def refresh(self) -> None:
+        self._group_cards.clear()
         while self._content_layout.count() > 1:
             item = self._content_layout.takeAt(0)
             if (widget := item.widget()) is not None:
@@ -216,14 +318,34 @@ class QuickBlocksPanel(QtWidgets.QWidget):
             card.block_triggered.connect(self.block_triggered)
             card.block_selected.connect(self._on_block_selected)
             card.collapse_changed.connect(self._on_collapse_changed)
+            card.context_action.connect(self._on_context_action)
             card.set_blocks(group.blocks)
+            if self._selected_block:
+                card.set_selected_block(self._selected_block)
             self._content_layout.insertWidget(self._content_layout.count() - 1, card)
+            self._group_cards.append(card)
 
     def _on_block_selected(self, block_id: str) -> None:
         self._selected_block = block_id
+        for card in self._group_cards:
+            card.set_selected_block(block_id)
 
     def _on_collapse_changed(self, group_id: str, collapsed: bool) -> None:
         self._repository.set_group_collapsed(group_id, collapsed)
+
+    def update_block_state(self, block_id: str, state: str | None) -> None:
+        for card in self._group_cards:
+            if card.update_block_state(block_id, state):
+                break
+
+    def _on_context_action(self, block_id: str, action: str) -> None:
+        self._selected_block = block_id
+        if action == "edit":
+            self._on_edit_block()
+        elif action == "duplicate":
+            self._on_duplicate()
+        elif action == "delete":
+            self._on_delete()
 
     # Toolbar actions ---------------------------------------------------
     def _current_block(self) -> QuickBlock | None:
@@ -291,3 +413,19 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         if confirm == QtWidgets.QMessageBox.Yes:
             self._repository.reload()
             self.refresh()
+            self._flash_reload_button()
+
+    def _flash_reload_button(self) -> None:
+        if not self._btn_reload:
+            return
+        self._btn_reload.setProperty("flashState", "active")
+        self._btn_reload.style().unpolish(self._btn_reload)
+        self._btn_reload.style().polish(self._btn_reload)
+        QtCore.QTimer.singleShot(300, self._clear_reload_flash)
+
+    def _clear_reload_flash(self) -> None:
+        if not self._btn_reload:
+            return
+        self._btn_reload.setProperty("flashState", "")
+        self._btn_reload.style().unpolish(self._btn_reload)
+        self._btn_reload.style().polish(self._btn_reload)
