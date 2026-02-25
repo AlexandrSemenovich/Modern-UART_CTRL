@@ -27,6 +27,8 @@ class BlockRow(QtWidgets.QFrame):
         self._indicator_state = "idle"
         self._indicator: QtWidgets.QLabel | None = None
         self.setProperty("selected", False)
+        self._shortcuts: list[QtGui.QShortcut] = []
+        self._hotkey_shortcut: QtWidgets.QShortcut | None = None
 
         grid = QtWidgets.QGridLayout(self)
         grid.setContentsMargins(Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2 + Sizes.LAYOUT_SPACING // 2, Sizes.CARD_MARGIN // 2)
@@ -58,6 +60,7 @@ class BlockRow(QtWidgets.QFrame):
         on_btn.setFixedHeight(Sizes.INPUT_MIN_HEIGHT)
         on_btn.setMinimumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH // 2)
         on_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        on_btn.setFocusPolicy(QtCore.Qt.NoFocus)
         on_btn.clicked.connect(lambda: self.triggered.emit(block.id, "on"))
         controls_layout.addWidget(on_btn)
 
@@ -68,6 +71,7 @@ class BlockRow(QtWidgets.QFrame):
             off_btn.setFixedHeight(Sizes.INPUT_MIN_HEIGHT)
             off_btn.setMinimumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH // 2)
             off_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+            off_btn.setFocusPolicy(QtCore.Qt.NoFocus)
             off_btn.clicked.connect(lambda: self.triggered.emit(block.id, "off"))
             controls_layout.addWidget(off_btn)
         else:
@@ -82,6 +86,7 @@ class BlockRow(QtWidgets.QFrame):
 
         self._retranslate_controls()
         translator.language_changed.connect(self._on_language_changed)
+        self._register_hotkey()
 
     def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:  # type: ignore[override]
         if watched.objectName() == "quick-block-title" and event.type() == QtCore.QEvent.MouseButtonPress:
@@ -124,9 +129,26 @@ class BlockRow(QtWidgets.QFrame):
         self._btn_on.setText(tr("quick_block_on", "ON"))
         if self._btn_off:
             self._btn_off.setText(tr("quick_block_off", "OFF"))
-
+        
     def _on_language_changed(self, _: str) -> None:
         self._retranslate_controls()
+        self._register_hotkey()
+
+    def _register_hotkey(self) -> None:
+        for shortcut in self._shortcuts:
+            shortcut.deleteLater()
+    def _register_hotkey(self) -> None:
+        hotkey = (self.block.hotkey or "").strip()
+        if not hotkey:
+            return
+        sequence = QtGui.QKeySequence(hotkey)
+        if sequence.count() == 0 or sequence[0] == 0:
+            return
+        shortcut = QtGui.QShortcut(sequence, self)
+        shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+        shortcut.activated.connect(lambda: self.triggered.emit(self.block.id, "on"))
+        self._shortcuts.append(shortcut)
+        self.setToolTip(tr("quick_block_hotkey_hint", "Hotkey: {key_display}", **{"key_display": sequence.toString()}))
 
 
 

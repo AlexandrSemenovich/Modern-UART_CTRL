@@ -125,8 +125,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # System tray
         self._tray_icon: QSystemTrayIcon | None = None
         
-        # Toast notifications
-        self._toast_manager = None
+        # Toast notifications lazily resolved to avoid focus issues
+        from src.views.toast_notification import ToastManager
+        self._toast_manager: ToastManager | None = None
         
         # TX animation state - prevents re-animation during active flash
         self._tx_animation_active: bool = False
@@ -528,6 +529,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_combo.setFocusPolicy(QtCore.Qt.NoFocus)
         self._btn_combo.setAccessibleName(tr("btn_combo_a11y", "Send to all (1+2)"))
         self._btn_combo.setAccessibleDescription(tr("btn_combo_desc_a11y", "Click to send command to both CPU1 and CPU2 simultaneously"))
         self._register_button(self._btn_combo, "primary")
@@ -544,6 +546,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_cpu1.setFocusPolicy(QtCore.Qt.NoFocus)
         self._btn_cpu1.setAccessibleName(tr("btn_cpu1_a11y", "Send to CPU1"))
         self._btn_cpu1.setAccessibleDescription(tr("btn_cpu1_desc_a11y", "Click to send command to CPU1"))
         self._register_button(self._btn_cpu1, "secondary")
@@ -558,6 +561,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_cpu2.setFocusPolicy(QtCore.Qt.NoFocus)
         self._btn_cpu2.setAccessibleName(tr("btn_cpu2_a11y", "Send to CPU2"))
         self._btn_cpu2.setAccessibleDescription(tr("btn_cpu2_desc_a11y", "Click to send command to CPU2"))
         self._register_button(self._btn_cpu2, "secondary")
@@ -572,6 +576,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._btn_tlm.setFocusPolicy(QtCore.Qt.NoFocus)
         self._btn_tlm.setAccessibleName(tr("btn_tlm_a11y", "Send to TLM"))
         self._btn_tlm.setAccessibleDescription(tr("btn_tlm_desc_a11y", "Click to send command to TLM"))
         self._register_button(self._btn_tlm, "secondary")
@@ -727,6 +732,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         for port in self._resolve_quick_block_ports(block):
             self._send_command(port, command_override=command)
+        if isinstance(getattr(self, "_left_panel", None), QtWidgets.QScrollArea):
+            left_widget = self._left_panel.widget()
+            if left_widget:
+                left_widget.setFocus(QtCore.Qt.OtherFocusReason)
+        if isinstance(getattr(self, "_left_panel", None), QtWidgets.QScrollArea):
+            self._left_panel.setFocus(QtCore.Qt.OtherFocusReason)
 
     def _resolve_quick_block_ports(self, block) -> list[int]:
         if getattr(block, "send_to_combo", False):

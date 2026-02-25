@@ -508,6 +508,62 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "ВЫКЛ",
         "en": "OFF",
     },
+    "quick_block_hotkey_hint": {
+        "ru": "Горячая клавиша: {key_display}",
+        "en": "Hotkey: {key_display}",
+    },
+    "quick_block_editor": {
+        "ru": "Редактор блока",
+        "en": "Quick Block Editor",
+    },
+    "block_name": {
+        "ru": "Имя блока",
+        "en": "Block name",
+    },
+    "new_group": {
+        "ru": "Новая группа",
+        "en": "New group",
+    },
+    "enter_group_name": {
+        "ru": "Введите название группы",
+        "en": "Enter group name",
+    },
+    "add_group": {
+        "ru": "Добавить группу",
+        "en": "Add group",
+    },
+    "group_label": {
+        "ru": "Группа:",
+        "en": "Group:",
+    },
+    "name_label": {
+        "ru": "Имя:",
+        "en": "Name:",
+    },
+    "port_combo": {
+        "ru": "Комбо",
+        "en": "Combo",
+    },
+    "command_on": {
+        "ru": "Команда ON:",
+        "en": "Command ON:",
+    },
+    "command_off": {
+        "ru": "Команда OFF:",
+        "en": "Command OFF:",
+    },
+    "hotkey": {
+        "ru": "Горячая клавиша:",
+        "en": "Hotkey:",
+    },
+    "hotkey_hint": {
+        "ru": "например Ctrl+Alt+1",
+        "en": "e.g. Ctrl+Alt+1",
+    },
+    "supports_off": {
+        "ru": "Поддерживает команду OFF",
+        "en": "Supports OFF command",
+    },
     "stop": {
         "ru": "Стоп",
         "en": "Stop",

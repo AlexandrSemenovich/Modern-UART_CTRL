@@ -7,7 +7,7 @@ import re
 import threading
 from typing import TypeGuard
 
-SYSTEM_RESERVED_PORTS = {"COM1", "COM2"}
+SYSTEM_RESERVED_PORTS = set()
 
 
 def is_valid_port_name(name: object) -> TypeGuard[str]:
@@ -50,7 +50,13 @@ class PortManager:
             self._ports_lock = threading.Lock()
             self._system_ports = SYSTEM_RESERVED_PORTS.copy()
     
-    def acquire(self, port_name: str) -> bool:
+    def _normalize_port_name(self, port_name: object) -> str:
+        """Normalize port name preserving custom identifiers."""
+        if isinstance(port_name, str) and port_name:
+            return port_name
+        return str(port_name)
+
+    def acquire(self, port_name: object) -> bool:
         """
         Try to acquire a port for exclusive use.
         
@@ -60,27 +66,30 @@ class PortManager:
         Returns:
             True if port was acquired successfully, False if already in use
         """
-        port_name = port_name.upper()
-        if port_name in self._system_ports:
+        normalized = self._normalize_port_name(port_name)
+        if normalized is None or normalized in self._system_ports:
             return False
 
         with self._ports_lock:
-            if port_name in self._active_ports:
+            if normalized in self._active_ports:
                 return False
-            self._active_ports.add(port_name)
+            self._active_ports.add(normalized)
             return True
-    
-    def release(self, port_name: str) -> None:
+
+    def release(self, port_name: object) -> None:
         """
         Release a previously acquired port.
         
         Args:
             port_name: Name of the port to release
         """
+        normalized = self._normalize_port_name(port_name)
+        if normalized is None:
+            return
         with self._ports_lock:
-            self._active_ports.discard(port_name)
-    
-    def is_in_use(self, port_name: str) -> bool:
+            self._active_ports.discard(normalized)
+
+    def is_in_use(self, port_name: object) -> bool:
         """
         Check if a port is currently in use.
         
@@ -90,8 +99,11 @@ class PortManager:
         Returns:
             True if port is in use, False otherwise
         """
+        normalized = self._normalize_port_name(port_name)
+        if normalized is None:
+            return False
         with self._ports_lock:
-            return port_name in self._active_ports
+            return normalized in self._active_ports
     
     def get_active_ports(self) -> set[str]:
         """

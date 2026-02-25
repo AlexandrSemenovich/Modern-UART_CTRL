@@ -1,6 +1,5 @@
 version: 1
 groups:
-
 - id: config_group
   name: Config
   collapsed: false
@@ -9,16 +8,18 @@ groups:
   - id: arm
     title: arm
     command_on: arm
+    command_off: null
     send_to_combo: true
     order: 0
     mode: single
     icon: null
-    port: combo
-    hotkey: null
+    port: CPU1
+    hotkey: Ctrl+F1
     group_id: config_group
   - id: status
     title: status
     command_on: status
+    command_off: null
     send_to_combo: true
     order: 1
     mode: single
@@ -29,6 +30,7 @@ groups:
   - id: bb_status
     title: bb
     command_on: bb
+    command_off: null
     send_to_combo: true
     order: 2
     mode: single
@@ -36,7 +38,6 @@ groups:
     port: combo
     hotkey: null
     group_id: config_group
-
 - id: bb_group
   name: BeagleBone
   collapsed: false
@@ -64,7 +65,6 @@ groups:
     port: combo
     hotkey: null
     group_id: bb_group
-
 - id: buk_group
   name: БУК
   collapsed: false
@@ -92,8 +92,6 @@ groups:
     port: combo
     hotkey: null
     group_id: buk_group
-
-
 - id: cam_group
   name: Камеры
   collapsed: false
@@ -154,7 +152,6 @@ groups:
     port: combo
     hotkey: null
     group_id: cam_group
-
 - id: bpx_group
   name: БП-Х
   collapsed: false

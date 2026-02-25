@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import uuid
 
-from PySide6 import QtWidgets, QtCore
+from PySide6 import QtWidgets, QtCore, QtGui
 
 from src.utils.quick_blocks_repository import QuickBlock, QuickGroup
-from src.utils.translator import tr
+from src.utils.translator import tr, translator
 
 
 class QuickBlockEditorDialog(QtWidgets.QDialog):
@@ -31,6 +31,7 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         self._populate_groups()
         if block:
             self._load_block(block)
+        translator.language_changed.connect(lambda _: self._retranslate())
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
@@ -42,53 +43,54 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         form.setLabelAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
 
         self._title_edit = QtWidgets.QLineEdit()
-        self._title_edit.setPlaceholderText(tr("block_name", "Block name"))
-        form.addRow(tr("name", "Name:"), self._title_edit)
+        self._title_label = QtWidgets.QLabel()
+        form.addRow(self._title_label, self._title_edit)
 
         group_row = QtWidgets.QHBoxLayout()
         self._group_combo = QtWidgets.QComboBox()
         group_row.addWidget(self._group_combo, 1)
         add_group_btn = QtWidgets.QToolButton()
         add_group_btn.setText("+")
-        add_group_btn.setToolTip(tr("add_group", "Add group"))
         add_group_btn.clicked.connect(self._prompt_new_group)
         group_row.addWidget(add_group_btn, 0)
         group_wrapper = QtWidgets.QWidget()
         group_wrapper.setLayout(group_row)
-        form.addRow(tr("group", "Group:"), group_wrapper)
+        self._group_label = QtWidgets.QLabel()
+        form.addRow(self._group_label, group_wrapper)
 
         self._port_combo = QtWidgets.QComboBox()
         self._port_combo.addItems(["cpu1", "cpu2", "tlm", "combo"])
-        form.addRow(tr("port", "Port:"), self._port_combo)
+        self._port_label = QtWidgets.QLabel()
+        form.addRow(self._port_label, self._port_combo)
 
-        self._send_combo_chk = QtWidgets.QCheckBox(
-            tr("send_to_combo", "Send to combo (CPU1+CPU2)")
-        )
+        self._send_combo_chk = QtWidgets.QCheckBox()
         self._send_combo_chk.setChecked(True)
         form.addRow("", self._send_combo_chk)
 
-        self._mode_checkbox = QtWidgets.QCheckBox(
-            tr("supports_off", "Supports OFF command")
-        )
+        self._mode_checkbox = QtWidgets.QCheckBox()
         self._mode_checkbox.setChecked(True)
         self._mode_checkbox.stateChanged.connect(self._on_mode_toggled)
         form.addRow("", self._mode_checkbox)
 
-        self._hotkey_edit = QtWidgets.QLineEdit()
-        self._hotkey_edit.setPlaceholderText(tr("hotkey_hint", "e.g. Ctrl+Alt+1"))
-        form.addRow(tr("hotkey", "Hotkey:"), self._hotkey_edit)
+        hotkey_row = QtWidgets.QHBoxLayout()
+        self._hotkey_edit = QtWidgets.QKeySequenceEdit()
+        hotkey_row.addWidget(self._hotkey_edit, 1)
+        self._hotkey_clear = QtWidgets.QToolButton()
+        self._hotkey_clear.setText("✕")
+        self._hotkey_clear.clicked.connect(lambda: self._hotkey_edit.clear())
+        hotkey_row.addWidget(self._hotkey_clear)
+        hotkey_widget = QtWidgets.QWidget()
+        hotkey_widget.setLayout(hotkey_row)
+        self._hotkey_label = QtWidgets.QLabel()
+        form.addRow(self._hotkey_label, hotkey_widget)
 
         self._command_on = QtWidgets.QPlainTextEdit()
-        self._command_on.setPlaceholderText(
-            tr("command_on", "Command ON")
-        )
-        form.addRow(tr("command_on", "Command ON:"), self._command_on)
+        self._command_on_label = QtWidgets.QLabel()
+        form.addRow(self._command_on_label, self._command_on)
 
         self._command_off = QtWidgets.QPlainTextEdit()
-        self._command_off.setPlaceholderText(
-            tr("command_off", "Command OFF")
-        )
-        form.addRow(tr("command_off", "Command OFF:"), self._command_off)
+        self._command_off_label = QtWidgets.QLabel()
+        form.addRow(self._command_off_label, self._command_off)
 
         layout.addLayout(form)
 
@@ -98,11 +100,45 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         button_box.accepted.connect(self._on_accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
+        self._button_box = button_box
+        self._retranslate()
+
+    def _retranslate(self) -> None:
+        self.setWindowTitle(tr("quick_block_editor", "Quick Block Editor"))
+        self._title_edit.setPlaceholderText(tr("block_name", "Block name"))
+        self._title_label.setText(tr("name_label", "Name:"))
+        self._group_label.setText(tr("group_label", "Group:"))
+        self._port_label.setText(tr("port", "Port:"))
+        self._port_combo.clear()
+        current_port = self._port_combo.currentText()
+        self._port_combo.clear()
+        ports = ["cpu1", "cpu2", "tlm", "combo"]
+        for port_key in ports:
+            self._port_combo.addItem(tr(port_key, port_key.upper()), port_key)
+        idx = self._port_combo.findData(current_port)
+        if idx >= 0:
+            self._port_combo.setCurrentIndex(idx)
+        self._send_combo_chk.setText(tr("send_to_combo", "Send to combo (CPU1+CPU2)"))
+        self._mode_checkbox.setText(tr("supports_off", "Supports OFF command"))
+        self._hotkey_label.setText(tr("hotkey", "Hotkey:"))
+        self._hotkey_edit.setToolTip(tr("hotkey_hint", "e.g. Ctrl+Alt+1"))
+        self._hotkey_clear.setToolTip(tr("clear", "Clear"))
+        self._command_on_label.setText(tr("command_on", "Command ON:"))
+        self._command_on.setPlaceholderText(tr("command_on", "Command ON"))
+        self._command_off_label.setText(tr("command_off", "Command OFF:"))
+        self._command_off.setPlaceholderText(tr("command_off", "Command OFF"))
+        self._button_box.button(QtWidgets.QDialogButtonBox.Save).setText(tr("save", "Save"))
+        self._button_box.button(QtWidgets.QDialogButtonBox.Cancel).setText(tr("cancel", "Cancel"))
 
     def _populate_groups(self) -> None:
+        current_id = self._group_combo.currentData()
         self._group_combo.clear()
         for group in self._groups:
             self._group_combo.addItem(group.name, group.id)
+        if current_id:
+            idx = self._group_combo.findData(current_id)
+            if idx >= 0:
+                self._group_combo.setCurrentIndex(idx)
 
     def _prompt_new_group(self) -> None:
         text, ok = QtWidgets.QInputDialog.getText(
@@ -139,7 +175,10 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         self._command_on.setPlainText(block.command_on)
         self._command_off.setPlainText(block.command_off or "")
         self._command_off.setEnabled(block.mode != "single")
-        self._hotkey_edit.setText(block.hotkey or "")
+        if block.hotkey:
+            self._hotkey_edit.setKeySequence(QtGui.QKeySequence(block.hotkey))
+        else:
+            self._hotkey_edit.clear()
 
     def _validate(self) -> tuple[bool, str]:
         title = self._title_edit.text().strip()
@@ -186,7 +225,7 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
             mode="dual" if has_off else "single",
             icon=self._editing_block.icon if self._editing_block else None,
             port=self._port_combo.currentText(),
-            hotkey=self._hotkey_edit.text().strip() or None,
+            hotkey=self._hotkey_edit.keySequence().toString().strip() or None,
         )
 
 
