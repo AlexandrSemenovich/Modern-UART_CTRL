@@ -113,7 +113,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         
         self._scan_btn = QtWidgets.QPushButton(tr("scan", "Scan"))
         self._scan_btn.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
-        self._scan_btn.setMaximumWidth(Sizes.BUTTON_MAX_WIDTH)
+        self._scan_btn.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
         self._scan_btn.setAccessibleName(tr("scan_btn_a11y", "Scan for ports"))
         self._scan_btn.setAccessibleDescription(tr("scan_btn_desc_a11y", "Click to scan for available COM ports"))
         self._register_button(self._scan_btn, "secondary")

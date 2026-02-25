@@ -38,13 +38,15 @@ if sys.platform == "win32":
 else:
     HAS_WIN32_API = False
 
-from src.utils import get_config_loader
+from src.utils import get_config_loader, get_quick_blocks_repository
 from src.utils.theme_manager import theme_manager
 from src.utils.windows11 import apply_windows_11_style, is_windows_11_or_later, GlobalHotkeyManager, VK, MOD_CONTROL, MOD_ALT, MOD_SHIFT
 from src.utils.translator import translator, tr
 from src.styles.constants import Fonts, Sizes, SerialConfig, FlashAnimation
 from src.views.port_panel_view import PortPanelView
 from src.views.console_panel_view import ConsolePanelView
+from src.views.quick_blocks_panel import QuickBlocksPanel
+from src.utils.quick_blocks_repository import QuickBlock
 from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
 from src.viewmodels.command_history_viewmodel import CommandHistoryModel
 from src.viewmodels.factory import ViewModelFactory, get_viewmodel_factory
@@ -115,9 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._quick_command_buttons: list[QtWidgets.QPushButton] = []
         self._quick_port_buttons: dict[int, QtWidgets.QAbstractButton] = {}
         self._quick_port_button_group: QtWidgets.QButtonGroup | None = None
-        self._quick_group: QtWidgets.QGroupBox | None = None
-        self._quick_port_label: QtWidgets.QLabel | None = None
-        self._quick_hint_label: QtWidgets.QLabel | None = None
+        self._quick_panel: QuickBlocksPanel | None = None
 
         # Console panel
         self._console_panel: ConsolePanelView | None = None
@@ -138,6 +138,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Command history - use factory for composition
         self._history_model = self._viewmodel_factory.create_history_model(parent=self)
         self._history_dialog: CommandHistoryDialog | None = None
+        self._quick_blocks_repository = get_quick_blocks_repository()
 
         # Config-driven features
         self._config_loader = get_config_loader()
@@ -357,7 +358,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._console_panel.setObjectName("console_panel")
         hsplit.addWidget(self._console_panel)
 
-        # RIGHT PANEL: Counters + Quick Send
+        # RIGHT PANEL: Counters + Quick Blocks
         self._right_panel = self._create_right_panel()
         self._right_panel.setMinimumWidth(Sizes.RIGHT_PANEL_MIN_WIDTH)
         self._right_panel.setMaximumWidth(Sizes.RIGHT_PANEL_MAX_WIDTH)
@@ -380,7 +381,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._left_panel_was_visible = True  # Track previous visibility state for left panel
         
         # Set initial sizes to ensure minimum widths are respected
-        hsplit.setSizes([Sizes.LEFT_PANEL_MIN_WIDTH, Sizes.CENTER_PANEL_MIN_WIDTH, Sizes.RIGHT_PANEL_MIN_WIDTH])
+        hsplit.setSizes([Sizes.LEFT_PANEL_MAX_WIDTH, Sizes.CENTER_PANEL_MIN_WIDTH, Sizes.RIGHT_PANEL_MIN_WIDTH])
         
         main_layout.addWidget(hsplit)
         central_widget.setLayout(main_layout)
@@ -464,12 +465,28 @@ class MainWindow(QtWidgets.QMainWindow):
         # Command input section
         command_group = self._create_command_group()
         layout.addWidget(command_group)
+
+        quick_panel = self._create_quick_blocks_panel()
+        if quick_panel:
+            quick_group = QtWidgets.QGroupBox(tr("quick_blocks", "Quick Blocks"))
+            quick_layout = QtWidgets.QVBoxLayout()
+            quick_layout.setSpacing(Sizes.LAYOUT_SPACING)
+            quick_layout.setContentsMargins(
+                Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
+                Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
+            )
+            quick_layout.addWidget(quick_panel)
+            quick_group.setLayout(quick_layout)
+            quick_group.setObjectName("quick_blocks_group")
+            quick_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+            layout.addWidget(quick_group)
+
         self._update_command_controls()
 
         layout.addStretch()
         content.setLayout(layout)
         scroll_area.setWidget(content)
-        
+
         return scroll_area
     
     def _create_command_group(self) -> QtWidgets.QGroupBox:
@@ -607,7 +624,6 @@ class MainWindow(QtWidgets.QMainWindow):
         content.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         layout = QtWidgets.QVBoxLayout(content)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
-        # Ensure symmetric margins (8px on both sides)
         layout.setContentsMargins(
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
@@ -686,20 +702,41 @@ class MainWindow(QtWidgets.QMainWindow):
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp)
 
-        quick_grp = self._create_quick_commands_group()
-        if quick_grp is not None:
-            layout.addWidget(quick_grp)
-
-        
-        # Add right-side spacer to ensure panel never touches right edge
-        right_spacer = QtWidgets.QSpacerItem(8, 0, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
-        layout.addSpacerItem(right_spacer)
-        
         layout.addStretch()
         content.setLayout(layout)
         scroll_area.setWidget(content)
-        
+
         return scroll_area
+
+    def _create_quick_blocks_panel(self) -> QtWidgets.QWidget | None:
+        if not self._quick_blocks_repository:
+            return None
+        panel = QuickBlocksPanel(self._quick_blocks_repository, self)
+        panel.block_triggered.connect(self._execute_quick_block)
+        self._quick_panel = panel
+        return panel
+
+    def _execute_quick_block(self, block_id: str, mode: str) -> None:
+        block = self._quick_blocks_repository.get_block(block_id)
+        if not block:
+            return
+        command = block.command_on if mode == "on" else block.command_off
+        if not command:
+            return
+        for port in self._resolve_quick_block_ports(block):
+            self._send_command(port, command_override=command)
+
+    def _resolve_quick_block_ports(self, block) -> list[int]:
+        if getattr(block, "send_to_combo", False):
+            return [1, 2]
+        port_key = (getattr(block, "port", None) or "").lower()
+        mapping = {
+            "cpu1": [1],
+            "cpu2": [2],
+            "tlm": [3],
+            "combo": [1, 2],
+        }
+        return mapping.get(port_key, [1])
     
     def _create_status_group(self) -> QtWidgets.QGroupBox:
         """Legacy status group removed from UI."""
@@ -875,14 +912,15 @@ class MainWindow(QtWidgets.QMainWindow):
         shortcut_escape = QShortcut(QKeySequence("Escape"), self)
         shortcut_escape.activated.connect(self.close)
     
-    def _send_command(self, port_num: int) -> None:
+    def _send_command(self, port_num: int, *, command_override: str | None = None) -> None:
         """
         Send command to specified port(s).
         
         Args:
             port_num: Port number (0=all, 1=CPU1, 2=CPU2, 3=TLM)
+            command_override: Optional text to send instead of input field
         """
-        command = self._le_command.text()
+        command = command_override if command_override is not None else self._le_command.text()
         if not command:
             return
         
@@ -898,7 +936,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Add to history
         self._history_model.add_entry(command, self._port_label_for_num(port_num))
-        
+
         # Send to port(s)
         if port_num == 0:
             # Send to CPU1 and CPU2

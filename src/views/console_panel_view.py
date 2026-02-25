@@ -321,12 +321,18 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_edit.setAccessibleDescription(tr("search_desc_a11y", "Enter text to filter log messages"))
         self._search_edit.textChanged.connect(self._on_search_changed)
         self._search_edit.setVisible(False)
+        self._search_edit.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        self._search_edit.setMaximumWidth(Sizes.SEARCH_FIELD_MAX_WIDTH)
         search_row.addWidget(self._search_edit, 1, Qt.AlignVCenter)
-        search_row.addStretch(1)
 
         # Regex checkbox
         self._chk_regex = QtWidgets.QCheckBox(tr("regex", "Regex"))
         self._chk_regex.setFixedHeight(control_height)
+        self._chk_regex.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self._chk_regex.setMaximumWidth(90)
         self._chk_regex.setAccessibleName(tr("regex_a11y", "Enable regular expression search"))
         self._chk_regex.setAccessibleDescription(tr("regex_desc_a11y", "Toggle to use regular expression in search"))
         self._chk_regex.stateChanged.connect(self._on_search_changed)
