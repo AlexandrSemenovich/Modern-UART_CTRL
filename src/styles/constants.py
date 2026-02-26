@@ -3,9 +3,10 @@ Unified style constants for the entire application.
 Provides colors, fonts, sizes, and spacing.
 """
 
+import logging
+import os
 from pathlib import Path
 from PySide6.QtGui import QFont, QFontDatabase
-import logging
 
 from src.utils.config_loader import config_loader
 
@@ -319,8 +320,9 @@ class CommandConfig:
 class LoggingConfig:
     """Logging configuration constants."""
     
-    # Log directory relative to project root
-    LOG_DIR = Path('logs')
+    # Log directory relative to user config directory
+    LOG_DIR = Path(os.environ.get('APPDATA', str(Path.home())))
+    LOG_DIR = Path(LOG_DIR) / 'UART_CTRL' / 'logs'
     
     # Maximum size of each log file (10 MB)
     MAX_BYTES = 10 * 1024 * 1024

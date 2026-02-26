@@ -272,18 +272,20 @@ class ConfigLoader:
         """Ensure that config.ini exists by copying bundled defaults if necessary."""
         if target.exists():
             return
-        bundled = get_root_dir() / "config" / "config.ini"
-        if bundled.exists():
-            target.write_text(bundled.read_text(encoding="utf-8"), encoding="utf-8")
-            return
+        search_paths: list[Path] = []
+        if hasattr(sys, "_MEIPASS"):
+            search_paths.append(Path(getattr(sys, "_MEIPASS")) / "config" / "config.ini")
         app_dir = Path(sys.executable).resolve().parent
-        packaged_copy = app_dir / "_internal" / "config" / "config.ini"
-        if packaged_copy.exists():
-            target.write_text(packaged_copy.read_text(encoding="utf-8"), encoding="utf-8")
-            return
-        fallback = app_dir / "config" / "config.ini"
-        if fallback.exists():
-            target.write_text(fallback.read_text(encoding="utf-8"), encoding="utf-8")
+        search_paths.append(app_dir / "config" / "config.ini")
+        search_paths.append(get_root_dir() / "config" / "config.ini")
+
+        for candidate in search_paths:
+            if candidate.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                data = candidate.read_text(encoding="utf-8")
+                target.write_text(data, encoding="utf-8")
+                self._default_config_source = str(candidate)
+                return
 
 
     def _get_section(self, section: str) -> dict[str, str]:

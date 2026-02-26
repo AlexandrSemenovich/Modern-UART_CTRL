@@ -254,3 +254,14 @@ MIT License
 ## Рождение проекта
 
 Дата создания: 9 февраля 2026
+## Сборка собственного загрузчика
+
+1. Сформируйте архив ресурсов:
+   ```bash
+   python scripts/package_resources.py
+   ```
+   Архив `build/resources/resources.zip` + `manifest.json` будет использован кастомным загрузчиком.
+
+2. Соберите лаунчер (C++/C# проект в каталоге `launcher/`, TODO).
+
+3. Упакуйте установщик (NSIS/Inno Setup) из содержимого `installer/`.

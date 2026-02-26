@@ -12,13 +12,17 @@ Icon naming convention in assets/icons/fa/:
 
 import logging
 import os
+import sys
+import shutil
+from pathlib import Path
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot, QSize, Qt
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QIconEngine, QImage, QScreen
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication, QWidget
 
 from src.utils.theme_manager import ThemeManager
-from src.utils.paths import get_root_dir
+from src.utils.paths import get_root_dir, get_config_dir
 
 
 class IconCache(QObject):
@@ -58,6 +62,7 @@ class IconCache(QObject):
         
         # Get base icons directory
         self._base_icons_dir = self._get_icons_directory()
+        self._logger.info("IconCache base dir: %s", self._base_icons_dir)
         
         # Connect to theme manager
         self._theme_manager = ThemeManager()
@@ -65,17 +70,48 @@ class IconCache(QObject):
         
         self._logger.info(f"IconCache initialized. Base directory: {self._base_icons_dir}")
     
+    def _mirror_icons_directory(self, source: Path) -> str | None:
+        target_root = get_config_dir() / "assets"
+        target = target_root / "icons"
+        try:
+            target_root.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(source, target, dirs_exist_ok=True)
+            return str(target)
+        except OSError as exc:
+            self._logger.warning("Failed to mirror icons from %s to %s: %s", source, target, exc)
+            return None
+
     def _get_icons_directory(self) -> str:
         """Get the base icons directory path."""
-        # Use project's get_root_dir() for proper path resolution
         root_dir = get_root_dir()
-        icons_dir = root_dir / "assets" / "icons"
-        icons_dir_str = str(icons_dir)
-        
-        if not os.path.exists(icons_dir_str):
-            self._logger.warning(f"Icons directory not found: {icons_dir_str}")
-            
-        return icons_dir_str
+        exe_dir = Path(sys.executable).resolve().parent
+        frozen = bool(getattr(sys, "frozen", False))
+
+        search_paths = [
+            root_dir / "assets" / "icons",
+            exe_dir / "assets" / "icons",
+            exe_dir / "_internal" / "assets" / "icons",
+        ]
+
+        if hasattr(sys, "_MEIPASS"):
+            meipass = Path(getattr(sys, "_MEIPASS"))
+            search_paths.extend([
+                meipass / "assets" / "icons",
+                meipass / "_internal" / "assets" / "icons",
+            ])
+
+        for candidate in search_paths:
+            if candidate.exists():
+                if frozen:
+                    mirrored = self._mirror_icons_directory(candidate)
+                    if mirrored:
+                        return mirrored
+                else:
+                    return str(candidate)
+
+        fallback = search_paths[0]
+        self._logger.warning(f"Icons directory not found. Using fallback: {fallback}")
+        return str(fallback)
     
     def _get_dpi_scale_factor(self) -> float:
         """Get the current DPI scale factor."""
@@ -178,35 +214,60 @@ class IconCache(QObject):
         self._logger.warning(f"Icon not found: {name} (theme: {theme})")
         return None
     
-    def _load_icon(self, name: str, theme: str) -> QIcon:
-        """
-        Load an icon from file with DPI scaling.
-        
-        Args:
-            name: Icon name (e.g., "clock-rotate-left")
-            theme: "light" or "dark"
-            
-        Returns:
-            Loaded QIcon with proper scaling
-        """
-        icon_path = self._resolve_icon_path(name, theme)
-        
-        if icon_path is None:
-            # Return empty icon as fallback
+    def _render_svg_icon(self, path: str) -> QIcon:
+        renderer = QSvgRenderer(path)
+        if not renderer.isValid():
+            self._logger.warning("SVG renderer invalid for %s", path)
             return QIcon()
-        
-        # Get DPI scale factor
-        scale_factor = self._get_dpi_scale_factor()
-        
-        # Load the icon
-        icon = QIcon(icon_path)
-        
-        # If SVG, we might need to specify size for proper scaling
-        if icon_path.endswith(".svg") and scale_factor != 1.0:
-            # For SVG, Qt handles scaling automatically when using pixmap()
-            # But we can set the icon size hints
-            icon.setThemeName("")  # Clear any system theme
-        
+
+        default_size = renderer.defaultSize()
+        if not default_size.isValid() or default_size.width() == 0 or default_size.height() == 0:
+            default_size = QSize(64, 64)
+
+        pixmap = QPixmap(default_size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+
+        icon = QIcon(pixmap)
+        icon.addPixmap(pixmap)
+        return icon
+
+    def _create_icon(self, path: str) -> QIcon:
+        suffix = Path(path).suffix.lower()
+        if suffix == ".svg":
+            return self._render_svg_icon(path)
+
+        icon = QIcon(path)
+        pixmap = QPixmap(path)
+        if not pixmap.isNull():
+            size = pixmap.size()
+            self._logger.debug(
+                "IconCache: pixmap loaded for %s with size %dx%d",
+                path,
+                size.width(),
+                size.height(),
+            )
+        else:
+            self._logger.warning("IconCache: pixmap could not be loaded for %s", path)
+
+        if icon.isNull() and not pixmap.isNull():
+            icon = QIcon(pixmap)
+            self._logger.debug("IconCache: created icon from pixmap for %s", path)
+        return icon
+
+    def _load_icon(self, name: str, theme: str) -> QIcon:
+        icon_path = self._resolve_icon_path(name, theme)
+        if icon_path is None:
+            return QIcon()
+
+        icon = self._create_icon(icon_path)
+
+        if icon.isNull():
+            self._logger.warning("Failed to create icon from %s", icon_path)
+
         return icon
     
     def get(self, name: str) -> QIcon:
@@ -233,6 +294,13 @@ class IconCache(QObject):
         
         # Load and cache
         icon = self._load_icon(name, theme)
+        if icon.isNull():
+            self._logger.warning(
+                "Icon '%s' is null even after loading from %s (themes: %s)",
+                name,
+                self._base_icons_dir,
+                os.listdir(self._base_icons_dir),
+            )
         self._icon_cache[cache_key] = icon
         
         return icon

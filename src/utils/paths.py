@@ -12,6 +12,8 @@ import os
 import sys
 from contextlib import contextmanager
 from functools import cache
+from importlib import resources
+import shutil
 from pathlib import Path
 from typing import Generator, TextIO
 
@@ -31,7 +33,14 @@ def get_root_dir() -> Path:
     - In packed form: executable file directory.
     """
     if _is_frozen():
-        return Path(sys.executable).resolve().parent
+        if hasattr(sys, "_MEIPASS"):
+            return Path(getattr(sys, "_MEIPASS"))
+        exe_dir = Path(sys.executable).resolve().parent
+        # PyInstaller on Windows keeps resources inside `_internal`, so prefer it if present
+        internal = exe_dir / "_internal"
+        if internal.exists():
+            return internal
+        return exe_dir
     # src/utils/paths.py -> parents[2] == project root
     return Path(__file__).resolve().parents[2]
 
@@ -77,6 +86,78 @@ def get_config_file(name: str) -> Path:
     ensure_dir(cfg_path)
     return cfg_path
 
+def _resolve_candidate(path: Path, name: str) -> Path | None:
+    if path.is_file():
+        return path
+    if path.is_dir():
+        nested = path / name
+        if nested.is_file():
+            return nested
+    return None
+
+
+def _find_stylesheet_source(name: str) -> Path | None:
+    exe_dir = Path(sys.executable).resolve().parent
+    candidates: list[Path]
+    if _is_frozen():
+        meipass = get_root_dir()
+        candidates = [
+            exe_dir / "styles" / name,
+            meipass / "styles" / name,
+            meipass / "src" / "styles" / name,
+        ]
+    else:
+        root = get_root_dir()
+        candidates = [
+            root / "src" / "styles" / name,
+            root / "styles" / name,
+        ]
+    for candidate in candidates:
+        resolved = _resolve_candidate(candidate, name)
+        if resolved:
+            return resolved
+    return None
+
+
+def _load_stylesheet_bytes(name: str) -> bytes | None:
+    try:
+        return resources.read_binary("src.styles", name)
+    except (FileNotFoundError, ModuleNotFoundError):
+        return None
+
+
+def _copy_stylesheet(source: Path, target: Path) -> bool:
+    try:
+        shutil.copy2(source, target)
+        return True
+    except PermissionError:
+        try:
+            data = source.read_bytes()
+        except OSError:
+            return False
+        target.write_bytes(data)
+        return True
+    except OSError:
+        return False
+
+
+def _ensure_stylesheet(name: str) -> Path:
+    target_dir = get_config_dir() / "styles"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / name
+    if target_path.exists():
+        return target_path
+
+    source = _find_stylesheet_source(name)
+    if source and source.exists():
+        if _copy_stylesheet(source, target_path):
+            return target_path
+
+    data = _load_stylesheet_bytes(name)
+    if data is not None:
+        target_path.write_bytes(data)
+    return target_path
+
 
 @cache
 def get_stylesheet_path(name: str) -> Path:
@@ -85,16 +166,11 @@ def get_stylesheet_path(name: str) -> Path:
 
     First tries to find the style in `<root>/src/styles`, then in `<root>/styles`.
     """
-    root = get_root_dir()
-    candidates = [
-        root / "src" / "styles" / name,
-        root / "styles" / name,
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    # Return first candidate by default - calling code will handle missing file
-    return candidates[0]
+    if not _is_frozen():
+        source = _find_stylesheet_source(name)
+        if source:
+            return source
+    return _ensure_stylesheet(name)
 
 
 @contextmanager
