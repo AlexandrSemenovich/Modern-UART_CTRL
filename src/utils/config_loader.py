@@ -7,8 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
+import sys
+
 from src.utils.service_container import service_container
-from src.utils.paths import get_config_file
+from src.utils.paths import get_config_file, get_root_dir
 
 
 class Margins(NamedTuple):
@@ -158,18 +160,7 @@ class ConfigLoader:
 
     def __init__(self, config_path: Path | None = None) -> None:
         self._config = configparser.ConfigParser()
-        # Single entry point for configuration
-        default_path = get_config_file("config.ini")
-        
-        # Error handling for config parsing with fallback to defaults
-        try:
-            self._config.read(config_path or default_path, encoding="utf-8")
-        except (configparser.Error, OSError) as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to parse config file: {e}. Using default values.")
-
-        # defaults
+        # defaults (must be defined before ensure_default_config)
         self._default_colors = {
             "dark": ThemeColors(
                 timestamp="#757575",
@@ -264,6 +255,36 @@ class ConfigLoader:
             QuickCommand("Start", "start\r\n"),
             QuickCommand("Stop", "stop\r\n"),
         ]
+
+        # Single entry point for configuration
+        default_path = get_config_file("config.ini")
+        self._ensure_default_config(default_path)
+
+        # Error handling for config parsing with fallback to defaults
+        try:
+            self._config.read(config_path or default_path, encoding="utf-8")
+        except (configparser.Error, OSError) as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to parse config file: {e}. Using default values.")
+
+    def _ensure_default_config(self, target: Path) -> None:
+        """Ensure that config.ini exists by copying bundled defaults if necessary."""
+        if target.exists():
+            return
+        bundled = get_root_dir() / "config" / "config.ini"
+        if bundled.exists():
+            target.write_text(bundled.read_text(encoding="utf-8"), encoding="utf-8")
+            return
+        app_dir = Path(sys.executable).resolve().parent
+        packaged_copy = app_dir / "_internal" / "config" / "config.ini"
+        if packaged_copy.exists():
+            target.write_text(packaged_copy.read_text(encoding="utf-8"), encoding="utf-8")
+            return
+        fallback = app_dir / "config" / "config.ini"
+        if fallback.exists():
+            target.write_text(fallback.read_text(encoding="utf-8"), encoding="utf-8")
+
 
     def _get_section(self, section: str) -> dict[str, str]:
         if self._config.has_section(section):

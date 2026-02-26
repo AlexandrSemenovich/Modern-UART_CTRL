@@ -80,6 +80,26 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## Сборка исполнимых файлов
+
+Перед сборкой убедитесь, что зависимости установлены (`pip install -r requirements.txt`).
+
+### Windows (PowerShell / CMD)
+
+```powershell
+packaging\build_windows.bat
+```
+
+Скрипт активирует виртуальное окружение, запускает PyInstaller со [`packaging/OrbSterm.spec`](packaging/OrbSterm.spec) и складывает артефакт в `dist/OrbSterm`.
+
+### Linux / WSL / macOS
+
+```bash
+bash packaging/build_linux.sh
+```
+
+Скрипт ожидает активированное окружение `venv`, запускает PyInstaller через тот же spec-файл и формирует каталог `dist/OrbSterm`.
+
 ## Запуск приложения
 
 Рекомендуемый способ запуска — через обёртки в `scripts/` (поддерживает venv activation):
