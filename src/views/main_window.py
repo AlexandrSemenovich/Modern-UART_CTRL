@@ -1253,7 +1253,11 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Generate filename with timestamp
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = tr("logs_default_filename", f"uart_logs_{timestamp}.txt")
+        default_name = tr(
+            "logs_default_filename",
+            f"uart_logs_{timestamp}.txt",
+            timestamp=timestamp,
+        )
         
         
         # Show save dialog

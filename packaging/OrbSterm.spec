@@ -42,13 +42,14 @@ def _add_dir(base: Path, prefix: str) -> None:
         if file.is_file():
             rel = file.relative_to(base)
             target_dir = Path(prefix) / rel.parent
+            print(f"Source: {file} -> target_dir: {target_dir}")  # отладка
             _add_file(file, target_dir)
 
 
-_add_dir(project_root / "config", "_internal/config")
-_add_dir(project_root / "assets", "_internal/assets")
-_add_dir(project_root / "src" / "styles", "_internal/styles")
-_add_dir(project_root / "src" / "translations", "_internal/translations")
+_add_dir(project_root / "config", "config")
+_add_dir(project_root / "assets", "assets")
+_add_dir(project_root / "src" / "styles", "styles")
+_add_dir(project_root / "src" / "translations", "translations")
 
 hiddenimports = collect_submodules("src")
 
