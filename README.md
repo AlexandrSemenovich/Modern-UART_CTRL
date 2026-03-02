@@ -18,26 +18,30 @@
 ```
 d:/7_Test_SW/10_Modern-UART_CTRL/
 ├── src/
-│   ├── main.py                 # Главный файл приложения
-│   ├── models/
-│   │   ├── base_model.py       # Базовый класс модели
-│   │   └── serial_worker.py    # QThread для работы с COM портами
+│   ├── main.py                 # вход через AppBootstrap
+│   ├── bootstrap/              # подготовка QApplication, splash
 │   ├── views/
-│   │   ├── main_window.py      # Главное окно приложения
-│   │   └── splash_screen.py    # Загрузочный экран
+│   │   ├── main_window.py      # адаптивные панели, quick blocks
+│   │   ├── console_panel_view.py
+│   │   ├── quick_blocks_panel.py
+│   │   ├── port_panel_view.py
+│   │   └── splash_screen.py
 │   ├── viewmodels/
-│   │   └── main_viewmodel.py   # Business logic для главного окна
+│   │   ├── main_viewmodel.py
+│   │   ├── com_port_viewmodel.py
+│   │   ├── command_history_viewmodel.py
+│   │   └── protocols.py / factory.py
 │   ├── utils/
-│   │   ├── translator.py       # Система переводов
-│   │   ├── theme_manager.py    # Менеджер тем
-│   │   └── transmission_settings.py # Настройки передачи
+│   │   ├── config_loader.py / config.defaults.ini
+│   │   ├── quick_blocks_repository.py + quick_blocks_schema.py
+│   │   ├── icon_cache.py / theme_manager.py / translator.py
+│   │   └── transmission_settings.py
 │   ├── styles/
-│   │   ├── app.qss            # Стили QSS
-│   │   ├── constants.py       # Константы размеров
-│   │   └── glass_styles.py   # Стили жидкого стекла
-│   └── translations/
-│       ├── ru_RU.py            # Русские переводы
-│       └── en_US.py            # Английские переводы
+│   │   ├── app_optimized.qss
+│   │   └── constants.py
+│   ├── translations/
+│   │   ├── en_US.py, ru_RU.py
+│   └── smoke_run.py, main.py
 ├── requirements.txt            # Зависимости проекта
 ├── tests/                      # Тесты
 └── README.md                   # Этот файл
@@ -87,18 +91,20 @@ pip install -r requirements.txt
 ### Windows (PowerShell / CMD)
 
 ```powershell
+python -m pip install --upgrade pyinstaller
 packaging\build_windows.bat
 ```
 
-Скрипт активирует виртуальное окружение, запускает PyInstaller со [`packaging/OrbSterm.spec`](packaging/OrbSterm.spec) и складывает артефакт в `dist/OrbSterm`.
+Скрипт активирует venv, очищает `build/` и `dist/`, убеждается что PyInstaller доступен и вызывает [`packaging/OrbSterm.spec`](packaging/OrbSterm.spec). Готовый билд появится в `dist/OrbSterm`.
 
 ### Linux / WSL / macOS
 
 ```bash
+python -m pip install --upgrade pyinstaller
 bash packaging/build_linux.sh
 ```
 
-Скрипт ожидает активированное окружение `venv`, запускает PyInstaller через тот же spec-файл и формирует каталог `dist/OrbSterm`.
+Скрипт ожидает активированное `.venv`, запускает PyInstaller с тем же spec-файлом и формирует `dist/OrbSterm`.
 
 ## Запуск приложения
 
@@ -137,21 +143,31 @@ PowerShell:
 
 ## Использование
 
+### Quick Blocks
+
+- Быстрые команды организованы по группам; каждая карточка хранит `command_on/command_off`, целевой порт и хоткей.
+- Редактирование/дублирование/удаление происходит прямо в панели, изменения автоматически сохраняются в [`config/quick_blocks.yaml`](config/quick_blocks.yaml).
+- Ошибки конфигурации валидируются при загрузке через [`QuickBlocksDocument`](src/utils/quick_blocks_schema.py:44).
+
+### Service Container
+
+- В [`src/utils/service_container.py`](src/utils/service_container.py:9) реализован thread-safe регистратор singleton-ов.
+- Локальные помощники (`get_config_loader`, `get_quick_blocks_repository`) объявлены в [`src/utils/__init__.py`](src/utils/__init__.py:9) и используются Views/ViewModels для получения зависимостей без глобальных импортов.
+
 ### Основные функции
 
-1. **Управление портами** - Выберите COM порт, установите параметры (скорость, биты данных и т.д.) и подключитесь
-2. **Отправка данных** - Введите данные в текстовое поле и нажмите "Отправить"
-3. **История команд** - Кнопка «История…» в блоке «Передача данных» открывает менеджер истории с поиском, фильтрацией, экспортом и воспроизведением команд с учётом выбранного порта
-4. **Получение данных** - Полученные данные отображаются в окне просмотра
-5. **Переключение языков** - Меню Вид → Язык
-6. **Переключение тем** - Меню Вид → Тема
+1. **Управление портами** — выбирайте COM порт, меняйте скорость/чётность, подключайтесь и отключайтесь напрямую из левого столбца. Для каждго порта доступны счётчики RX/TX и ошибки.
+2. **Отправка и история** — блок «Передача данных» поддерживает быстрые кнопки (CPU1/CPU2/TLM/1+2), подсветку активности и историю команд с поиском и экспортом.
+3. **Консоль RX/TX** — вкладки CPU1/CPU2/TLM + общий журнал; есть поиск с подсветкой, фильтрами, сохранением логов и объединённым видом.
+4. **Quick Blocks** — карточки с готовыми командами и хоткеями, сгруппированные по категориям, синхронно обновляются в YAML.
+5. **Переключение тем и языка** — пункт меню «Вид» → «Тема/Язык», а также иконка языка в статус-баре.
 
 ### Параметры COM порта
 
-- **Скорость передачи** - Стандартные значения: 9600, 19200, 38400, 57600, 115200
-- **Биты данных** - 5, 6, 7, 8
-- **Четность** - Нет, Четная, Нечетная, Mark, Space
-- **Стоп-биты** - 1, 1.5, 2
+- **Скорость передачи** — стандартные значения 9600…115200, дополнительная настройка подключаемых портов автоматически синхронизируется с панелью view.
+- **Биты данных** — 5/6/7/8 (см. [`SerialConfig`](src/styles/constants.py:254)).
+- **Чётность** — None/Even/Odd/Mark/Space, переключается непосредственно в панели порта.
+- **Стоп-биты** — 1/1.5/2.
 
 ## Архитектура
 
@@ -164,23 +180,24 @@ PowerShell:
 ### Основные компоненты
 
 #### Model Layer
-- `BaseModel` - базовый класс для всех моделей
-- `ComPortModel` - модель отдельного COM порта
-- `ComPortsManager` - управление несколькими портами
+- `serial_worker.SerialWorker` — фоновые потоки для чтения/записи портов.
+- `config_loader.ConfigLoader` — централизованный доступ к INI/цветам/размерам.
 
 #### ViewModel Layer
-- `ComPortViewModel` - логика представления для COM порта
-- `ComPortsManagerViewModel` - логика управления несколькими портами
+- `MainViewModel` — форматирование RX/TX, кеш логов, фильтрация и счётчики.
+- `ComPortViewModel` — управление состоянием порта, очередью отправки, retry.
+- `CommandHistoryViewModel` — хранение и фильтрация истории команд.
 
 #### View Layer
-- `MainWindow` - главное окно с вкладками для портов
-- `ComPortView` - представление для управления портом
-- `SplashScreen` - загрузочный экран с анимацией
+- `MainWindow` — связывает панель портов, консоль, quick blocks, статус-бар.
+- `ConsolePanelView` — вкладки логов, поиск, подсветка совпадений.
+- `QuickBlocksPanel` — карточки команд с группами и контекстными действиями.
+- `SplashScreen`/`ToastNotification` — визуальные вспомогательные элементы.
 
 #### Utilities
-- `Translator` - система мультиязычности с поддержкой сигналов
-- `ThemeManager` - управление светлой/темной темой
-- `GlassStyles` - стили для эффекта жидкого стекла
+- `Translator` — локализация с сигналами `language_changed`.
+- `ThemeManager` — переключение тем, масштабирование интерфейса.
+- `IconCache` — кеширование QIcon в зависимости от темы.
 
 ## Переводы
 
@@ -217,26 +234,25 @@ TRANSLATIONS = {
 }
 ```
 
-### Добавление новых тем
+### Профилирование
 
-Расширьте `GlassStyles` в `/src/styles/glass_styles.py`:
+Для анализа производительности используйте `scripts/profile_app.py`:
 
-```python
-@staticmethod
-def get_custom_theme_style():
-    return """
-    /* Ваши CSS стили */
-    """
+```powershell
+.\.venv\Scripts\python scripts/profile_app.py
 ```
 
-### Создание новых COM портов
+Скрипт запускает приложение под `cProfile` и сохраняет результаты в `logs/profiles/`. Для point-in-time профиля отдельных операций воспользуйтесь [`PerformanceTimer`](src/utils/profiler.py:1) и переменной окружения `APP_PROFILE=true`.
 
-Количество вкладок для портов настраивается в `MainWindow.create_central_widget()`:
+## Лаунчер и доставка
 
-```python
-for i in range(3):  # Измените число на нужное количество
-    self.add_com_port_tab(i + 1)
-```
+1. Упакуйте ресурсы для кастомного лаунчера:
+   ```bash
+   python scripts/package_resources.py
+   ```
+   В каталоге `build/resources/` появятся `resources.zip` и `manifest.json` для проекта [`launcher/`](launcher/README.md).
+2. Сборка Windows-билда: `packaging/build_windows.bat` (требует активного `.venv`).
+3. Сборка Linux-билда: `bash packaging/build_linux.sh`.
 
 ## Лицензия
 

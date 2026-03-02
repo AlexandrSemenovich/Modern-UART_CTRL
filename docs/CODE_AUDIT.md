@@ -37,15 +37,15 @@
 2. **PySide6 smoke-тесты.** Все существующие модульные тесты (286 штук в `tests/`) выполняются на одной команде [.venv\Scripts\python -m pytest](tests/test_main_viewmodel.py:1), что фиксирует регрессии в UI-логике и конфигурации. Плагин `pytest-qt` активен (см. лог запуска) и обеспечивает корректное создание `QApplication` через фикстуру `qapp`.
 3. **Регулярные прогоны.** Полный набор тестов запускается внутри venv; команда задокументирована и используется в CI-подготовке (см. раздел «Следующие шаги»), что обеспечивает проверку на Windows 11.
 
-## 7. Сборка и доставляемость
+## 7. Сборка и доставляемость *(выполнено)*
 
-- Скрипт [`packaging/build_windows.bat`](packaging/build_windows.bat:1) активирует venv и запускает PyInstaller, но не очищает `dist/` и `build/`. Добавьте `rmdir /s /q build dist` перед сборкой и параметр `--clean`.
-- Нет описания пользовательского лаунчера в `README`. Стоит расширить раздел «Сборка собственного загрузчика» ссылкой на `launcher/README.md` и статусом TODO.
+1. **Повторяемая сборка.** [`packaging/build_windows.bat`](packaging/build_windows.bat:1) очищает `build/` и `dist/`, при необходимости добавляет PyInstaller и вызывает `python -m PyInstaller --clean --noconfirm packaging/OrbSterm.spec`. Скрипт ориентируется на наше `.venv` и предотвращает накопление старых артефактов.
+2. **Документация сборки.** Раздел «Сборка исполнимых файлов» в [`README`](README.md:83) обновлён: добавлены инструкции по установке PyInstaller, шаги для Windows/Linux и отдельный блок «Лаунчер и доставка» с ссылкой на `scripts/package_resources.py` и `launcher/README.md`.
 
-## 8. Документация
+## 8. Документация *(выполнено)*
 
-- Файл [`README.md`](README.md:1) содержит устаревшее описание структуры (`app.qss`/`glass_styles.py` отсутствуют). Обновите дерево и добавьте разделы «Quick Blocks», «Service Container» и «Профилирование».
-- Добавьте `docs/architecture.md` с диаграммой потоков данных между `MainWindow`, ViewModels и `serial_worker`.
+1. **README актуализирован.** Раздел «Структура проекта» теперь отражает реальные директории (bootstrap, quick blocks, utils, smoke_run). Добавлены подразделы «Quick Blocks», «Service Container», расширенный список основных функций и секция «Профилирование» с инструкцией по `scripts/profile_app.py`. Обновлён блок о параметрах сборки для Windows/Linux и про лаунчер.
+2. **Архитектурный документ.** Создан файл [`docs/architecture.md`](docs/architecture.md:1) с описанием потоков данных между View, ViewModel и SerialWorker, таблицей компонентов и сигналов.
 
 ---
 
