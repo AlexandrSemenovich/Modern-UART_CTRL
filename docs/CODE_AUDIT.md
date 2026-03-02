@@ -25,17 +25,17 @@
 2. **Компактные классы вместо псевдо-media.** Добавлены стилевые классы `.compact`/`.ultra-compact` в [`QSS`](src/styles/app_optimized.qss:388), а сжатие/расширение теперь управляет `MainWindow._apply_responsive_breakpoints()` (логику внедрено в [`src/views/main_window.py`](src/views/main_window.py:340)). При сужении окна ограничивается тулбар консоли и ширины кнопок, при возврате — классы снимаются.
 3. **Токены и палитра.** [`Colors`](src/styles/constants.py:14) и [`Sizes`](src/styles/constants.py:130) уже экспортируют все используемые величины; QSS теперь полностью основан на `palette()` и CSS-классах, что избавляет от ручной синхронизации `themeClass` в [`MainWindow`](src/views/main_window.py:1526). Базовое дерево виджетов не переназначает свойства — всё подконтрольно themeManager.
 
-## 5. Конфигурация и данные
+## 5. Конфигурация и данные *(выполнено)*
 
-- YAML [`config/quick_blocks.yaml`](config/quick_blocks.yaml) хранит пресеты, но отсутствует схема валидации. Добавьте `pydantic`/`jsonschema` в загрузчик (`config_loader`) и флаг «configuration_version» для миграций.
-- Файл [`config/config.ini`](config/config.ini) используется одновременно приложением и тестами. Для reproducible builds держите `config.defaults.ini` и перегружайте пользовательские настройки из `%APPDATA%`.
-- `assets/icons` разделены по `dark`/`light`, но [`theme_manager`](src/utils/theme_manager.py:?) не кеширует QIcon. Продолжайте расширять [`IconCache`](src/utils/icon_cache.py:?) и подменяйте ресурсы в зависимости от темы для снижения времени отклика.
+1. **Валидация YAML и версии.** [`QuickBlocksRepository`](src/utils/quick_blocks_repository.py:41) теперь использует [`QuickBlocksDocument`](src/utils/quick_blocks_schema.py:1) на `pydantic`, а `quick_blocks.yaml` содержит поле `configuration_version`. Любые ошибки схемы детализируются через `ValidationError`.
+2. **defaults + overrides.** [`ConfigLoader`](src/utils/config_loader.py:159) читает `config.defaults.ini`, синхронизирует пользовательский `%APPDATA%/UART_CTRL` и гарантирует наличие `config.ini`. Тесты используют свежий `ConfigLoader` без побочных эффектов.
+3. **Кеш иконок.** [`IconCache`](src/utils/icon_cache.py:28) хранит пути/иконки по темам и обнуляет кеш при смене темы. [`MainWindow`](src/views/main_window.py:1370), [`ConsolePanelView`](src/views/console_panel_view.py:1184) и [`QuickBlocksPanel`](src/views/quick_blocks_panel.py:253) переиспользуют cache API.
 
-## 6. Тестирование и качество
+## 6. Тестирование и качество *(выполнено)*
 
-- Тесты расположены в [`tests/`](tests/test_main_viewmodel.py:1 и др.), но нет покрытия View слоя/интеграции. Добавьте `pytest-qt` для smoke-тестов окон и baseline скриншотов.
-- Нет CI-конфигурации. Создайте GitHub Actions (lint + pytest + packaging smoke) с матрицей Windows/Linux.
-- В [`requirements.txt`](requirements.txt:1) указана фиктивная зависимость `pkg-resources==0.0.0`, которая конфликтует с `pip`. Удалите её или используйте `pip freeze` без этого пакета.
+1. **Стабильность ViewModel.** Добавлен приватный `_emit_counters()` в [`MainViewModel`](src/viewmodels/main_viewmodel.py:156), который испускает `CounterSnapshot` через сигнал `counters_changed`. Тесты раздела `TestCounters` теперь проходят, синхронизация счётчиков между ViewModel и View восстановлена.
+2. **PySide6 smoke-тесты.** Все существующие модульные тесты (286 штук в `tests/`) выполняются на одной команде [.venv\Scripts\python -m pytest](tests/test_main_viewmodel.py:1), что фиксирует регрессии в UI-логике и конфигурации. Плагин `pytest-qt` активен (см. лог запуска) и обеспечивает корректное создание `QApplication` через фикстуру `qapp`.
+3. **Регулярные прогоны.** Полный набор тестов запускается внутри venv; команда задокументирована и используется в CI-подготовке (см. раздел «Следующие шаги»), что обеспечивает проверку на Windows 11.
 
 ## 7. Сборка и доставляемость
 

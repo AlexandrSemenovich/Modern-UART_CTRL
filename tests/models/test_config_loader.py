@@ -19,19 +19,27 @@ from src.utils.config_loader import ConfigLoader, ThemeColors, ButtonColors, Fon
 
 class TestConfigLoaderInitialization:
     """Test ConfigLoader initialization."""
-    
-    def test_default_initialization(self):
-        """Test ConfigLoader initializes with defaults."""
-        loader = ConfigLoader()
-        
+
+    def test_default_initialization(self, tmp_path, monkeypatch):
+        """Test ConfigLoader initializes with defaults using temp config dir."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        defaults_path = config_dir / "config.defaults.ini"
+        defaults_path.write_text("[app]\nversion=1.0\n", encoding="utf-8")
+
+        monkeypatch.setenv("UART_CTRL_CONFIG_DIR", str(config_dir))
+        monkeypatch.setenv("PYTHONPATH", str(tmp_path))
+
+        loader = ConfigLoader(config_path=defaults_path)
+
         assert loader._config is not None
         assert 'dark' in loader._default_colors
         assert 'light' in loader._default_colors
-    
+
     def test_default_colors_structure(self):
         """Test default colors have correct structure."""
         loader = ConfigLoader()
-        
+
         dark_colors = loader._default_colors['dark']
         assert hasattr(dark_colors, 'timestamp')
         assert hasattr(dark_colors, 'rx_text')

@@ -13,7 +13,7 @@ from src.utils.translator import tr, translator
 from src.styles.constants import Fonts, Sizes, ConsoleLimits
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
-from src.utils.icon_cache import get_icon, IconCache
+from src.utils.icon_cache import get_icon, get_icon_cache
 
 class LogWidget:
     """Container for log widget and its label."""
@@ -1182,14 +1182,15 @@ class ConsolePanelView(QtWidgets.QWidget):
 
     def _update_icons_on_theme_change(self) -> None:
         """Update all button icons when theme changes."""
+        icon_cache = get_icon_cache()
         # Update clear button icon
         if hasattr(self, '_btn_clear'):
-            self._btn_clear.setIcon(get_icon("trash"))
+            self._btn_clear.setIcon(icon_cache.get("trash"))
             self._btn_clear.update()
-        
+
         # Update save button icon
         if hasattr(self, '_btn_save'):
-            self._btn_save.setIcon(get_icon("floppy-disk"))
+            self._btn_save.setIcon(icon_cache.get("floppy-disk"))
             self._btn_save.update()
         
         # Update tab icons
@@ -1208,12 +1209,14 @@ class ConsolePanelView(QtWidgets.QWidget):
         }
         
         # Update combined tab icon
-        self._tab_widget.setTabIcon(0, get_icon("paper-plane"))
+        icon_cache = get_icon_cache()
+        self._tab_widget.setTabIcon(0, icon_cache.get("paper-plane"))
         
         # Update port-specific tab icons
         tab_index = 1  # Start after combined tab
         for port_label in self._log_widgets.keys():
-            self._tab_widget.setTabIcon(tab_index, get_icon(PORT_ICONS.get(port_label, "paper-plane")))
+            icon_name = PORT_ICONS.get(port_label, "paper-plane")
+            self._tab_widget.setTabIcon(tab_index, icon_cache.get(icon_name))
             tab_index += 1
         
         # Force repaint of tab bar

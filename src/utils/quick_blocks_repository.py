@@ -9,9 +9,11 @@ from typing import Iterable
 import uuid
 
 import yaml
+from pydantic import ValidationError
 
 from src.utils.service_container import service_container
 from src.utils.paths import get_config_file
+from src.utils.quick_blocks_schema import QuickBlocksDocument
 
 
 @dataclass(slots=True)
@@ -173,30 +175,34 @@ class QuickBlocksRepository:
         with self._lock:
             with open(self._path, "r", encoding="utf-8") as fh:
                 data = yaml.safe_load(fh) or {}
+            try:
+                document = QuickBlocksDocument.model_validate(data)
+            except ValidationError as exc:
+                raise ValueError(f"Invalid quick_blocks.yaml: {exc}") from exc
             groups = []
-            for order, group_data in enumerate(data.get("groups", [])):
+            for order, group_data in enumerate(document.groups):
                 blocks = [
                     QuickBlock(
-                        id=item.get("id", self._new_id()),
-                        title=item.get("title", "Unnamed"),
-                        command_on=item.get("command_on", ""),
-                        command_off=item.get("command_off"),
-                        send_to_combo=item.get("send_to_combo", True),
-                        group_id=group_data.get("id"),
-                        order=item.get("order", 0),
-                        mode=item.get("mode", "dual"),
-                        icon=item.get("icon"),
-                        port=item.get("port"),
-                        hotkey=item.get("hotkey"),
+                        id=item.id or self._new_id(),
+                        title=item.title or "Unnamed",
+                        command_on=item.command_on,
+                        command_off=item.command_off,
+                        send_to_combo=item.send_to_combo,
+                        group_id=group_data.id,
+                        order=item.order,
+                        mode=item.mode,
+                        icon=item.icon,
+                        port=item.port,
+                        hotkey=item.hotkey,
                     )
-                    for item in group_data.get("blocks", [])
+                    for item in group_data.blocks
                 ]
                 self._reorder(blocks)
                 groups.append(
                     QuickGroup(
-                        id=group_data.get("id", self._new_id()),
-                        name=group_data.get("name", "Unnamed"),
-                        collapsed=group_data.get("collapsed", False),
+                        id=group_data.id or self._new_id(),
+                        name=group_data.name or "Unnamed",
+                        collapsed=group_data.collapsed,
                         blocks=blocks,
                         order=order,
                     )
@@ -207,7 +213,7 @@ class QuickBlocksRepository:
         with open(self._path.with_suffix(".tmp"), "w", encoding="utf-8") as fh:
             yaml.safe_dump(
                 {
-                    "version": 1,
+                    "configuration_version": 1,
                     "groups": [self._group_to_dict(group) for group in self._groups],
                 },
                 fh,

@@ -206,7 +206,7 @@ class MainViewModel(QtCore.QObject):
         self.rx_counts = [0, 0, 0]
         self.tx_counts = [0, 0, 0]
         self._emit_counters()
-    
+
     def cache_log_line(self, cache_key: str, html: str, plain: str) -> None:
         """
         Cache a log line for filtering support with size limit.
@@ -298,3 +298,11 @@ class MainViewModel(QtCore.QObject):
             filtered_html = html_lines
         
         return ''.join(filtered_html)
+
+    def _emit_counters(self) -> None:
+        """Emit aggregated counter snapshot for observers."""
+        snapshot = self.CounterSnapshot(
+            tuple(self.rx_counts),
+            tuple(self.tx_counts),
+        )
+        self.counters_changed.emit(snapshot)

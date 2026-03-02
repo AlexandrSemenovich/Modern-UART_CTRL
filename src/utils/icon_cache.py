@@ -57,7 +57,8 @@ class IconCache(QObject):
         IconCache._initialized = True
         
         self._logger = logging.getLogger(__name__)
-        self._icon_cache: dict[str, QIcon] = {}
+        self._icon_cache: dict[str, dict[str, QIcon]] = {}
+        self._resolved_paths: dict[str, dict[str, str]] = {}
         self._theme_suffix_cache: dict[str, str] = {}  # theme -> suffix mapping
         
         # Get base icons directory
@@ -175,13 +176,18 @@ class IconCache(QObject):
         Returns:
             Full path to icon file or None if not found
         """
-        # ==== Check folder-based structure first (new format) ====
+        # Use cache if available
+        cached = self._resolved_paths.get(name, {}).get(theme)
+        if cached:
+            return cached
+
         theme_folder = theme  # "light" or "dark"
         extensions = [".svg", ".ico", ".png", ".jpg"]
-        
+
         for ext in extensions:
             folder_path = os.path.join(self._base_icons_dir, theme_folder, f"{name}{ext}")
             if os.path.exists(folder_path):
+                self._resolved_paths.setdefault(name, {})[theme] = folder_path
                 return folder_path
         
         # ==== Check fa/ subdirectory with theme suffixes (legacy format) ====
@@ -192,6 +198,7 @@ class IconCache(QObject):
             themed_name = f"{name}{theme_suffix}{ext}"
             fa_path = os.path.join(self._base_icons_dir, "fa", themed_name)
             if os.path.exists(fa_path):
+                self._resolved_paths.setdefault(name, {})[theme] = fa_path
                 return fa_path
         
         # Fallback to neutral in fa/
@@ -199,6 +206,7 @@ class IconCache(QObject):
             neutral_name = f"{name}{ext}"
             fa_path = os.path.join(self._base_icons_dir, "fa", neutral_name)
             if os.path.exists(fa_path):
+                self._resolved_paths.setdefault(name, {})[theme] = fa_path
                 return fa_path
         
         # ==== Special case: icon in root directory (legacy ICO files) ====
@@ -209,8 +217,9 @@ class IconCache(QObject):
                 ico_name = "icon_white.ico"
             root_path = os.path.join(self._base_icons_dir, ico_name)
             if os.path.exists(root_path):
+                self._resolved_paths.setdefault(name, {})[theme] = root_path
                 return root_path
-        
+
         self._logger.warning(f"Icon not found: {name} (theme: {theme})")
         return None
     
@@ -285,14 +294,10 @@ class IconCache(QObject):
         # Determine current effective theme
         theme = self._theme_manager._get_effective_theme()
         
-        # Create cache key with theme
-        cache_key = f"{name}:{theme}"
-        
-        # Check cache first
-        if cache_key in self._icon_cache:
-            return self._icon_cache[cache_key]
-        
-        # Load and cache
+        themed_cache = self._icon_cache.setdefault(name, {})
+        if theme in themed_cache:
+            return themed_cache[theme]
+
         icon = self._load_icon(name, theme)
         if icon.isNull():
             self._logger.warning(
@@ -301,8 +306,8 @@ class IconCache(QObject):
                 self._base_icons_dir,
                 os.listdir(self._base_icons_dir),
             )
-        self._icon_cache[cache_key] = icon
-        
+        themed_cache[theme] = icon
+
         return icon
     
     def get_explicit(self, name: str, theme: str) -> QIcon:
@@ -319,14 +324,13 @@ class IconCache(QObject):
             QIcon for the specified theme
         """
         effective_theme = "dark" if theme == "dark" else "light"
-        cache_key = f"{name}:{effective_theme}"
-        
-        if cache_key in self._icon_cache:
-            return self._icon_cache[cache_key]
-        
+        themed_cache = self._icon_cache.setdefault(name, {})
+        if effective_theme in themed_cache:
+            return themed_cache[effective_theme]
+
         icon = self._load_icon(name, effective_theme)
-        self._icon_cache[cache_key] = icon
-        
+        themed_cache[effective_theme] = icon
+
         return icon
     
     def preload(self, icon_names: list[str]) -> None:
@@ -339,16 +343,17 @@ class IconCache(QObject):
         theme = self._theme_manager._get_effective_theme()
         
         for name in icon_names:
-            cache_key = f"{name}:{theme}"
-            if cache_key not in self._icon_cache:
+            themed_cache = self._icon_cache.setdefault(name, {})
+            if theme not in themed_cache:
                 icon = self._load_icon(name, theme)
-                self._icon_cache[cache_key] = icon
+                themed_cache[theme] = icon
                 
         self._logger.debug(f"Preloaded {len(icon_names)} icons for theme: {theme}")
     
     def clear_cache(self) -> None:
         """Clear the icon cache. Useful after theme change."""
         self._icon_cache.clear()
+        self._resolved_paths.clear()
         self._logger.debug("Icon cache cleared")
     
     @Slot(str)
@@ -379,8 +384,8 @@ class IconCache(QObject):
         if os.path.exists(path):
             icon = QIcon(path)
             theme = self._theme_manager._get_effective_theme()
-            cache_key = f"{name}:{theme}"
-            self._icon_cache[cache_key] = icon
+            themed_cache = self._icon_cache.setdefault(name, {})
+            themed_cache[theme] = icon
             self._logger.debug(f"Registered custom icon: {name} -> {path}")
         else:
             self._logger.warning(f"Cannot register icon - file not found: {path}")

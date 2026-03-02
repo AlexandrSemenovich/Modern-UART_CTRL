@@ -1369,9 +1369,10 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def _update_icons_on_theme_change(self) -> None:
         """Update all theme-aware icons when theme changes."""
+        icon_cache = IconCache()
         # Update history button icon
         if hasattr(self, '_btn_open_history'):
-            self._btn_open_history.setIcon(get_icon("clock-rotate-left"))
+            self._btn_open_history.setIcon(icon_cache.get("clock-rotate-left"))
             self._btn_open_history.update()
     
     def _on_theme_changed(self, theme: str) -> None:

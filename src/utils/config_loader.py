@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import NamedTuple
 
 import sys
+import shutil
 
 from src.utils.service_container import service_container
-from src.utils.paths import get_config_file, get_root_dir
+from src.utils.paths import get_config_file, get_root_dir, get_config_dir
 
 
 class Margins(NamedTuple):
@@ -257,8 +258,10 @@ class ConfigLoader:
         ]
 
         # Single entry point for configuration
-        default_path = get_config_file("config.ini")
-        self._ensure_default_config(default_path)
+        self._config_dir = get_config_dir()
+        default_path = self._config_dir / "config.ini"
+        defaults_source = get_root_dir() / "config" / "config.defaults.ini"
+        self._ensure_default_config(default_path, defaults_source)
 
         # Error handling for config parsing with fallback to defaults
         try:
@@ -268,24 +271,52 @@ class ConfigLoader:
             logger = logging.getLogger(__name__)
             logger.warning(f"Failed to parse config file: {e}. Using default values.")
 
-    def _ensure_default_config(self, target: Path) -> None:
-        """Ensure that config.ini exists by copying bundled defaults if necessary."""
-        if target.exists():
-            return
-        search_paths: list[Path] = []
-        if hasattr(sys, "_MEIPASS"):
-            search_paths.append(Path(getattr(sys, "_MEIPASS")) / "config" / "config.ini")
-        app_dir = Path(sys.executable).resolve().parent
-        search_paths.append(app_dir / "config" / "config.ini")
-        search_paths.append(get_root_dir() / "config" / "config.ini")
+    def _ensure_default_config(self, target: Path, defaults_source: Path) -> None:
+        """Ensure the user config exists by copying defaults from repository resource."""
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not defaults_source.exists():
+            # Fallback to legacy search if defaults file missing
+            search_paths: list[Path] = []
+            if hasattr(sys, "_MEIPASS"):
+                search_paths.append(Path(getattr(sys, "_MEIPASS")) / "config" / "config.ini")
+            app_dir = Path(sys.executable).resolve().parent
+            search_paths.append(app_dir / "config" / "config.ini")
+            search_paths.append(get_root_dir() / "config" / "config.ini")
 
-        for candidate in search_paths:
-            if candidate.exists():
-                target.parent.mkdir(parents=True, exist_ok=True)
-                data = candidate.read_text(encoding="utf-8")
-                target.write_text(data, encoding="utf-8")
-                self._default_config_source = str(candidate)
-                return
+            for candidate in search_paths:
+                if candidate.exists():
+                    shutil.copy2(candidate, target)
+                    self._default_config_source = str(candidate)
+                    return
+            return
+
+        defaults_text = defaults_source.read_text(encoding="utf-8")
+        self._default_config_source = str(defaults_source)
+        if not target.exists():
+            target.write_text(defaults_text, encoding="utf-8")
+            return
+
+        # Merge defaults with existing user config preserving overrides
+        user_parser = configparser.ConfigParser()
+        user_parser.read(target, encoding="utf-8")
+        defaults_parser = configparser.ConfigParser()
+        defaults_parser.read_string(defaults_text)
+
+        merged = configparser.ConfigParser()
+        for section in defaults_parser.sections():
+            merged.add_section(section)
+            for key, value in defaults_parser[section].items():
+                merged.set(section, key, user_parser.get(section, key, fallback=value))
+
+        # Include any extra user sections
+        for section in user_parser.sections():
+            if not merged.has_section(section):
+                merged.add_section(section)
+            for key, value in user_parser[section].items():
+                merged.set(section, key, value)
+
+        with open(target, "w", encoding="utf-8") as fh:
+            merged.write(fh)
 
 
     def _get_section(self, section: str) -> dict[str, str]:

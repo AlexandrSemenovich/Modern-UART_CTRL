@@ -7,7 +7,9 @@ from functools import partial
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.styles.constants import Sizes
+from src.utils.icon_cache import get_icon_cache
 from src.utils.quick_blocks_repository import QuickBlock, QuickBlocksRepository
+from src.utils.theme_manager import theme_manager
 from src.utils.translator import tr, translator
 from src.views.quick_block_editor_dialog import create_block
 
@@ -263,6 +265,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._btn_reload: QtWidgets.QPushButton | None = None
         self._btn_add: QtWidgets.QPushButton | None = None
         self._btn_edit: QtWidgets.QPushButton | None = None
+        self._icon_cache = get_icon_cache()
 
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         root = QtWidgets.QVBoxLayout(self)
@@ -286,8 +289,10 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         root.addWidget(self._scroll)
 
         translator.language_changed.connect(lambda _: self._retranslate_ui())
+        theme_manager.theme_changed.connect(self._on_theme_changed)
         self.refresh()
         self._retranslate_ui()
+        self._update_toolbar_icons()
 
     def _create_toolbar(self) -> QtWidgets.QHBoxLayout:
         layout = QtWidgets.QHBoxLayout()
@@ -327,11 +332,15 @@ class QuickBlocksPanel(QtWidgets.QWidget):
             self._btn_reload.setText(tr("reload", "Reload"))
         for card in self._group_cards:
             card.update()
+        self._update_toolbar_icons()
 
     def changeEvent(self, event: QtCore.QEvent) -> None:
         if event.type() == QtCore.QEvent.LanguageChange:
             self._retranslate_ui()
         super().changeEvent(event)
+
+    def _on_theme_changed(self, _theme: str) -> None:
+        self._update_toolbar_icons()
 
     def refresh(self) -> None:
         self._group_cards.clear()
@@ -351,6 +360,16 @@ class QuickBlocksPanel(QtWidgets.QWidget):
                 card.set_selected_block(self._selected_block)
             self._content_layout.insertWidget(self._content_layout.count() - 1, card)
             self._group_cards.append(card)
+
+    def _update_toolbar_icons(self) -> None:
+        if not self._icon_cache:
+            self._icon_cache = get_icon_cache()
+        if self._btn_add:
+            self._btn_add.setIcon(self._icon_cache.get("paper-plane"))
+        if self._btn_edit:
+            self._btn_edit.setIcon(self._icon_cache.get("floppy-disk"))
+        if self._btn_reload:
+            self._btn_reload.setIcon(self._icon_cache.get("clock-rotate-left"))
 
     def _on_block_selected(self, block_id: str) -> None:
         self._selected_block = block_id
