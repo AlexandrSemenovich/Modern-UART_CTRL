@@ -182,7 +182,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setAccessibleName(tr("app_name", "UART Control"))
         self.setAccessibleDescription("Main application window for UART serial port communication control")
         
-        self.setGeometry(100, 100, Sizes.WINDOW_DEFAULT_WIDTH, Sizes.WINDOW_DEFAULT_HEIGHT)
+        self.resize(Sizes.WINDOW_DEFAULT_WIDTH, Sizes.WINDOW_DEFAULT_HEIGHT)
         self.setMinimumSize(Sizes.WINDOW_MIN_WIDTH, Sizes.WINDOW_MIN_HEIGHT)
         self._set_window_icon()
         
@@ -341,9 +341,13 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout = QtWidgets.QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Create horizontal splitter for panels
+        # Create horizontal splitter for panels with responsive behavior
         hsplit = QtWidgets.QSplitter(Qt.Horizontal)
         self._hsplit = hsplit  # Store reference for resize handler
+        hsplit.setChildrenCollapsible(False)
+        self._right_panel_breakpoint = 1250
+        self._stack_breakpoint = 980
+        self._splitter_initialized = False
         
         # LEFT PANEL: Port controls
         self._left_panel = self._create_left_panel()
@@ -367,9 +371,9 @@ class MainWindow(QtWidgets.QMainWindow):
         hsplit.addWidget(self._right_panel)
         
         # Set stretch factors
-        hsplit.setStretchFactor(0, 0)  # Left - fixed
+        hsplit.setStretchFactor(0, 0)  # Left - fixed baseline
         hsplit.setStretchFactor(1, 1)  # Center - expandable
-        hsplit.setStretchFactor(2, 0)  # Right - fixed
+        hsplit.setStretchFactor(2, 0)  # Right - fixed baseline
         
         # Both left and right panels can be collapsed via splitter
         hsplit.setCollapsible(0, True)  # Left panel can be fully collapsed
@@ -381,26 +385,32 @@ class MainWindow(QtWidgets.QMainWindow):
         self._right_panel_was_visible = True  # Track previous visibility state
         self._left_panel_was_visible = True  # Track previous visibility state for left panel
         
-        # Set initial sizes to ensure minimum widths are respected
-        hsplit.setSizes([Sizes.LEFT_PANEL_MAX_WIDTH, Sizes.CENTER_PANEL_MIN_WIDTH, Sizes.RIGHT_PANEL_MIN_WIDTH])
-        
         main_layout.addWidget(hsplit)
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
         # Apply current theme classes to all widgets in the hierarchy
         self._apply_theme_to_hierarchy()
-        
+
         # Apply Windows 11 visual effects (rounded corners, Mica)
         self._apply_windows11_effects()
-        
+
         # Setup global hotkeys (Windows only)
         self._setup_global_hotkeys()
-        
+
         # Connect console signals
         self._console_panel.clear_requested.connect(self._clear_all_logs)
         self._console_panel.save_requested.connect(self._save_logs)
-    
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:  # type: ignore[override]
+        super().showEvent(event)
+        if not getattr(self, "_splitter_initialized", False):
+            QTimer.singleShot(0, self._apply_initial_layout)
+            self._splitter_initialized = True
+
+    def _apply_initial_layout(self) -> None:
+        self._apply_responsive_breakpoints(force=True, override_left=Sizes.LEFT_PANEL_DEFAULT_WIDTH)
+
     def _create_left_panel(self) -> QtWidgets.QWidget:
         """Create left panel with port controls wrapped in a scroll area."""
         scroll_area = QtWidgets.QScrollArea()
@@ -793,6 +803,75 @@ class MainWindow(QtWidgets.QMainWindow):
             is_visible = self._right_panel.isVisible()
             self._right_panel.setVisible(not is_visible)
             self._right_panel_was_visible = not is_visible
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._apply_responsive_breakpoints()
+
+    def _apply_responsive_breakpoints(
+        self,
+        force: bool = False,
+        override_left: int | None = None,
+    ) -> None:
+        if not hasattr(self, '_hsplit') or self._hsplit is None:
+            return
+        width = self.width()
+        if width <= 0:
+            return
+
+        # Collapse right panel for compact widths
+        if width < self._right_panel_breakpoint:
+            if self._right_panel and self._right_panel.isVisible():
+                self._right_panel.hide()
+        else:
+            if self._right_panel and not self._right_panel.isVisible() and self._right_panel_was_visible:
+                self._right_panel.show()
+
+        # Reduce left panel maximum width for narrow windows
+        if width < self._stack_breakpoint and override_left is None:
+            target_max = max(Sizes.LEFT_PANEL_MIN_WIDTH, 260)
+            desired_left = min(Sizes.LEFT_PANEL_DEFAULT_WIDTH, target_max)
+        else:
+            target_max = Sizes.LEFT_PANEL_MAX_WIDTH
+            desired_left = override_left or Sizes.LEFT_PANEL_DEFAULT_WIDTH
+
+        if hasattr(self, '_left_panel') and self._left_panel:
+            if force or self._left_panel.maximumWidth() != target_max:
+                self._left_panel.setMaximumWidth(target_max)
+                self._left_panel.updateGeometry()
+
+        self._set_splitter_sizes(desired_left)
+
+    def _set_splitter_sizes(self, left_width: int, force: bool = False) -> None:
+        if not hasattr(self, '_hsplit') or self._hsplit is None:
+            return
+        sizes = self._hsplit.sizes()
+        if len(sizes) < 3:
+            return
+
+        left_width = max(Sizes.LEFT_PANEL_MIN_WIDTH, min(left_width, Sizes.LEFT_PANEL_MAX_WIDTH))
+        if not force and abs(sizes[0] - left_width) < 4:
+            return
+
+        base_total = (
+            Sizes.LEFT_PANEL_DEFAULT_WIDTH
+            + Sizes.CENTER_PANEL_MIN_WIDTH
+            + Sizes.RIGHT_PANEL_MIN_WIDTH
+        )
+        right_width = Sizes.RIGHT_PANEL_MIN_WIDTH
+        available = max(
+            self._hsplit.size().width() - (left_width + right_width),
+            Sizes.CENTER_PANEL_MIN_WIDTH,
+        )
+        center_width = max(Sizes.CENTER_PANEL_MIN_WIDTH, min(available, base_total))
+        new_sizes = [left_width, center_width, right_width]
+        self._hsplit.setSizes(new_sizes)
+        logger.debug(
+            "Splitter update: window_width=%s, desired_left=%s, sizes=%s",
+            self.width(),
+            left_width,
+            new_sizes,
+        )
     
     def _setup_menu(self) -> None:
         """Setup application menu bar."""

@@ -253,7 +253,10 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._toolbar_container = QtWidgets.QWidget()
         self._toolbar_container.setObjectName("console_toolbar_container")
         self._toolbar_container.setMinimumHeight(50)
-        self._toolbar_container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self._toolbar_container.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Minimum
+        )
         
         # Set themeClass based on effective theme for consistent style application
         effective_theme = theme_manager._get_effective_theme()
@@ -325,6 +328,7 @@ class ConsolePanelView(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Fixed,
         )
+        self._search_edit.setMinimumWidth(Sizes.SEARCH_FIELD_MIN_WIDTH)
         self._search_edit.setMaximumWidth(Sizes.SEARCH_FIELD_MAX_WIDTH)
         search_row.addWidget(self._search_edit, 1, Qt.AlignVCenter)
 
@@ -343,6 +347,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         search_meta_layout = QtWidgets.QHBoxLayout(search_meta)
         search_meta_layout.setContentsMargins(0, 0, 0, 0)
         search_meta_layout.setSpacing(4)
+        search_meta.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
 
         self._search_results_label = QtWidgets.QLabel()
         self._search_results_label.setAlignment(Qt.AlignVCenter | Qt.AlignHCenter)

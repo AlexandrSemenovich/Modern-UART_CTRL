@@ -17,12 +17,20 @@ from datetime import datetime
 
 from src.styles.constants import LoggingConfig
 
+VALID_ENVIRONMENTS = frozenset(LoggingConfig.ENV_LEVELS.keys())
+
 
 def _get_environment() -> str:
     """Get the current environment from environment variable or default."""
     env = os.environ.get('APP_ENV', '').lower()
-    if env in LoggingConfig.ENV_LEVELS:
+    if env in VALID_ENVIRONMENTS:
         return env
+    if env:
+        logging.getLogger(__name__).warning(
+            "Unknown APP_ENV '%s', falling back to %s",
+            env,
+            LoggingConfig.DEFAULT_ENV,
+        )
     return LoggingConfig.DEFAULT_ENV
 
 

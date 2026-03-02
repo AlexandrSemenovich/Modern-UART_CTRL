@@ -137,6 +137,7 @@ class Sizes:
     WINDOW_DEFAULT_HEIGHT = _cfg.window_default_height
     LEFT_PANEL_MIN_WIDTH = _cfg.left_panel_min_width
     LEFT_PANEL_MAX_WIDTH = _cfg.left_panel_max_width
+    LEFT_PANEL_DEFAULT_WIDTH = getattr(_cfg, "left_panel_default_width", LEFT_PANEL_MIN_WIDTH)
     CENTER_PANEL_MIN_WIDTH = _cfg.center_panel_min_width
     RIGHT_PANEL_MIN_WIDTH = _cfg.right_panel_min_width
     RIGHT_PANEL_MAX_WIDTH = _cfg.right_panel_max_width
@@ -151,6 +152,7 @@ class Sizes:
     BUTTON_SAVE_MAX_WIDTH = _cfg.button_save_max_width
     INPUT_MIN_HEIGHT = _cfg.input_min_height
     SEARCH_FIELD_MAX_WIDTH = _cfg.search_field_max_width
+    SEARCH_FIELD_MIN_WIDTH = getattr(_cfg, "search_field_min_width", 140)
     QUICK_COMMAND_HEIGHT = _cfg.quick_command_height if hasattr(_cfg, "quick_command_height") else 36
     QUICK_COMMAND_PER_ROW = _cfg.quick_command_per_row if hasattr(_cfg, "quick_command_per_row") else 3
 

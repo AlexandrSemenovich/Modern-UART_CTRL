@@ -264,7 +264,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._btn_add: QtWidgets.QPushButton | None = None
         self._btn_edit: QtWidgets.QPushButton | None = None
 
-        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, 0)
         root.setSpacing(Sizes.LAYOUT_SPACING // 2)
@@ -272,13 +272,18 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         toolbar = self._create_toolbar()
         root.addLayout(toolbar)
 
+        self._scroll = QtWidgets.QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        self._scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self._content = QtWidgets.QWidget()
-        self._content.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self._content.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self._content_layout = QtWidgets.QVBoxLayout(self._content)
-        self._content_layout.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, 0)
+        self._content_layout.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, Sizes.CARD_MARGIN)
         self._content_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
         self._content_layout.addStretch(1)
-        root.addWidget(self._content)
+        self._scroll.setWidget(self._content)
+        root.addWidget(self._scroll)
 
         translator.language_changed.connect(lambda _: self._retranslate_ui())
         self.refresh()

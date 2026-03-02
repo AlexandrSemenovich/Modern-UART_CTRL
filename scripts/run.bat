@@ -1,17 +1,22 @@
 @echo off
 REM Launcher script for UART Control Application (moved to scripts) on Windows
 
-setlocal enabledelayedexpansion
-set SCRIPT_DIR=%~dp0
-if not exist "%SCRIPT_DIR%..\venv" (
-    echo Error: Virtual environment not found!
-    echo Please create it with: python -m venv venv
-    pause
-    exit /b 1
+@echo off
+setlocal
+set PROJECT_ROOT=%~dp0..
+
+if exist "%PROJECT_ROOT%\venv\Scripts\python.exe" (
+    set PYTHON_EXE=%PROJECT_ROOT%\venv\Scripts\python.exe
+) else if exist "%PROJECT_ROOT%\venv\bin\python.exe" (
+    set PYTHON_EXE=%PROJECT_ROOT%\venv\bin\python.exe
+) else (
+    echo Error: virtual environment not found! Create it with: python -m venv venv
+    goto :eof
 )
 
-cd /d "%SCRIPT_DIR%.."
-call venv\Scripts\activate.bat
-python src\main.py
+pushd "%PROJECT_ROOT%"
+"%PYTHON_EXE%" -m src.main %*
+set EXIT_CODE=%ERRORLEVEL%
+popd
 
-pause
+exit /b %EXIT_CODE%

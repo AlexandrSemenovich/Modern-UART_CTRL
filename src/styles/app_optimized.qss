@@ -380,7 +380,7 @@ QWidget#console_toolbar_container[themeClass="light"] QToolButton {
 }
 
 QWidget#console_toolbar_container QLineEdit {
-    min-width: 360px;
+    min-width: 0px;
     max-width: 460px;
     margin-right: 16px;
 }
