@@ -204,8 +204,9 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._port_labels: list[str] = ['CPU1', 'CPU2', 'TLM']
         self._log_widgets: dict[str, LogWidget] = {}
         self._combined_log_widgets: dict[str, QtWidgets.QTextEdit] = {}
+        self._combined_cache: dict[str, deque[str]] = {}
         # Use deque with maxlen for O(1) cache operations
-        self._log_cache: dict[str, deque] = {}
+        self._log_cache: dict[str, deque[str]] = {}
         # Maximum number of lines in cache for one port
         from src.styles.constants import ConsoleLimits as _ConsoleLimits  # local import to avoid cycles
         self._max_lines: int = int(self._config.get('max_lines', _ConsoleLimits.MAX_CACHE_LINES))
@@ -441,47 +442,47 @@ class ConsolePanelView(QtWidgets.QWidget):
             "TLM": "magnifying-glass",
         }
 
-        # Combined tab (CPU1 + CPU2)
+        # Combined tab (CPU1 + CPU2) uses cached mirror, без дублирования QTextEdit
         combined_widget = self._create_combined_widget()
         self._tab_widget.addTab(combined_widget, tr("combined", "1+2"))
         self._tab_widget.setTabIcon(0, get_icon("paper-plane"))
+        self._combined_cache: dict[str, deque[str]] = {}
         
         # Individual tabs
         for i, port_label in enumerate(self._port_labels):
             tab_widget = self._create_single_log_widget(port_label)
             self._tab_widget.addTab(tab_widget, tr(port_label.lower(), port_label))
-            # Set icon for each tab based on port
-            tab_index = i + 1  # +1 because combined is index 0
+            tab_index = i + 1
             self._tab_widget.setTabIcon(tab_index, get_icon(PORT_ICONS.get(port_label, "paper-plane")))
     
     def _create_combined_widget(self) -> QtWidgets.QWidget:
-        """Create combined view with CPU1 and CPU2 side by side."""
+        """Create combined view that renders from caches to avoid QTextEdit duplication."""
         widget = QtWidgets.QWidget()
         widget.setProperty("class", "console-tab-page")
-        layout = QtWidgets.QHBoxLayout(widget)
-        layout.setSpacing(Sizes.LAYOUT_SPACING)
+        layout = QtWidgets.QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
-        
-        # CPU1 column
-        cpu1_layout = QtWidgets.QVBoxLayout()
-        cpu1_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
-        
-        cpu1_log = self._create_log_edit()
-        self._combined_log_widgets['CPU1'] = cpu1_log
-        cpu1_layout.addWidget(cpu1_log, 1)
-        
-        layout.addLayout(cpu1_layout, 1)
-        
-        # CPU2 column
-        cpu2_layout = QtWidgets.QVBoxLayout()
-        cpu2_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
-        
-        cpu2_log = self._create_log_edit()
-        self._combined_log_widgets['CPU2'] = cpu2_log
-        cpu2_layout.addWidget(cpu2_log, 1)
-        
-        layout.addLayout(cpu2_layout, 1)
-        
+        layout.setSpacing(Sizes.LAYOUT_SPACING)
+
+        columns = QtWidgets.QHBoxLayout()
+        columns.setSpacing(Sizes.LAYOUT_SPACING)
+
+        for label in ["CPU1", "CPU2"]:
+            column = QtWidgets.QVBoxLayout()
+            header = QtWidgets.QLabel(label)
+            header.setProperty("class", "console-section-label")
+            column.addWidget(header)
+
+            text_edit = self._create_log_edit()
+            text_edit.setObjectName(f"combined_{label.lower()}_log")
+            column.addWidget(text_edit, 1)
+
+            self._combined_log_widgets[label] = text_edit
+            self._combined_cache[label] = deque(maxlen=self._max_lines)
+
+            columns.addLayout(column, 1)
+
+        layout.addLayout(columns)
+
         self._register_console_page(widget)
         return widget
     
@@ -966,8 +967,10 @@ class ConsolePanelView(QtWidgets.QWidget):
         """Mirror CPU1/CPU2 updates inside the combined tab."""
         if port_label not in self._combined_log_widgets:
             return
+        self._combined_cache.setdefault(port_label, deque(maxlen=self._max_lines)).append(html_chunk)
         text_edit = self._combined_log_widgets[port_label]
-        text_edit.append(html_chunk)
+        text_edit.clear()
+        text_edit.append("".join(self._combined_cache[port_label]))
         self._trim_document_if_needed(text_edit)
     
     def _trim_document_if_needed(self, text_edit: QtWidgets.QTextEdit) -> None:
@@ -1003,10 +1006,9 @@ class ConsolePanelView(QtWidgets.QWidget):
         """
         # Add to cache immediately (deque with maxlen handles size limit automatically)
         if port_label not in self._log_cache:
-            # Use deque with maxlen for O(1) automatic size limiting
             self._log_cache[port_label] = deque(maxlen=self._max_lines)
         
-        self._log_cache[port_label].append((html_content, plain_text))
+        self._log_cache[port_label].append(html_content)
         
         # Queue UI update for throttling
         if port_label not in self._pending_updates:

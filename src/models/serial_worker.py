@@ -413,19 +413,13 @@ class SerialWorker(QThread):
             self._cleanup(ser)
             self.finished.emit()
             return
-        
+
         if ser is not None:
             self._emit_status(tr("worker_connected_to", f"Connected to {{port_name}}", port_name=self._port_name))
             logger.info(f"Successfully connected to {self._port_name}")
         else:
-            if not HAS_PYSERIAL or not self._port_name:
-                logger.warning("pyserial not available, running in simulation mode")
-                self._emit_status(tr("worker_simulated", "Simulation mode (no pyserial)"))
-            else:
-                self._running = False
-                self._cleanup(ser)
-                self.finished.emit()
-                return
+            self._handle_simulation_mode()
+            return
         
         # Main loop with simplified exception handling using helper method
         try:
@@ -588,9 +582,12 @@ class SerialWorker(QThread):
         Process outgoing write queue with batch limiting.
         Prevents queue starvation by limiting items processed per cycle.
         """
+        if hasattr(self, '_deferred_tx') and self._deferred_tx is not None:
+            self._write_q.put(self._deferred_tx)
+            self._deferred_tx = None
+
         items = []
         try:
-            # Limit items per cycle to prevent starvation
             for _ in range(self.MAX_WRITE_BATCH):
                 try:
                     items.append(self._write_q.get_nowait())
@@ -598,8 +595,11 @@ class SerialWorker(QThread):
                     break
         except queue.Empty:
             pass
+
         for item in items:
-            self._send_data(item)
+            sent = self._send_data(item)
+            if not sent:
+                break
     
     def _send_data(self, data) -> bool:
         """

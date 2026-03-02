@@ -3,6 +3,7 @@ Port Manager - thread-safe singleton for tracking active serial ports.
 Provides atomic acquire/release operations to prevent race conditions.
 """
 
+import os
 import re
 import threading
 from typing import TypeGuard
@@ -34,6 +35,7 @@ class PortManager:
     
     _instance = None
     _lock = threading.Lock()
+    _ipc_lock_name = r"Global\\UART_CTRL_PORT_LOCK"
     
     def __new__(cls) -> "PortManager":
         """Ensure singleton instance."""
@@ -49,6 +51,41 @@ class PortManager:
             self._active_ports: set[str] = set()
             self._ports_lock = threading.Lock()
             self._system_ports = SYSTEM_RESERVED_PORTS.copy()
+            self._ipc_handle = None
+            self._setup_ipc_lock()
+
+    def _setup_ipc_lock(self) -> None:
+        if os.name != "nt":
+            return
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            CreateMutex = ctypes.windll.kernel32.CreateMutexW
+            CreateMutex.argtypes = (wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR)
+            CreateMutex.restype = wintypes.HANDLE
+            handle = CreateMutex(None, False, self._ipc_lock_name)
+            self._ipc_handle = handle
+        except Exception:
+            self._ipc_handle = None
+
+    def _enter_ipc_lock(self) -> None:
+        if os.name != "nt" or not self._ipc_handle:
+            return
+        import ctypes
+        from ctypes import wintypes
+        WaitForSingleObject = ctypes.windll.kernel32.WaitForSingleObject
+        WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        WaitForSingleObject(self._ipc_handle, 0xFFFFFFFF)
+
+    def _leave_ipc_lock(self) -> None:
+        if os.name != "nt" or not self._ipc_handle:
+            return
+        import ctypes
+        from ctypes import wintypes
+        ReleaseMutex = ctypes.windll.kernel32.ReleaseMutex
+        ReleaseMutex.argtypes = (wintypes.HANDLE,)
+        ReleaseMutex(self._ipc_handle)
     
     def _normalize_port_name(self, port_name: object) -> str:
         """Normalize port name preserving custom identifiers."""
@@ -70,11 +107,15 @@ class PortManager:
         if normalized is None or normalized in self._system_ports:
             return False
 
-        with self._ports_lock:
-            if normalized in self._active_ports:
-                return False
-            self._active_ports.add(normalized)
-            return True
+        self._enter_ipc_lock()
+        try:
+            with self._ports_lock:
+                if normalized in self._active_ports:
+                    return False
+                self._active_ports.add(normalized)
+                return True
+        finally:
+            self._leave_ipc_lock()
 
     def release(self, port_name: object) -> None:
         """
@@ -86,8 +127,12 @@ class PortManager:
         normalized = self._normalize_port_name(port_name)
         if normalized is None:
             return
-        with self._ports_lock:
-            self._active_ports.discard(normalized)
+        self._enter_ipc_lock()
+        try:
+            with self._ports_lock:
+                self._active_ports.discard(normalized)
+        finally:
+            self._leave_ipc_lock()
 
     def is_in_use(self, port_name: object) -> bool:
         """
@@ -102,8 +147,12 @@ class PortManager:
         normalized = self._normalize_port_name(port_name)
         if normalized is None:
             return False
-        with self._ports_lock:
-            return normalized in self._active_ports
+        self._enter_ipc_lock()
+        try:
+            with self._ports_lock:
+                return normalized in self._active_ports
+        finally:
+            self._leave_ipc_lock()
     
     def get_active_ports(self) -> set[str]:
         """

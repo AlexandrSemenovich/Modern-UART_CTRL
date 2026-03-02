@@ -72,15 +72,27 @@ class IconCache(QObject):
         self._logger.info(f"IconCache initialized. Base directory: {self._base_icons_dir}")
     
     def _mirror_icons_directory(self, source: Path) -> str | None:
+        version_token = str(int(os.path.getmtime(source)))
         target_root = get_config_dir() / "assets"
-        target = target_root / "icons"
+        versioned_dir = target_root / "icons" / version_token
         try:
-            target_root.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(source, target, dirs_exist_ok=True)
-            return str(target)
+            if versioned_dir.exists():
+                return str(versioned_dir)
+            versioned_dir.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(source, versioned_dir, dirs_exist_ok=True)
+            self._cleanup_old_icons(versioned_dir.parent, keep=2)
+            return str(versioned_dir)
         except OSError as exc:
             self._logger.warning("Failed to mirror icons from %s to %s: %s", source, target, exc)
             return None
+
+    def _cleanup_old_icons(self, base_dir: Path, keep: int = 2) -> None:
+        try:
+            versions = sorted(p for p in base_dir.iterdir() if p.is_dir())
+            for obsolete in versions[:-keep]:
+                shutil.rmtree(obsolete, ignore_errors=True)
+        except OSError:
+            pass
 
     def _get_icons_directory(self) -> str:
         """Get the base icons directory path."""
@@ -355,6 +367,16 @@ class IconCache(QObject):
         self._icon_cache.clear()
         self._resolved_paths.clear()
         self._logger.debug("Icon cache cleared")
+        self._release_cached_widgets()
+
+    def _release_cached_widgets(self) -> None:
+        try:
+            from PySide6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                app.processEvents()
+        except Exception:
+            pass
     
     @Slot(str)
     def _on_theme_changed(self, theme: str) -> None:

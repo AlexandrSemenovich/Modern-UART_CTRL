@@ -30,7 +30,9 @@ class BlockRow(QtWidgets.QFrame):
         self._indicator: QtWidgets.QLabel | None = None
         self.setProperty("selected", False)
         self._shortcuts: list[QtGui.QShortcut] = []
-        self.destroyed.connect(self._dispose_shortcuts)
+        self._translator_connected = False
+        self._connect_translator()
+        self.destroyed.connect(self._on_destroyed)
 
         grid = QtWidgets.QGridLayout(self)
         grid.setContentsMargins(Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2 + Sizes.LAYOUT_SPACING // 2, Sizes.CARD_MARGIN // 2)
@@ -88,6 +90,7 @@ class BlockRow(QtWidgets.QFrame):
 
         self._retranslate_controls()
         translator.language_changed.connect(self._on_language_changed)
+        self._translator_connected = True
         self._register_hotkey()
 
     def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:  # type: ignore[override]
@@ -131,7 +134,22 @@ class BlockRow(QtWidgets.QFrame):
         self._btn_on.setText(tr("quick_block_on", "ON"))
         if self._btn_off:
             self._btn_off.setText(tr("quick_block_off", "OFF"))
-        
+
+    def _connect_translator(self) -> None:
+        if self._translator_connected:
+            return
+        translator.language_changed.connect(self._on_language_changed)
+        self._translator_connected = True
+
+    def _disconnect_translator(self) -> None:
+        if not self._translator_connected:
+            return
+        try:
+            translator.language_changed.disconnect(self._on_language_changed)
+        except (RuntimeError, TypeError):
+            pass
+        self._translator_connected = False
+
     def _on_language_changed(self, _: str) -> None:
         self._retranslate_controls()
         self._register_hotkey()
@@ -147,7 +165,11 @@ class BlockRow(QtWidgets.QFrame):
             shortcut.deleteLater()
 
     def dispose(self) -> None:
+        self._disconnect_translator()
         self._dispose_shortcuts()
+
+    def _on_destroyed(self) -> None:
+        self.dispose()
 
     def _register_hotkey(self) -> None:
         self._dispose_shortcuts()

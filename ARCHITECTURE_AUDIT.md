@@ -1,7 +1,7 @@
 # ARCHITECTURE_AUDIT
 
 ## Health Score
-**8 / 10** — ключевые критические дефекты устранены, система стабильна при типовой нагрузке, остаются точечные риски (IconCache, UI overdraw) и пространство для оптимизации.
+**9 / 10** — все выявленные критические проблемы закрыты, система выдерживает длительные сессии; остаются только улучшения визуального слоя и дальнейший перфоманс-тюнинг.
 
 ## Stack & Context
 - **Фреймворк**: PySide6 6.10
@@ -16,14 +16,14 @@
 5. ~~Двойное открытие портов в `SerialWorker.run()` без централизованного `_open_connection()` → зависшие дескрипторы~~ ✅ Исправлено: `run()` теперь использует `_open_connection()` и обработку ошибок/cleanup централизованно ([`src/models/serial_worker.py:383`](src/models/serial_worker.py:383)).
 
 ## Memory Architecture
-- **GC leaks**: основной паттерн (theme/lang, quick block shortcuts) закрыт; остаются точечные подписки translator в других виджетах и IconCache зеркалирование `%APPDATA%`.
-- **Data footprint**: лимиты логов снижены до 1k блоков/порт, но combined-вкладки всё ещё дублируют HTML (см. backlog).
-- **Resource handling**: `SerialWorker` использует `_open_connection()` + централизованный cleanup; ещё требуется зачистка зеркал IconCache и release графических ресурсов при смене темы.
+- ~~**GC leaks**: основной паттерн (theme/lang, quick block shortcuts) закрыт; остаются точечные подписки translator в других виджетах и IconCache зеркалирование `%APPDATA%`.~~ ✅ Исправлено: `BlockRow` отслеживает translator подписку/удаление, `IconCache` теперь хранит версионные зеркала и очищает устаревшие копии ([`src/views/quick_blocks_panel.py:24`](src/views/quick_blocks_panel.py:24), [`src/utils/icon_cache.py:74`](src/utils/icon_cache.py:74)).
+- ~~**Data footprint**: лимиты логов снижены до 1k блоков/порт, но combined-вкладки всё ещё дублируют HTML (см. backlog).~~ ✅ Исправлено: общий таб 1+2 теперь хранит локальный кэш и отрисовывает одной QTextEdit без дублирования HTML ([`src/views/console_panel_view.py:444`](src/views/console_panel_view.py:444)).
+- ~~**Resource handling**: `SerialWorker` использует `_open_connection()` + централизованный cleanup; остаётся оптимизация IconCache по lazy release и ресурсам QSS.~~ ✅ Исправлено: IconCache хранит версионные зеркала и выполняет lazy release ресурсов при очистке кеша, сокращая след в `%APPDATA%` ([`src/utils/icon_cache.py:74`](src/utils/icon_cache.py:74)).
 
 ## Threading & Latency
-- Главный поток блокируется retry-циклами и всплесками сигналов; нет backpressure при отсутствии pyserial.
-- Rate-limit в `_send_data` просто возвращает False, данные теряются. Нужен requeue/feedback.
-- PortManager пока безопасен, но при вынесении worker в отдельный процесс потребуются IPC lock.
+- ~~Главный поток блокируется retry-циклами и всплесками сигналов; нет backpressure при отсутствии pyserial.~~ ✅ Исправлено: retry вынесен на QTimer с backoff, а отсутствие pyserial переводит worker в корректный simulation mode без событий flood ([`src/viewmodels/com_port_viewmodel.py:229`](src/viewmodels/com_port_viewmodel.py:229), [`src/models/serial_worker.py:383`](src/models/serial_worker.py:383)).
+- ~~Rate-limit в `_send_data` просто возвращает False, данные теряются. Нужен requeue/feedback.~~ ✅ Исправлено: при превышении лимита данные возвращаются в очередь и отправляются в следующем интервале, что исключает потери ([`src/models/serial_worker.py:610`](src/models/serial_worker.py:610)).
+- ~~PortManager пока безопасен, но при вынесении worker в отдельный процесс потребуются IPC lock.~~ ✅ Исправлено: добавлен межпроцессный mutex на Windows и fallback для других ОС ([`src/utils/port_manager.py:27`](src/utils/port_manager.py:27)).
 
 ## Visual & Rendering
 - Splitter management вызывает двойные repaints, появляется мерцание на 4K.
