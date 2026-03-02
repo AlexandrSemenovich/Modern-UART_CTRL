@@ -20,7 +20,7 @@ QPushButton {
     border-radius: 8px;
     padding: 0px 12px;
     min-height: 26px;
-    min-width: 100px;
+    min-width: 72px;
     font-weight: 500;
     font-size: 12px;
     font-family: "Segoe UI", "Helvetica", Arial;
@@ -196,7 +196,7 @@ QPushButton[semanticRole="command_combo"] {
     border: 2px solid #3b82f6;
     font-weight: 700;
     font-size: 12px;
-    min-width: 130px;
+    min-width: 120px;
     padding: 0px 12px;
     min-height: 26px;
 }
@@ -227,7 +227,7 @@ QPushButton[semanticRole="command_tlm"] {
     border: 1px solid palette(mid);
     font-weight: 500;
     font-size: 12px;
-    min-width: 108px;
+    min-width: 88px;
     padding: 0px 12px;
     min-height: 26px;
 }
@@ -383,6 +383,41 @@ QWidget#console_toolbar_container QLineEdit {
     min-width: 0px;
     max-width: 460px;
     margin-right: 16px;
+}
+
+/* Responsive adjustments via style classes */
+.compact QPushButton[semanticRole="command_combo"],
+.compact QPushButton[semanticRole="command_cpu1"],
+.compact QPushButton[semanticRole="command_cpu2"],
+.compact QPushButton[semanticRole="command_tlm"] {
+    min-width: 72px;
+    padding: 0px 8px;
+}
+
+.compact QWidget#console_toolbar_container QLineEdit {
+    max-width: 320px;
+}
+
+.compact QWidget#console_toolbar_container QToolButton {
+    min-width: 22px;
+    min-height: 22px;
+    font-size: 11px;
+}
+
+.ultra-compact QPushButton[semanticRole="command_combo"],
+.ultra-compact QPushButton[semanticRole="command_cpu1"],
+.ultra-compact QPushButton[semanticRole="command_cpu2"],
+.ultra-compact QPushButton[semanticRole="command_tlm"] {
+    min-width: 64px;
+    font-size: 11px;
+}
+
+.ultra-compact QWidget#console_toolbar_container {
+    margin: 4px 8px 12px 8px;
+}
+
+.ultra-compact QWidget#console_toolbar_container QLineEdit {
+    max-width: 260px;
 }
 
 QWidget#console_toolbar_container[themeClass="light"] QToolButton:hover {

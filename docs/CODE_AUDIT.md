@@ -13,17 +13,17 @@
 2. **Консольный тулбар.** В [`ConsolePanelView`](src/views/console_panel_view.py:244) поле поиска получило `SizePolicy.Expanding` и новые границы `Sizes.SEARCH_FIELD_MIN_WIDTH/SEARCH_FIELD_MAX_WIDTH`, а стиль [`app_optimized.qss`](src/styles/app_optimized.qss:382) удалил фиксированный `min-width`, что предотвращает горизонтальный скролл.
 3. **Quick Blocks.** [`QuickBlocksPanel`](src/views/quick_blocks_panel.py:253) обёрнут в `QScrollArea`, делая вертикальную прокрутку независимой и гладкой даже при большом количестве карточек.
 
-## 3. ViewModel-слой и производительность
+## 3. ViewModel-слой и производительность *(выполнено)*
 
-- [`MainViewModel`](src/viewmodels/main_viewmodel.py:21) хранит лог в `deque`, но метод [`filter_cache()`](src/viewmodels/main_viewmodel.py:234) выполняет линейный проход при каждом поиске. Добавьте индекс (например, `Whoosh`/`rapidfuzz`) или предкомпилированный lowercase-кеш, чтобы ускорить фильтрацию на больших журналах.
-- В [`increment_rx()`](src/viewmodels/main_viewmodel.py:140) и [`increment_tx()`](src/viewmodels/main_viewmodel.py:156) нет сигналов для обновления UI; counters передаются вручную. Введите единый сигнал `counters_changed` с объектом состояния, чтобы UI подписывался на одно событие и гарантированно синхронизировался.
-- Переключение темы триггерит `config_loader.get_colors()` для каждого VM. Рассмотрите кэширование палитры в [`config_loader`](src/utils/config_loader.py:?, TODO) и передачу через `theme_manager`, чтобы избежать повторного чтения YAML.
+1. **Кеширование фильтра.** [`MainViewModel`](src/viewmodels/main_viewmodel.py:21) теперь поддерживает низкоуровневый кеш `lowercase` для каждой очереди логов. Метод [`filter_cache()`](src/viewmodels/main_viewmodel.py:261) сравнивает запрос с заранее подготовленными нижними регистрами, что снизило сложность поиска по множественным `deque` и устранило повторные `.lower()` при каждом сравнении.
+2. **Единый сигнал счётчиков.** Методы [`increment_rx()`](src/viewmodels/main_viewmodel.py:156) и [`increment_tx()`](src/viewmodels/main_viewmodel.py:173) теперь вызывают `_emit_counters()` и передают снапшот [`CounterSnapshot`](src/viewmodels/main_viewmodel.py:38) через сигнал `counters_changed`. `MainWindow` продолжает слушать `counter_updated` от портов, но общие счётчики VM теперь синхронизируются одним событием и доступны для других подписчиков.
+3. **Кеш палитры.** При инициализации и переключении темы [`MainViewModel`](src/viewmodels/main_viewmodel.py:55) переиспользует заранее загруженные палитры `light/dark` вместо повторного чтения `config_loader`. `theme_manager` обновляет только фактические значения, что сокращает обращение к файловой системе.
 
-## 4. Стилевой слой (QSS)
+## 4. Стилевой слой (QSS) *(выполнено)*
 
-- Базовый стиль [`QPushButton`](src/styles/app_optimized.qss:18) задаёт `min-width: 100px`, что ломает адаптивность колонок. Снизьте минимальную ширину и используйте классы для конкретных кнопок.
-- Группы команд (`[semanticRole="command_*"]`, [стр. 192](src/styles/app_optimized.qss:192)) и поле поиска имеют жёсткие размеры. Добавьте медиазапросы через Qt Style Sheets (`@media (max-width: ...)`) или управляйте из кода, назначая альтернативные классы при `resizeEvent`.
-- Нет общего токен-стора (design tokens). Перенесите константы цветов/отступов в [`src/styles/constants.py`](src/styles/constants.py:1) и генерируйте QSS из шаблона, чтобы исключить расхождения.
+1. **Адаптивные кнопки.** [`app_optimized.qss`](src/styles/app_optimized.qss:18) снижает `min-width` базовых `QPushButton` до 72px, а семантические кнопки (`command_combo`, `command_cpu*`, `command_tlm`) получили уменьшенные границы. Все утилиты используют единый класс через `_register_button()`, так что ширины теперь контролируются QSS без правок кода.
+2. **Компактные классы вместо псевдо-media.** Добавлены стилевые классы `.compact`/`.ultra-compact` в [`QSS`](src/styles/app_optimized.qss:388), а сжатие/расширение теперь управляет `MainWindow._apply_responsive_breakpoints()` (логику внедрено в [`src/views/main_window.py`](src/views/main_window.py:340)). При сужении окна ограничивается тулбар консоли и ширины кнопок, при возврате — классы снимаются.
+3. **Токены и палитра.** [`Colors`](src/styles/constants.py:14) и [`Sizes`](src/styles/constants.py:130) уже экспортируют все используемые величины; QSS теперь полностью основан на `palette()` и CSS-классах, что избавляет от ручной синхронизации `themeClass` в [`MainWindow`](src/views/main_window.py:1526). Базовое дерево виджетов не переназначает свойства — всё подконтрольно themeManager.
 
 ## 5. Конфигурация и данные
 

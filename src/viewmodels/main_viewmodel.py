@@ -7,6 +7,7 @@ from PySide6 import QtCore
 from PySide6.QtCore import Signal, Qt
 from html import escape
 from collections import deque
+from typing import NamedTuple
 import re
 import os
 
@@ -34,7 +35,11 @@ class MainViewModel(QtCore.QObject):
     log_all_changed = Signal(str)       # HTML for combined log
     log_tlm_changed = Signal(str)       # HTML for TLM log
     
-    counters_changed = Signal(int, int, int)  # cpu1_rx, cpu1_tx, etc
+    class CounterSnapshot(NamedTuple):
+        rx_counts: tuple[int, int, int]
+        tx_counts: tuple[int, int, int]
+
+    counters_changed = Signal(object)
     
     # Maximum number of log lines to keep in cache per widget
     # Value is taken from console configuration (ConsoleLimits)
@@ -47,7 +52,12 @@ class MainViewModel(QtCore.QObject):
         # Display options
         self.show_time = True
         self.show_source = True
-        self._colors = config_loader.get_colors(self._current_theme())
+        current_theme = self._current_theme()
+        self._cached_palette = {
+            "light": config_loader.get_colors("light"),
+            "dark": config_loader.get_colors("dark"),
+        }
+        self._colors = self._cached_palette[current_theme]
         theme_manager.theme_changed.connect(self._on_theme_changed)
         
         # Counters for each port
@@ -56,12 +66,18 @@ class MainViewModel(QtCore.QObject):
         
         # Cache for filtering
         self.log_cache = {}
+        self._filter_lower_cache: dict[str, deque[str]] = {}
 
     def _current_theme(self) -> str:
         return "light" if theme_manager.is_light_theme() else "dark"
 
     def _on_theme_changed(self, theme: str) -> None:
-        self._colors = config_loader.get_colors(theme)
+        if theme in self._cached_palette:
+            self._colors = self._cached_palette[theme]
+        else:
+            colors = config_loader.get_colors(theme)
+            self._cached_palette[theme] = colors
+            self._colors = colors
     
     def set_display_options(self, show_time: bool, show_source: bool) -> None:
         """Update display options for time and source visibility."""
@@ -150,6 +166,7 @@ class MainViewModel(QtCore.QObject):
         idx = port_index - 1
         if 0 <= idx < len(self.rx_counts):
             self.rx_counts[idx] += 1
+            self._emit_counters()
             return self.rx_counts[idx]
         return 0
     
@@ -166,6 +183,7 @@ class MainViewModel(QtCore.QObject):
         idx = port_index - 1
         if 0 <= idx < len(self.tx_counts):
             self.tx_counts[idx] += 1
+            self._emit_counters()
             return self.tx_counts[idx]
         return 0
     
@@ -187,6 +205,7 @@ class MainViewModel(QtCore.QObject):
         """Reset all counters."""
         self.rx_counts = [0, 0, 0]
         self.tx_counts = [0, 0, 0]
+        self._emit_counters()
     
     def cache_log_line(self, cache_key: str, html: str, plain: str) -> None:
         """
@@ -207,10 +226,16 @@ class MainViewModel(QtCore.QObject):
         
         self.log_cache[cache_key]['html'].append(html)
         self.log_cache[cache_key]['plain'].append(plain)
+
+        lower_key = f"{cache_key}__lower"
+        if lower_key not in self._filter_lower_cache:
+            self._filter_lower_cache[lower_key] = deque(maxlen=self.MAX_CACHE_LINES)
+        self._filter_lower_cache[lower_key].append(plain.lower())
     
     def clear_cache(self) -> None:
         """Clear all cached logs."""
         self.log_cache.clear()
+        self._filter_lower_cache.clear()
     
     @staticmethod
     def strip_html(html_text: str) -> str:
@@ -257,14 +282,17 @@ class MainViewModel(QtCore.QObject):
             return ""
         
         html_lines = cache_data['html']
-        plain_lines = cache_data['plain']
-        
-        # Filter lines
+        lower_key = f"{cache_key}__lower"
+        lower_lines = self._filter_lower_cache.get(lower_key)
+        if not lower_lines:
+            lower_lines = deque((plain.lower() for plain in cache_data['plain']), maxlen=self.MAX_CACHE_LINES)
+            self._filter_lower_cache[lower_key] = lower_lines
+
         if search_text.strip():
             search_lower = search_text.lower()
             filtered_html = [
-                html for html, plain in zip(html_lines, plain_lines)
-                if search_lower in plain.lower()
+                html for html, plain_lower in zip(html_lines, lower_lines)
+                if search_lower in plain_lower
             ]
         else:
             filtered_html = html_lines

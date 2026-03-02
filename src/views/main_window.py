@@ -348,6 +348,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._right_panel_breakpoint = 1250
         self._stack_breakpoint = 980
         self._splitter_initialized = False
+        self._compact_applied = False
         
         # LEFT PANEL: Port controls
         self._left_panel = self._create_left_panel()
@@ -388,9 +389,6 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout.addWidget(hsplit)
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
-
-        # Apply current theme classes to all widgets in the hierarchy
-        self._apply_theme_to_hierarchy()
 
         # Apply Windows 11 visual effects (rounded corners, Mica)
         self._apply_windows11_effects()
@@ -841,6 +839,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._left_panel.updateGeometry()
 
         self._set_splitter_sizes(desired_left)
+
 
     def _set_splitter_sizes(self, left_width: int, force: bool = False) -> None:
         if not hasattr(self, '_hsplit') or self._hsplit is None:
@@ -1522,8 +1521,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self._apply_theme_to_button(button)
 
     def _apply_theme_to_button(self, button: QtWidgets.QPushButton) -> None:
-        theme_class = "light" if theme_manager.is_light_theme() else "dark"
-        button.setProperty("themeClass", theme_class)
         self._refresh_widget_style(button)
 
     @staticmethod
