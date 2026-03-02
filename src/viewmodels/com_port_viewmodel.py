@@ -91,7 +91,9 @@ class ComPortViewModel(QObject):
         
         # Theme colors - load from config
         self._colors = config_loader.get_colors(self._current_theme())
-        theme_manager.theme_changed.connect(self._on_theme_changed)
+        self._theme_subscription_active = False
+        self._connect_theme_manager()
+        self.destroyed.connect(self._on_destroyed)
     
     @property
     def port_label(self) -> str:
@@ -158,6 +160,24 @@ class ComPortViewModel(QObject):
         """Handle theme change event."""
         self._colors = config_loader.get_colors(theme)
     
+    def _connect_theme_manager(self) -> None:
+        if self._theme_subscription_active:
+            return
+        theme_manager.theme_changed.connect(self._on_theme_changed)
+        self._theme_subscription_active = True
+
+    def _disconnect_theme_manager(self) -> None:
+        if not self._theme_subscription_active:
+            return
+        try:
+            theme_manager.theme_changed.disconnect(self._on_theme_changed)  # type: ignore[arg-type]
+        except (TypeError, RuntimeError):
+            pass
+        self._theme_subscription_active = False
+
+    def _on_destroyed(self) -> None:
+        self._disconnect_theme_manager()
+
     def set_port_name(self, port_name: str) -> None:
         """Set the COM port name to connect to."""
         self._port_name = port_name
@@ -254,36 +274,61 @@ class ComPortViewModel(QObject):
             self._emit_error(tr("error_port_in_use", "Port already in use"))
             return False
         
-        # Attempt connection with retry
         from PySide6.QtCore import QTimer
-        
-        def attempt_connection(attempt: int, backoff_ms: int) -> bool:
-            if attempt >= max_attempts:
+
+        retry_state = {
+            "attempt": 0,
+            "backoff": max(100, initial_backoff_ms),
+        }
+
+        retry_timer = QTimer(self)
+        retry_timer.setSingleShot(True)
+
+        def schedule_next_attempt() -> None:
+            delay = retry_state["backoff"]
+            retry_state["backoff"] = min(delay * 2, 10000)
+            retry_timer.start(delay)
+
+        def handle_worker_error(port_label: str, error_message: str) -> None:
+            self._on_retry_error(port_label, error_message, retry_state["attempt"])
+            self._safe_stop_worker()
+            if retry_state["attempt"] >= max_attempts:
                 self._emit_error(tr("error_connection_failed", f"Connection failed after {{attempts}} attempts", attempts=max_attempts))
                 self._set_state(PortConnectionState.ERROR)
-                return False
-            
+                return
+            schedule_next_attempt()
+
+        def attempt_connection() -> None:
+            if retry_state["attempt"] >= max_attempts:
+                self._emit_error(tr("error_connection_failed", f"Connection failed after {{attempts}} attempts", attempts=max_attempts))
+                self._set_state(PortConnectionState.ERROR)
+                return
+
+            retry_state["attempt"] += 1
             self._set_state(PortConnectionState.CONNECTING)
-            
-            # Create worker running in its own QThread
+
             self._worker = SerialWorker(self._port_label)
             self._worker.configure(self._port_name, self._baud_rate)
-            
-            # Connect signals directly to the worker thread
+
             self._worker.rx.connect(self._on_data_received)
-            self._worker.error.connect(lambda msg: self._on_retry_error(msg, attempt + 1, backoff_ms * 2))
+            self._worker.error.connect(handle_worker_error)
             self._worker.status.connect(self._on_status_changed)
             self._worker.finished.connect(self._on_worker_finished)
             self._worker.finished.connect(self._worker.deleteLater)
-            
-            # Start worker thread
+
             self._worker.start()
-            
-            logger.info(f"Connecting to {self._port_name} at {self._baud_rate} baud (attempt {attempt + 1}/{max_attempts})")
-            return True
-        
-        # Start first connection attempt
-        return attempt_connection(1, initial_backoff_ms)
+
+            logger.info(
+                "Connecting to %s at %s baud (attempt %s/%s)",
+                self._port_name,
+                self._baud_rate,
+                retry_state["attempt"],
+                max_attempts,
+            )
+
+        retry_timer.timeout.connect(attempt_connection)
+        attempt_connection()
+        return True
     
     def _on_retry_error(self, port_label: str, error_message: str, next_attempt: int) -> None:
         """Handle error with retry suggestion."""
@@ -530,6 +575,7 @@ class ComPortViewModel(QObject):
 
         self._set_state(PortConnectionState.DISCONNECTED)
         logger.info(f"Shutdown complete for {self._port_label}")
+        self._disconnect_theme_manager()
 
     def _on_worker_finished(self) -> None:
         # Release port from active ports

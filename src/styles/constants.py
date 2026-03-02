@@ -276,11 +276,11 @@ class ConsoleLimits:
     # Maximum HTML length for a single log chunk
     MAX_HTML_LENGTH = _cfg.max_html_length
     # Maximum number of lines in QTextEdit document
-    MAX_DOCUMENT_LINES = _cfg.max_document_lines
+    MAX_DOCUMENT_LINES = min(2000, max(200, _cfg.max_document_lines))
     # Chunk size when trimming old lines
-    TRIM_CHUNK_SIZE = _cfg.trim_chunk_size
+    TRIM_CHUNK_SIZE = min(200, max(50, _cfg.trim_chunk_size))
     # Maximum number of cached log lines per port
-    MAX_CACHE_LINES = _cfg.max_cache_lines
+    MAX_CACHE_LINES = min(2000, max(200, _cfg.max_cache_lines))
 
 
 # ==================== Charset Detection ====================

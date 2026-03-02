@@ -30,7 +30,7 @@ class BlockRow(QtWidgets.QFrame):
         self._indicator: QtWidgets.QLabel | None = None
         self.setProperty("selected", False)
         self._shortcuts: list[QtGui.QShortcut] = []
-        self._hotkey_shortcut: QtWidgets.QShortcut | None = None
+        self.destroyed.connect(self._dispose_shortcuts)
 
         grid = QtWidgets.QGridLayout(self)
         grid.setContentsMargins(Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2, Sizes.CARD_MARGIN // 2 + Sizes.LAYOUT_SPACING // 2, Sizes.CARD_MARGIN // 2)
@@ -136,10 +136,21 @@ class BlockRow(QtWidgets.QFrame):
         self._retranslate_controls()
         self._register_hotkey()
 
-    def _register_hotkey(self) -> None:
-        for shortcut in self._shortcuts:
+    def _dispose_shortcuts(self) -> None:
+        while self._shortcuts:
+            shortcut = self._shortcuts.pop()
+            try:
+                shortcut.activated.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            shortcut.setParent(None)
             shortcut.deleteLater()
+
+    def dispose(self) -> None:
+        self._dispose_shortcuts()
+
     def _register_hotkey(self) -> None:
+        self._dispose_shortcuts()
         hotkey = (self.block.hotkey or "").strip()
         if not hotkey:
             return
@@ -147,7 +158,7 @@ class BlockRow(QtWidgets.QFrame):
         if sequence.count() == 0 or sequence[0] == 0:
             return
         shortcut = QtGui.QShortcut(sequence, self)
-        shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+        shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
         shortcut.activated.connect(lambda: self.triggered.emit(self.block.id, "on"))
         self._shortcuts.append(shortcut)
         self.setToolTip(tr("quick_block_hotkey_hint", "Hotkey: {key_display}", **{"key_display": sequence.toString()}))
@@ -208,6 +219,8 @@ class GroupCard(QtWidgets.QFrame):
         while self._body_layout.count():
             item = self._body_layout.takeAt(0)
             if (widget := item.widget()) is not None:
+                if isinstance(widget, BlockRow):
+                    widget.dispose()
                 widget.deleteLater()
         for idx, block in enumerate(blocks):
             row = BlockRow(block)

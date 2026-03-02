@@ -402,49 +402,9 @@ class SerialWorker(QThread):
         ser: Any | None = None
         connection_error: str | None = None
         
-        # Attempt to open the port
         try:
-            if HAS_PYSERIAL and self._port_name:
-                try:
-                    # Create serial instance with configurable timeout
-                    ser = serial.Serial(
-                        self._port_name,
-                        self._baud,
-                        timeout=self._timeout
-                    )
-                    
-                    # Additional configuration if provided
-                    if 'data_bits' in self._config:
-                        ser.bytesize = self._config['data_bits']
-                    if 'parity' in self._config:
-                        ser.parity = self._config['parity']
-                    if 'stop_bits' in self._config:
-                        ser.stopbits = self._config['stop_bits']
-                    
-                    # Ensure port is actually open
-                    if not getattr(ser, 'is_open', True):
-                        ser.open()
-                    
-                    self._ser = ser
-                    
-                    self._emit_status(tr("worker_connected_to", f"Connected to {{port_name}}", port_name=self._port_name))
-                    
-                    logger.info(f"Successfully connected to {self._port_name}")
-                    
-                except SerialException as e:
-                    connection_error = str(e)
-                    logger.error(f"Serial connection error: {e}")
-                    self._emit_error(tr("worker_open_error", f"Open error ({{port_name}}): {{error}}", port_name=self._port_name or "N/A", error=e))
-                    self._running = False
-                    self._cleanup(ser)
-                    self.finished.emit()
-                    return
-            else:
-                # No pyserial - simulation mode
-                logger.warning("pyserial not available, running in simulation mode")
-                self._ser = None
-                self._emit_status(tr("worker_simulated", "Simulation mode (no pyserial)"))
-        
+            ser = self._open_connection()
+            self._ser = ser
         except Exception as e:
             connection_error = str(e)
             logger.exception(f"Unexpected error during connection: {e}")
@@ -453,6 +413,19 @@ class SerialWorker(QThread):
             self._cleanup(ser)
             self.finished.emit()
             return
+        
+        if ser is not None:
+            self._emit_status(tr("worker_connected_to", f"Connected to {{port_name}}", port_name=self._port_name))
+            logger.info(f"Successfully connected to {self._port_name}")
+        else:
+            if not HAS_PYSERIAL or not self._port_name:
+                logger.warning("pyserial not available, running in simulation mode")
+                self._emit_status(tr("worker_simulated", "Simulation mode (no pyserial)"))
+            else:
+                self._running = False
+                self._cleanup(ser)
+                self.finished.emit()
+                return
         
         # Main loop with simplified exception handling using helper method
         try:
