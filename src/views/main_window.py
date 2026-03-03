@@ -728,8 +728,14 @@ class MainWindow(QtWidgets.QMainWindow):
             return None
         panel = QuickBlocksPanel(self._quick_blocks_repository, self)
         panel.block_triggered.connect(self._execute_quick_block)
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        scroll_area.setWidget(panel)
         self._quick_panel = panel
-        return panel
+        return scroll_area
 
     def _execute_quick_block(self, block_id: str, mode: str) -> None:
         block = self._quick_blocks_repository.get_block(block_id)

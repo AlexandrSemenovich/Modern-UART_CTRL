@@ -27,9 +27,12 @@ def main():
         return 1
 
     print("Starting UART Control Application...")
+    pythonpath = os.pathsep.join(filter(None, [project_root, os.environ.get("PYTHONPATH", "")]))
+    env = os.environ.copy()
+    env["PYTHONPATH"] = pythonpath
     cmd = [venv_python, '-m', 'src.main']
     try:
-        result = subprocess.run(cmd, cwd=project_root)
+        result = subprocess.run(cmd, cwd=project_root, env=env)
         return result.returncode
     except KeyboardInterrupt:
         print("\nApplication terminated by user")

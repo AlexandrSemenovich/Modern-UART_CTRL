@@ -40,7 +40,7 @@ groups:
     group_id: config_group
 - id: bb_group
   name: BeagleBone
-  collapsed: false
+  collapsed: true
   order: 1
   blocks:
   - id: bb_a
@@ -67,7 +67,7 @@ groups:
     group_id: bb_group
 - id: buk_group
   name: БУК
-  collapsed: false
+  collapsed: true
   order: 2
   blocks:
   - id: buk_1
@@ -94,7 +94,7 @@ groups:
     group_id: buk_group
 - id: cam_group
   name: Камеры
-  collapsed: false
+  collapsed: true
   order: 3
   blocks:
   - id: cam_11
@@ -154,7 +154,7 @@ groups:
     group_id: cam_group
 - id: bpx_group
   name: БП-Х
-  collapsed: false
+  collapsed: true
   order: 4
   blocks:
   - id: bpx_1_3_5

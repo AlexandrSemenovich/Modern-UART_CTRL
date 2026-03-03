@@ -11,7 +11,7 @@
 ## Critical Issues
 1. ~~Неочищенные подписки (`theme_manager`, `translator`) удерживают ViewModel и виджеты в памяти → утечки~~ ✅ Исправлено в [`ComPortViewModel`](src/viewmodels/com_port_viewmodel.py:51): добавлены методы `_connect/_disconnect_theme_manager` и очистка при `destroyed`/`shutdown`.
 2. ~~`ComPortViewModel.connect_with_retry()` гоняет подключение в GUI-потоке без backoff → freeze при ошибочных портах~~ ✅ Исправлено: подключение теперь использует `QTimer` с экспоненциальным `backoff` и обработкой ошибок в [`ComPortViewModel.connect_with_retry`](src/viewmodels/com_port_viewmodel.py:229).
-3. ~~Quick Block `QShortcut` создаются как `ApplicationShortcut` и не удаляются → рост памяти/ghost hotkeys~~ ✅ Исправлено: `BlockRow` теперь переиспользует `WidgetWithChildrenShortcut`, очищает `QShortcut` при dispose, а `GroupCard` освобождает их при смене блоков ([`src/views/quick_blocks_panel.py:139`](src/views/quick_blocks_panel.py:139)).
+3. ~~Quick Block `QShortcut` создаются как `ApplicationShortcut` и не удаляются → рост памяти/ghost hotkeys~~ ✅ Исправлено: lifecycle блоков перенесён в виртуализированную панель, shortcuts очищаются через модель/делегат, исключая удержание блоков в памяти ([`src/views/quick_blocks_panel.py:20`](src/views/quick_blocks_panel.py:20)).
 4. ~~Логи дублируются в `QTextEdit` и `deque`, лимиты 10k/20k строк на порт → неконтролируемый расход RAM~~ ✅ Исправлено: снижены лимиты и обрезка в [`config/config.defaults.ini`](config/config.defaults.ini:65) и [`ConsoleLimits`](src/styles/constants.py:272) (1000 строк в QTextEdit/кэше, 4000 символов HTML, агрессивная trim-чаша).
 5. ~~Двойное открытие портов в `SerialWorker.run()` без централизованного `_open_connection()` → зависшие дескрипторы~~ ✅ Исправлено: `run()` теперь использует `_open_connection()` и обработку ошибок/cleanup централизованно ([`src/models/serial_worker.py:383`](src/models/serial_worker.py:383)).
 
@@ -28,7 +28,7 @@
 ## Visual & Rendering
 - ~~Splitter management вызывает двойные repaints, появляется мерцание на 4K.~~ ✅ Исправлено: resizeEvent теперь дебаунсит `_apply_responsive_breakpoints()` через QTimer (50 мс), исключая двойные repaints ([`src/views/main_window.py:805`](src/views/main_window.py:805)).
 - ~~ConsolePanelView делает append больших HTML-блоков → layout thrash >150 мс.~~ ✅ Исправлено: логи вставляются через QTextCursor.insertHtml с обрезкой без полной перерисовки ([`src/views/console_panel_view.py:951`](src/views/console_panel_view.py:951)).
-- ~~QuickBlocksPanel полностью пересоздаёт layout при любом изменении; нет виртуализации для 10k элементов.~~ ✅ Исправлено: панель перешла на `QListView` + `QuickBlocksListModel`, что уменьшает пересоздание виджетов и поддерживает lazy loading ([`src/views/quick_blocks_panel.py:295`](src/views/quick_blocks_panel.py:295)).
+- ~~QuickBlocksPanel полностью пересоздаёт layout при любом изменении; нет виртуализации для 10k элементов.~~ ✅ Исправлено: панель перешла на `QListView` + `QuickBlocksListModel` + кастомный делегат с skeleton placeholders и collapsible headers без пересоздания виджетов ([`src/views/quick_blocks_panel.py:20`](src/views/quick_blocks_panel.py:20), [`src/views/quick_blocks_model.py:1`](src/views/quick_blocks_model.py:1), [`src/views/quick_blocks_delegate.py:1`](src/views/quick_blocks_delegate.py:1)).
 
 ## Optimization Backlog
 1. Scoped connections для Theme/Translator, обнуление shortcuts.
