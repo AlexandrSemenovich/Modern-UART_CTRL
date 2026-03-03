@@ -128,6 +128,8 @@ class QuickBlocksDelegate(QtWidgets.QStyledItemDelegate):
         title_rect = QtCore.QRect(content_rect)
         title_rect.setLeft(content_rect.left() + 4)
         title_rect.setRight(max(status_area_left - self._spacing, content_rect.left()))
+        title_rect.setTop(content_rect.top())
+        title_rect.setBottom(content_rect.bottom())
         painter.setPen(palette.color(QtGui.QPalette.Text))
         title = item.block.title if item.block else tr("block", "Block")
         painter.drawText(title_rect, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, title)
@@ -148,9 +150,9 @@ class QuickBlocksDelegate(QtWidgets.QStyledItemDelegate):
         painter.drawEllipse(indicator_rect)
         painter.setPen(palette.color(QtGui.QPalette.Text))
         badge_rect = QtCore.QRect(indicator_rect.right() + 6,
-                                  indicator_rect.top() - 2,
+                                  content_rect.center().y() - indicator_size,
                                   max(0, status_area_right - self._spacing - (indicator_rect.right() + 6)),
-                                  indicator_rect.height() + 4)
+                                  indicator_size * 2)
         painter.drawText(badge_rect, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, indicator_text)
 
         top_offset = content_rect.top() + (content_rect.height() - button_height) // 2
