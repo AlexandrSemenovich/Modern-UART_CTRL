@@ -125,6 +125,7 @@ class ConsoleConfig:
     max_document_lines: int
     trim_chunk_size: int
     max_cache_lines: int
+    history_file_size_mb: int
     
     def __repr__(self) -> str:
         return f"ConsoleConfig(max_html_length={self.max_html_length}, max_document_lines={self.max_document_lines}, ...)"
@@ -503,6 +504,7 @@ class ConfigLoader:
             max_document_lines=self._get_int(section, "max_document_lines"),
             trim_chunk_size=self._get_int(section, "trim_chunk_size"),
             max_cache_lines=self._get_int(section, "max_cache_lines"),
+            history_file_size_mb=self._get_int(section, "history_file_size_mb", 8),
         )
 
     def get_toast_config(self) -> ToastConfig:

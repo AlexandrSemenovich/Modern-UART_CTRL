@@ -14,6 +14,7 @@ from src.styles.constants import Fonts, Sizes, ConsoleLimits
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
 from src.utils.icon_cache import get_icon, get_icon_cache
+from src.utils.mmap_log_history import create_history_for_port, MemoryMappedLogHistory
 
 class LogWidget:
     """Container for log widget and its label."""
@@ -205,11 +206,18 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._log_widgets: dict[str, LogWidget] = {}
         self._combined_log_widgets: dict[str, QtWidgets.QTextEdit] = {}
         self._combined_cache: dict[str, deque[str]] = {}
-        # Use deque with maxlen for O(1) cache operations
+        # Ring buffer storage for in-memory log rendering
         self._log_cache: dict[str, deque[str]] = {}
-        # Maximum number of lines in cache for one port
+        # Memory-mapped history storage per port
+        self._history_files: dict[str, MemoryMappedLogHistory] = {}
         from src.styles.constants import ConsoleLimits as _ConsoleLimits  # local import to avoid cycles
         self._max_lines: int = int(self._config.get('max_lines', _ConsoleLimits.MAX_CACHE_LINES))
+        self._history_capacity_bytes = int(
+            self._config.get(
+                'history_capacity_bytes',
+                _ConsoleLimits.HISTORY_FILE_SIZE_MB * 1024 * 1024,
+            )
+        )
         
         # Display options
         self._show_time: bool = True
@@ -236,6 +244,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._log_text_edits: list[QtWidgets.QTextEdit] = []
         self._console_pages: list[QtWidgets.QWidget] = []
         self._setup_ui()
+        self._initialize_history_files()
         translator.language_changed.connect(self.retranslate_ui)
         theme_manager.theme_changed.connect(self._on_theme_changed)
         self._colors = config_loader.get_colors(self._current_theme())
@@ -299,8 +308,16 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._update_tab_page_states()
         
         layout.addWidget(self._tab_frame, 1)
-        
+
         self.setLayout(layout)
+
+    def _initialize_history_files(self) -> None:
+        capacity = max(self._history_capacity_bytes, 1024 * 1024)
+        for label in self._port_labels:
+            try:
+                self._history_files[label] = create_history_for_port(label, capacity)
+            except OSError:
+                continue
 
     def _create_toolbar(self) -> tuple[QtWidgets.QHBoxLayout, QtWidgets.QHBoxLayout]:
         """Create vertical toolbar with search (row 1) and controls (row 2)."""
@@ -505,8 +522,8 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._log_widgets[port_label] = log_widget
         
         # Initialize cache for this port
-        self._log_cache[port_label] = []
-        
+        self._log_cache[port_label] = deque(maxlen=self._max_lines)
+
         self._register_console_page(widget)
         return widget
     
@@ -962,6 +979,9 @@ class ConsolePanelView(QtWidgets.QWidget):
                     widget.text_edit.setTextCursor(cursor)
                     self._trim_document_if_needed(widget.text_edit)
                     self._append_to_combined(port_label, truncated_html)
+                    if port_label in self._history_files:
+                        all_plain = "".join([u[1] for u in updates])
+                        self._history_files[port_label].append(all_plain)
         self._pending_updates.clear()
 
     def _append_to_combined(self, port_label: str, html_chunk: str) -> None:
@@ -1255,6 +1275,10 @@ class ConsolePanelView(QtWidgets.QWidget):
             text_edit.clear()
         
         self._log_cache.clear()
+        for history in self._history_files.values():
+            history.close()
+        self._history_files.clear()
+        self._initialize_history_files()
     
     def toggle_search_bar(self) -> None:
         """Toggle visibility of the search bar."""
@@ -1287,22 +1311,31 @@ class ConsolePanelView(QtWidgets.QWidget):
     def get_logs_text(self, port_label: str | None = None) -> str:
         """
         Get logs as plain text.
-        
+
         Args:
             port_label: Specific port label or None for all
             
         Returns:
             Plain text of logs
         """
-        if port_label and port_label in self._log_cache:
-            lines = [plain for _, plain in self._log_cache[port_label]]
-            return "".join(lines)
-        elif not port_label:
-            all_lines = []
-            for port_cache in self._log_cache.values():
-                all_lines.extend([plain for _, plain in port_cache])
-            return "".join(all_lines)
-        return ""
+        if port_label:
+            history = self._history_files.get(port_label)
+            if history:
+                return history.read_all()
+            cache = self._log_cache.get(port_label)
+            if cache:
+                return "".join(cache)
+            return ""
+
+        logs = []
+        for label, history in self._history_files.items():
+            logs.append(history.read_all())
+        if logs:
+            return "\n".join(logs)
+
+        for cache in self._log_cache.values():
+            logs.append("".join(cache))
+        return "\n".join(logs)
     
     def get_log_count(self, port_label: str | None = None) -> int:
         """Get number of log lines."""

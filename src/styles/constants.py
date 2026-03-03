@@ -281,6 +281,7 @@ class ConsoleLimits:
     TRIM_CHUNK_SIZE = min(200, max(50, _cfg.trim_chunk_size))
     # Maximum number of cached log lines per port
     MAX_CACHE_LINES = min(2000, max(200, _cfg.max_cache_lines))
+    HISTORY_FILE_SIZE_MB = max(2, _cfg.history_file_size_mb)
 
 
 # ==================== Charset Detection ====================
