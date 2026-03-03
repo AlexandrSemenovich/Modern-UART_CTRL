@@ -955,10 +955,11 @@ class ConsolePanelView(QtWidgets.QWidget):
                 widget = self._log_widgets[port_label]
                 if widget.text_edit:
                     # Batch all updates for this port
-                    combined_html = "".join([u[0] for u in updates])
-                    truncated_html = self._truncate_html(combined_html)
-                    widget.text_edit.append(truncated_html)
-                    # Trim old content to prevent memory exhaustion
+                    truncated_html = self._truncate_html("".join([u[0] for u in updates]))
+                    cursor = widget.text_edit.textCursor()
+                    cursor.movePosition(QtGui.QTextCursor.End)
+                    cursor.insertHtml(truncated_html)
+                    widget.text_edit.setTextCursor(cursor)
                     self._trim_document_if_needed(widget.text_edit)
                     self._append_to_combined(port_label, truncated_html)
         self._pending_updates.clear()

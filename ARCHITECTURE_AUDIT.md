@@ -26,9 +26,9 @@
 - ~~PortManager пока безопасен, но при вынесении worker в отдельный процесс потребуются IPC lock.~~ ✅ Исправлено: добавлен межпроцессный mutex на Windows и fallback для других ОС ([`src/utils/port_manager.py:27`](src/utils/port_manager.py:27)).
 
 ## Visual & Rendering
-- Splitter management вызывает двойные repaints, появляется мерцание на 4K.
-- ConsolePanelView делает append больших HTML-блоков → layout thrash >150 мс.
-- QuickBlocksPanel полностью пересоздаёт layout при любом изменении; нет виртуализации для 10k элементов.
+- ~~Splitter management вызывает двойные repaints, появляется мерцание на 4K.~~ ✅ Исправлено: resizeEvent теперь дебаунсит `_apply_responsive_breakpoints()` через QTimer (50 мс), исключая двойные repaints ([`src/views/main_window.py:805`](src/views/main_window.py:805)).
+- ~~ConsolePanelView делает append больших HTML-блоков → layout thrash >150 мс.~~ ✅ Исправлено: логи вставляются через QTextCursor.insertHtml с обрезкой без полной перерисовки ([`src/views/console_panel_view.py:951`](src/views/console_panel_view.py:951)).
+- ~~QuickBlocksPanel полностью пересоздаёт layout при любом изменении; нет виртуализации для 10k элементов.~~ ✅ Исправлено: панель перешла на `QListView` + `QuickBlocksListModel`, что уменьшает пересоздание виджетов и поддерживает lazy loading ([`src/views/quick_blocks_panel.py:295`](src/views/quick_blocks_panel.py:295)).
 
 ## Optimization Backlog
 1. Scoped connections для Theme/Translator, обнуление shortcuts.
@@ -44,3 +44,7 @@
 3. **Performance**: console batch insert, ring buffer, splitter policies.
 4. **Visual polish**: Quick Blocks virtualization, toolbar адаптация, skeleton loading.
 
+
+Сконцентрируйся на ConsolePanel (виртуализация логов, исправление layout thrash)
+
+Займись архитектурным аудитом и обновлением отчёта/Health Score

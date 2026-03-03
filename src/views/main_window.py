@@ -804,7 +804,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
         super().resizeEvent(event)
-        self._apply_responsive_breakpoints()
+        if not hasattr(self, '_responsive_timer'):
+            self._responsive_timer = QtCore.QTimer(self)
+            self._responsive_timer.setSingleShot(True)
+            self._responsive_timer.timeout.connect(lambda: self._apply_responsive_breakpoints(force=True))
+        self._responsive_timer.start(50)
 
     def _apply_responsive_breakpoints(
         self,

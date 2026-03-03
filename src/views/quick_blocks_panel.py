@@ -12,6 +12,7 @@ from src.utils.quick_blocks_repository import QuickBlock, QuickBlocksRepository
 from src.utils.theme_manager import theme_manager
 from src.utils.translator import tr, translator
 from src.views.quick_block_editor_dialog import create_block
+from src.views.quick_blocks_model import QuickBlocksListModel
 
 
 class BlockRow(QtWidgets.QFrame):
@@ -310,22 +311,25 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         toolbar = self._create_toolbar()
         root.addLayout(toolbar)
 
-        self._scroll = QtWidgets.QScrollArea()
-        self._scroll.setWidgetResizable(True)
-        self._scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-        self._scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self._content = QtWidgets.QWidget()
-        self._content.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
-        self._content_layout = QtWidgets.QVBoxLayout(self._content)
-        self._content_layout.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, Sizes.CARD_MARGIN)
-        self._content_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
-        self._content_layout.addStretch(1)
-        self._scroll.setWidget(self._content)
-        root.addWidget(self._scroll)
+        self._list_view = QtWidgets.QListView()
+        self._list_view.setObjectName("quick_blocks_view")
+        self._list_view.setSpacing(Sizes.LAYOUT_SPACING // 2)
+        self._list_view.setUniformItemSizes(True)
+        self._list_view.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self._list_view.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        root.addWidget(self._list_view)
+
+        self._model = QuickBlocksListModel(repository)
+        self._list_view.setModel(self._model)
+        self._list_view.setItemDelegate(QuickBlockDelegate(self))
+        self._model.block_triggered.connect(self.block_triggered)
+        self._model.block_selected.connect(self._on_block_selected)
+        self._model.context_action.connect(self._on_context_action)
+        self._model.collapse_changed.connect(self._on_collapse_changed)
 
         translator.language_changed.connect(lambda _: self._retranslate_ui())
         theme_manager.theme_changed.connect(self._on_theme_changed)
-        self.refresh()
+        self._model.refresh()
         self._retranslate_ui()
         self._update_toolbar_icons()
 
@@ -378,23 +382,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._update_toolbar_icons()
 
     def refresh(self) -> None:
-        self._group_cards.clear()
-        while self._content_layout.count() > 1:
-            item = self._content_layout.takeAt(0)
-            if (widget := item.widget()) is not None:
-                widget.deleteLater()
-
-        for group in self._repository.list_groups():
-            card = GroupCard(group.id, group.name, group.collapsed)
-            card.block_triggered.connect(self.block_triggered)
-            card.block_selected.connect(self._on_block_selected)
-            card.collapse_changed.connect(self._on_collapse_changed)
-            card.context_action.connect(self._on_context_action)
-            card.set_blocks(group.blocks)
-            if self._selected_block:
-                card.set_selected_block(self._selected_block)
-            self._content_layout.insertWidget(self._content_layout.count() - 1, card)
-            self._group_cards.append(card)
+        self._model.refresh()
 
     def _update_toolbar_icons(self) -> None:
         if not self._icon_cache:
