@@ -138,6 +138,8 @@ class Sizes:
     LEFT_PANEL_MIN_WIDTH = _cfg.left_panel_min_width
     LEFT_PANEL_MAX_WIDTH = _cfg.left_panel_max_width
     LEFT_PANEL_DEFAULT_WIDTH = getattr(_cfg, "left_panel_default_width", LEFT_PANEL_MIN_WIDTH)
+    WINDOW_COMPACT_BREAKPOINT = getattr(_cfg, "window_compact_breakpoint", WINDOW_DEFAULT_WIDTH)
+    WINDOW_SPLITTER_BREAKPOINT = getattr(_cfg, "window_splitter_breakpoint", WINDOW_DEFAULT_WIDTH)
     CENTER_PANEL_MIN_WIDTH = _cfg.center_panel_min_width
     RIGHT_PANEL_MIN_WIDTH = _cfg.right_panel_min_width
     RIGHT_PANEL_MAX_WIDTH = _cfg.right_panel_max_width

@@ -192,8 +192,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setAccessibleName(tr("app_name", "UART Control"))
         self.setAccessibleDescription("Main application window for UART serial port communication control")
         
-        self.resize(Sizes.WINDOW_DEFAULT_WIDTH, Sizes.WINDOW_DEFAULT_HEIGHT)
-        self.setMinimumSize(Sizes.WINDOW_MIN_WIDTH, Sizes.WINDOW_MIN_HEIGHT)
+        scale = self._effective_scale_factor()
+        width = int(Sizes.WINDOW_DEFAULT_WIDTH * scale)
+        height = int(Sizes.WINDOW_DEFAULT_HEIGHT * scale)
+        self.resize(width, height)
+        min_width = int(Sizes.WINDOW_MIN_WIDTH * scale)
+        min_height = int(Sizes.WINDOW_MIN_HEIGHT * scale)
+        self.setMinimumSize(min_width, min_height)
         self._set_window_icon()
         
         # Setup custom title bar via Windows API (if available)
@@ -868,7 +873,8 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         # Collapse right panel for compact widths
-        if width < self._right_panel_breakpoint:
+        right_breakpoint = getattr(Sizes, "WINDOW_SPLITTER_BREAKPOINT", self._right_panel_breakpoint)
+        if width < right_breakpoint:
             if self._right_panel and self._right_panel.isVisible():
                 self._right_panel.hide()
         else:
@@ -876,7 +882,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._right_panel.show()
 
         # Reduce left panel maximum width for narrow windows
-        if width < self._stack_breakpoint and override_left is None:
+        compact_breakpoint = getattr(Sizes, "WINDOW_COMPACT_BREAKPOINT", self._stack_breakpoint)
+        if width < compact_breakpoint and override_left is None:
             target_max = max(Sizes.LEFT_PANEL_MIN_WIDTH, 260)
             desired_left = min(Sizes.LEFT_PANEL_DEFAULT_WIDTH, target_max)
         else:
@@ -1096,14 +1103,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _get_buttons_for_port(self, port_num: int) -> list:
         """Get buttons that correspond to the given port number for animation."""
         buttons = []
-        if port_num == 0:  # combo - both CPU1 and CPU2
-            buttons = [self._btn_combo, self._btn_cpu1, self._btn_cpu2]
-        elif port_num == 1:
-            buttons = [self._btn_cpu1]
-        elif port_num == 2:
-            buttons = [self._btn_cpu2]
-        elif port_num == 3:
-            buttons = [self._btn_tlm]
+        mapping = {
+            0: [self._btn_combo, self._btn_cpu1, self._btn_cpu2],
+            1: [self._btn_cpu1],
+            2: [self._btn_cpu2],
+            3: [self._btn_tlm],
+        }
+        buttons = mapping.get(port_num, [])
         return [b for b in buttons if b is not None]
     
     def _animate_buttons_flash(self, buttons: list) -> None:
@@ -1675,3 +1681,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show()
             self.activateWindow()
             self.raise_()
+    def _effective_scale_factor(self) -> float:
+        screen = self.screen()
+        if not screen:
+            return 1.0
+        dpi = screen.logicalDotsPerInch()
+        return max(1.0, dpi / 96.0)

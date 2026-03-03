@@ -35,7 +35,7 @@
 2. ~~Async retry для SerialWorker, единый `_open_connection`.~~ ✅ [`SerialWorker.run()`](src/models/serial_worker.py:400) теперь делает несколько попыток подключения с экспоненциальной задержкой и использует единый `_open_connection()`.
 3. ~~Ring buffer для логов + mmap history.~~ ✅ Реализован mmap-backed ring buffer для каждого порта ([`src/utils/mmap_log_history.py`](src/utils/mmap_log_history.py)), интегрирован в [`ConsolePanelView`](src/views/console_panel_view.py:200) c конфигурацией `history_file_size_mb` в [`config/config.defaults.ini`](config/config.defaults.ini:65) и автотестами [`tests/utils/test_mmap_log_history.py`](tests/utils/test_mmap_log_history.py).
 4. ~~Virtualized Quick Blocks (QAbstractListModel), единый shortcut dispatcher.~~ ✅ Панель Quick Blocks использует QListView/QAbstractListModel + делегат, добавлен централизованный диспетчер хоткеев (configurable через `quick_block_shortcuts`), очистка хоткеев при закрытии окна и тестирование (`QuickBlocksPanel` + `MainWindow`).
-5. DPI-aware window sizing, единый конфиг размеров.
+5. ~~DPI-aware window sizing, единый конфиг размеров.~~ ✅ Все размеры централизованы в `[sizes]` (минимумы/дефолты, breakpoints), а `MainWindow` масштабирует окно и панели в соответствии с DPI (см. [`config/config.defaults.ini`](config/config.defaults.ini:152), [`src/styles/constants.py`](src/styles/constants.py:129), [`src/views/main_window.py`](src/views/main_window.py:187)).
 6. Icon cache housekeeping + checksum.
 
 ## Roadmap
