@@ -402,22 +402,25 @@ class SerialWorker(QThread):
         ser: Any | None = None
         connection_error: str | None = None
         
-        try:
-            ser = self._open_connection()
-            self._ser = ser
-        except Exception as e:
-            connection_error = str(e)
-            logger.exception(f"Unexpected error during connection: {e}")
-            self._emit_error(tr("worker_open_error", f"Connection error: {{error}}", error=e))
-            self._running = False
-            self._cleanup(ser)
-            self.finished.emit()
-            return
-
-        if ser is not None:
-            self._emit_status(tr("worker_connected_to", f"Connected to {{port_name}}", port_name=self._port_name))
-            logger.info(f"Successfully connected to {self._port_name}")
-        else:
+        ser = None
+        for attempt in range(1, self.MAX_CONNECTION_ATTEMPTS + 1):
+            self._connection_attempts = attempt
+            try:
+                ser = self._open_connection()
+                self._ser = ser
+                if ser is not None:
+                    self._emit_status(tr("worker_connected_to", f"Connected to {{port_name}}", port_name=self._port_name))
+                    logger.info(f"Successfully connected to {self._port_name} on attempt {attempt}")
+                    break
+            except Exception as e:
+                connection_error = str(e)
+                logger.exception(f"Unexpected error during connection attempt {attempt}: {e}")
+                self._emit_error(tr("worker_open_error", f"Connection error: {{error}}", error=e))
+            if ser is None:
+                delay = self.CONNECTION_RETRY_DELAY * attempt
+                logger.warning(f"Retrying connection to {self._port_label} in {delay:.2f}s (attempt {attempt}/{self.MAX_CONNECTION_ATTEMPTS})")
+                time.sleep(delay)
+        if ser is None:
             self._handle_simulation_mode()
             return
         

@@ -156,10 +156,13 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Connect theme changes
         theme_manager.theme_changed.connect(self._on_theme_changed)
+        self._theme_signal_connected = True
         # Theme already applied in main.py, do not apply again
         
         # Connect language changes
         translator.language_changed.connect(self._on_language_changed)
+        self._translator_signal_connected = True
+        self.destroyed.connect(self._cleanup_global_signals)
         
         # Status bar
         status_bar = self.statusBar()
@@ -339,8 +342,23 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Give threads time to finish
         self._wait_for_threads()
+        self._cleanup_global_signals()
         
         event.accept()
+
+    def _cleanup_global_signals(self) -> None:
+        if getattr(self, "_theme_signal_connected", False):
+            try:
+                theme_manager.theme_changed.disconnect(self._on_theme_changed)
+            except (RuntimeError, TypeError):
+                pass
+            self._theme_signal_connected = False
+        if getattr(self, "_translator_signal_connected", False):
+            try:
+                translator.language_changed.disconnect(self._on_language_changed)
+            except (RuntimeError, TypeError):
+                pass
+            self._translator_signal_connected = False
     
     def _setup_ui(self) -> None:
         """Initialize main UI components."""

@@ -31,8 +31,8 @@
 - ~~QuickBlocksPanel полностью пересоздаёт layout при любом изменении; нет виртуализации для 10k элементов.~~ ✅ Исправлено: панель перешла на `QListView` + `QuickBlocksListModel` + кастомный делегат с skeleton placeholders и collapsible headers без пересоздания виджетов ([`src/views/quick_blocks_panel.py:20`](src/views/quick_blocks_panel.py:20), [`src/views/quick_blocks_model.py:1`](src/views/quick_blocks_model.py:1), [`src/views/quick_blocks_delegate.py:1`](src/views/quick_blocks_delegate.py:1)).
 
 ## Optimization Backlog
-1. Scoped connections для Theme/Translator, обнуление shortcuts.
-2. Async retry для SerialWorker, единый `_open_connection`.
+1. ~~Scoped connections для Theme/Translator, обнуление shortcuts.~~ ✅ [`MainWindow`](src/views/main_window.py) теперь автоматически отписывается от translator/theme сигнала при уничтожении, а горячие клавиши сбрасываются вместе с виртуализированным Quick Blocks.
+2. ~~Async retry для SerialWorker, единый `_open_connection`.~~ ✅ [`SerialWorker.run()`](src/models/serial_worker.py:400) теперь делает несколько попыток подключения с экспоненциальной задержкой и использует единый `_open_connection()`.
 3. Ring buffer для логов + mmap history.
 4. Virtualized Quick Blocks (QAbstractListModel), единый shortcut dispatcher.
 5. DPI-aware window sizing, единый конфиг размеров.
