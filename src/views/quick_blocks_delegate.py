@@ -136,15 +136,17 @@ class QuickBlocksDelegate(QtWidgets.QStyledItemDelegate):
         indicator_rect = QtCore.QRect(status_area_left, content_rect.center().y() - indicator_size // 2, indicator_size, indicator_size)
         state = (item.indicator_state or "idle").lower()
         color_map = {
-            "idle": (theme_colors.rx_label, tr("quick_block_ready", "Ready")),
-            "pending": (theme_colors.tx_label, tr("quick_block_pending", "Pending")),
-            "error": (theme_colors.sys_label, tr("quick_block_error", "Error")),
+            "idle": ("#b0b8c5", tr("quick_block_idle", "Idle")),
+            "all_sent": ("#2ecc71", tr("quick_block_success", "Sent")),
+            "partial": ("#f1c40f", tr("quick_block_partial", "Partial")),
+            "failed": ("#e74c3c", tr("quick_block_failed", "Failed")),
+            "pending": ("#b0b8c5", tr("quick_block_pending", "Pending")),
         }
         indicator_color, indicator_text = color_map.get(state, (palette.color(QtGui.QPalette.Mid).name(), state.title()))
         painter.setBrush(QtGui.QColor(indicator_color))
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawEllipse(indicator_rect)
-        painter.setPen(palette.color(QtGui.QPalette.Mid))
+        painter.setPen(palette.color(QtGui.QPalette.Text))
         badge_rect = QtCore.QRect(indicator_rect.right() + 6,
                                   indicator_rect.top() - 2,
                                   max(0, status_area_right - self._spacing - (indicator_rect.right() + 6)),

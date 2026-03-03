@@ -260,6 +260,26 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Ошибка",
         "en": "Failed",
     },
+    "quick_block_idle": {
+        "ru": "Ожидание",
+        "en": "Idle",
+    },
+    "quick_block_success": {
+        "ru": "Отправлено",
+        "en": "Sent",
+    },
+    "quick_block_partial": {
+        "ru": "Частично",
+        "en": "Partial",
+    },
+    "quick_block_failed": {
+        "ru": "Ошибка",
+        "en": "Failed",
+    },
+    "quick_block_pending": {
+        "ru": "В ожидании",
+        "en": "Pending",
+    },
     "history_confirm_clear": {
         "ru": "Очистить всю историю?",
         "en": "Clear entire history?",

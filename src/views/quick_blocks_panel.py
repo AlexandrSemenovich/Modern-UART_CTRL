@@ -135,7 +135,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
 
     def update_block_state(self, block_id: str, state: str | None) -> None:
         self._model.update_indicator(block_id, state)
-
+        
     def _on_item_clicked(self, index: QtCore.QModelIndex) -> None:
         item_type = index.data(QuickBlocksListModel.TYPE_ROLE)
         item: QuickBlockListItem | None = index.data(QuickBlocksListModel.DATA_ROLE)

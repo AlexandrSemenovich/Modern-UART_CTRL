@@ -744,9 +744,20 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         command = block.command_on if mode == "on" else block.command_off
         if not command:
+            if self._quick_panel:
+                self._quick_panel.update_block_state(block_id, "failed")
             return
-        for port in self._resolve_quick_block_ports(block):
-            self._send_command(port, command_override=command)
+        ports = self._resolve_quick_block_ports(block)
+        results: list[bool] = []
+        for port in ports:
+            results.append(self._send_command(port, command_override=command))
+        if self._quick_panel:
+            if not results or not any(results):
+                self._quick_panel.update_block_state(block_id, "failed")
+            elif all(results):
+                self._quick_panel.update_block_state(block_id, "all_sent")
+            else:
+                self._quick_panel.update_block_state(block_id, "partial")
         if isinstance(getattr(self, "_left_panel", None), QtWidgets.QScrollArea):
             left_widget = self._left_panel.widget()
             if left_widget:
@@ -1014,7 +1025,7 @@ class MainWindow(QtWidgets.QMainWindow):
         shortcut_escape = QShortcut(QKeySequence("Escape"), self)
         shortcut_escape.activated.connect(self.close)
     
-    def _send_command(self, port_num: int, *, command_override: str | None = None) -> None:
+    def _send_command(self, port_num: int, *, command_override: str | None = None) -> bool:
         """
         Send command to specified port(s).
         
@@ -1024,7 +1035,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         command = command_override if command_override is not None else self._le_command.text()
         if not command:
-            return
+            return False
         
         # Get button(s) to animate for visual feedback
         buttons_to_animate = self._get_buttons_for_port(port_num)
@@ -1040,13 +1051,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self._history_model.add_entry(command, self._port_label_for_num(port_num))
 
         # Send to port(s)
+        send_results: list[bool] = []
         if port_num == 0:
             # Send to CPU1 and CPU2
             for num in [1, 2]:
                 if num in self._port_viewmodels:
-                    self._port_viewmodels[num].send_command(command)
+                    send_results.append(self._port_viewmodels[num].send_command(command))
+                else:
+                    send_results.append(False)
         elif port_num in self._port_viewmodels:
-            self._port_viewmodels[port_num].send_command(command)
+            send_results.append(self._port_viewmodels[port_num].send_command(command))
+        else:
+            send_results.append(False)
+        return all(send_results) if send_results else False
     
     def _get_buttons_for_port(self, port_num: int) -> list:
         """Get buttons that correspond to the given port number for animation."""
