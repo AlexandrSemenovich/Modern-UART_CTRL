@@ -34,7 +34,7 @@
 1. ~~Scoped connections для Theme/Translator, обнуление shortcuts.~~ ✅ [`MainWindow`](src/views/main_window.py) теперь автоматически отписывается от translator/theme сигнала при уничтожении, а горячие клавиши сбрасываются вместе с виртуализированным Quick Blocks.
 2. ~~Async retry для SerialWorker, единый `_open_connection`.~~ ✅ [`SerialWorker.run()`](src/models/serial_worker.py:400) теперь делает несколько попыток подключения с экспоненциальной задержкой и использует единый `_open_connection()`.
 3. ~~Ring buffer для логов + mmap history.~~ ✅ Реализован mmap-backed ring buffer для каждого порта ([`src/utils/mmap_log_history.py`](src/utils/mmap_log_history.py)), интегрирован в [`ConsolePanelView`](src/views/console_panel_view.py:200) c конфигурацией `history_file_size_mb` в [`config/config.defaults.ini`](config/config.defaults.ini:65) и автотестами [`tests/utils/test_mmap_log_history.py`](tests/utils/test_mmap_log_history.py).
-4. Virtualized Quick Blocks (QAbstractListModel), единый shortcut dispatcher.
+4. ~~Virtualized Quick Blocks (QAbstractListModel), единый shortcut dispatcher.~~ ✅ Панель Quick Blocks использует QListView/QAbstractListModel + делегат, добавлен централизованный диспетчер хоткеев (configurable через `quick_block_shortcuts`), очистка хоткеев при закрытии окна и тестирование (`QuickBlocksPanel` + `MainWindow`).
 5. DPI-aware window sizing, единый конфиг размеров.
 6. Icon cache housekeeping + checksum.
 

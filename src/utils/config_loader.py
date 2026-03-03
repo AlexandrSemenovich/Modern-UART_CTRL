@@ -257,6 +257,12 @@ class ConfigLoader:
             QuickCommand("Start", "start\r\n"),
             QuickCommand("Stop", "stop\r\n"),
         ]
+        self._default_block_shortcuts = {
+            "cpu1": "Ctrl+Alt+1",
+            "cpu2": "Ctrl+Alt+2",
+            "combo": "Ctrl+Alt+3",
+            "tlm": "Ctrl+Alt+4",
+        }
 
         # Single entry point for configuration
         self._config_dir = get_config_dir()
@@ -561,6 +567,15 @@ class ConfigLoader:
         if not commands:
             return list(self._default_quick_commands)
         return commands
+
+    def get_quick_block_shortcuts(self) -> dict[str, str]:
+        section = self._get_section("quick_block_shortcuts")
+        shortcuts = {k: v.strip() for k, v in section.items() if v.strip()}
+        if not shortcuts:
+            return dict(self._default_block_shortcuts)
+        merged = dict(self._default_block_shortcuts)
+        merged.update(shortcuts)
+        return merged
 
 
 config_loader = ConfigLoader()

@@ -323,6 +323,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # Cleanup global hotkeys
         if hasattr(self, '_hotkey_manager') and self._hotkey_manager:
             self._hotkey_manager.cleanup()
+        quick_panel = getattr(self, '_quick_panel', None)
+        if quick_panel and hasattr(quick_panel, "cleanup"):
+            quick_panel.cleanup()
         
         if self._tray_icon and self._tray_icon.isVisible():
             event.ignore()
@@ -1529,7 +1532,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # Cleanup global hotkeys
         if hasattr(self, '_hotkey_manager') and self._hotkey_manager:
             self._hotkey_manager.cleanup()
-        
+        if getattr(self, '_quick_panel', None):
+            getattr(self._quick_panel, "cleanup", lambda: None)()
+
         # Shutdown all port ViewModels
         for viewmodel in self._port_viewmodels.values():
             viewmodel.shutdown()

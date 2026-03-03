@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.styles.constants import Sizes
+from src.utils.config_loader import config_loader
 from src.utils.icon_cache import get_icon_cache
 from src.utils.quick_blocks_repository import QuickBlock, QuickBlocksRepository
 from src.utils.theme_manager import theme_manager
@@ -31,6 +32,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._btn_reload: QtWidgets.QPushButton | None = None
         self._btn_add: QtWidgets.QPushButton | None = None
         self._btn_edit: QtWidgets.QPushButton | None = None
+        self._shortcut_dispatcher: _QuickBlockShortcutDispatcher | None = None
 
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         root = QtWidgets.QVBoxLayout(self)
@@ -69,6 +71,13 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(0, self.refresh)
         self._retranslate_ui()
         self._update_toolbar_icons()
+
+        self._shortcut_dispatcher = _QuickBlockShortcutDispatcher(self)
+        self._shortcut_dispatcher.rebuild()
+
+    def cleanup(self) -> None:
+        if self._shortcut_dispatcher:
+            self._shortcut_dispatcher.cleanup()
 
     # -- UI helpers --------------------------------------------------------
     def _create_toolbar(self) -> QtWidgets.QHBoxLayout:
@@ -132,6 +141,8 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         if self._selected_block:
             self._model.set_selected_block(self._selected_block)
         self._list_view.reset()
+        if self._shortcut_dispatcher:
+            self._shortcut_dispatcher.rebuild()
 
     def update_block_state(self, block_id: str, state: str | None) -> None:
         self._model.update_indicator(block_id, state)
@@ -235,6 +246,8 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         if confirm == QtWidgets.QMessageBox.Yes:
             self._repository.remove_block(block.id)
             self.refresh()
+            if self._shortcut_dispatcher:
+                self._shortcut_dispatcher.rebuild()
 
     def _on_duplicate(self) -> None:
         block = self._current_block()
@@ -255,6 +268,8 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         )
         self._repository.add_block(clone)
         self.refresh()
+        if self._shortcut_dispatcher:
+            self._shortcut_dispatcher.rebuild()
 
     def _on_reload(self) -> None:
         confirm = QtWidgets.QMessageBox.question(
@@ -266,6 +281,8 @@ class QuickBlocksPanel(QtWidgets.QWidget):
             self._repository.reload()
             self.refresh()
             self._flash_reload_button()
+            if self._shortcut_dispatcher:
+                self._shortcut_dispatcher.rebuild(reset_overrides=True)
 
     def _flash_reload_button(self) -> None:
         if not self._btn_reload:
@@ -282,3 +299,39 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._btn_reload.style().unpolish(self._btn_reload)
         self._btn_reload.style().polish(self._btn_reload)
 
+class _QuickBlockShortcutDispatcher(QtCore.QObject):
+    def __init__(self, panel: QuickBlocksPanel) -> None:
+        super().__init__(panel)
+        self._panel = panel
+        self._shortcuts: list[QtWidgets.QShortcut] = []
+        self._overrides: dict[str, str] = {}
+        self._default_shortcuts = config_loader.get_quick_block_shortcuts()
+
+    def cleanup(self) -> None:
+        for shortcut in self._shortcuts:
+            shortcut.disconnect()
+            shortcut.deleteLater()
+        self._shortcuts.clear()
+
+    def rebuild(self, reset_overrides: bool = False) -> None:
+        self.cleanup()
+        if reset_overrides:
+            self._overrides.clear()
+
+        blocks = list(self._panel._model.list_blocks())
+        used_sequences: set[str] = set()
+        for block in blocks:
+            sequence = self._resolve_shortcut(block)
+            if not sequence or sequence in used_sequences:
+                continue
+            used_sequences.add(sequence)
+            shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(sequence), self._panel)
+            shortcut.activated.connect(lambda _, bid=block.id: self._panel._trigger_block(bid, "on"))
+            self._shortcuts.append(shortcut)
+
+    def _resolve_shortcut(self, block: QuickBlock) -> str | None:
+        if block.hotkey:
+            return block.hotkey
+        port_key = (block.port or "").lower() or "cpu1"
+        return self._default_shortcuts.get(port_key)
+from PySide6 import QtCore, QtGui, QtWidgets
