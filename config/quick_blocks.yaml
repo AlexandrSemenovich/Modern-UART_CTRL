@@ -2,7 +2,7 @@ configuration_version: 1
 groups:
 - id: config_group
   name: Config
-  collapsed: false
+  collapsed: true
   order: 0
   blocks:
   - id: arm
@@ -94,7 +94,7 @@ groups:
     group_id: buk_group
 - id: cam_group
   name: Камеры
-  collapsed: true
+  collapsed: false
   order: 3
   blocks:
   - id: cam_11

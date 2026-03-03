@@ -497,6 +497,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addStretch()
         content.setLayout(layout)
         scroll_area.setWidget(content)
+        scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
 
         return scroll_area
     
