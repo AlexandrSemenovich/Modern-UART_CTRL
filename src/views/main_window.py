@@ -162,17 +162,24 @@ class MainWindow(QtWidgets.QMainWindow):
         translator.language_changed.connect(self._on_language_changed)
         
         # Status bar
-        self.statusBar().showMessage(tr("ready", "Ready"))
+        status_bar = self.statusBar()
+        status_bar.setContentsMargins(Sizes.LAYOUT_MARGIN, 2, Sizes.LAYOUT_MARGIN, 2)
+        status_bar.setSizeGripEnabled(False)
+        status_bar.setMinimumHeight(int(Sizes.INPUT_MIN_HEIGHT * 0.75))
+        status_bar.setStyleSheet(
+            "QStatusBar { background-color: palette(window); border-top: 1px solid palette(mid); }"
+        )
+        status_bar.showMessage(tr("ready", "Ready"))
         
         # Language toggle in status bar
         self._lang_label = QtWidgets.QLabel(tr("lang", "Lang:"))
-        self.statusBar().addPermanentWidget(self._lang_label)
+        status_bar.addPermanentWidget(self._lang_label)
         
         self._lang_btn = QtWidgets.QPushButton(translator.get_language().upper())
-        self._lang_btn.setFixedWidth(40)
+        self._lang_btn.setFixedWidth(60)
         self._lang_btn.setToolTip(tr("switch_language", "Click to switch language"))
         self._lang_btn.clicked.connect(self._toggle_language)
-        self.statusBar().addPermanentWidget(self._lang_btn)
+        status_bar.addPermanentWidget(self._lang_btn)
     
     def _setup_window(self) -> None:
         """Configure window properties."""
@@ -483,18 +490,18 @@ class MainWindow(QtWidgets.QMainWindow):
             quick_layout.setSpacing(Sizes.LAYOUT_SPACING)
             quick_layout.setContentsMargins(
                 Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-                Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
+                Sizes.LAYOUT_MARGIN, 0,
             )
             quick_layout.addWidget(quick_panel)
             self._quick_blocks_group.setLayout(quick_layout)
             self._quick_blocks_group.setObjectName("quick_blocks_group")
-            self._quick_blocks_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+            self._quick_blocks_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
             self._quick_blocks_group.setTitle(tr("quick_blocks", "Quick Blocks"))
             layout.addWidget(self._quick_blocks_group)
 
         self._update_command_controls()
 
-        layout.addStretch()
+        layout.addStretch(1)
         content.setLayout(layout)
         scroll_area.setWidget(content)
         scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)

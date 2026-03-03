@@ -2,7 +2,7 @@ configuration_version: 1
 groups:
 - id: config_group
   name: Config
-  collapsed: false
+  collapsed: true
   order: 0
   blocks:
   - id: arm
@@ -40,7 +40,7 @@ groups:
     group_id: config_group
 - id: bb_group
   name: BeagleBone
-  collapsed: false
+  collapsed: true
   order: 1
   blocks:
   - id: bb_a
@@ -154,7 +154,7 @@ groups:
     group_id: cam_group
 - id: bpx_group
   name: БП-Х
-  collapsed: false
+  collapsed: true
   order: 4
   blocks:
   - id: bpx_1_3_5
