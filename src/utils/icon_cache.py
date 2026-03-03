@@ -10,10 +10,12 @@ Icon naming convention in assets/icons/fa/:
 - {name}_dark.ico   - Windows ICO for dark theme
 """
 
+import hashlib
+import json
 import logging
 import os
-import sys
 import shutil
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot, QSize, Qt
@@ -22,7 +24,7 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication, QWidget
 
 from src.utils.theme_manager import ThemeManager
-from src.utils.paths import get_root_dir, get_config_dir
+from src.utils.paths import get_config_dir, get_root_dir
 
 
 class IconCache(QObject):
@@ -60,8 +62,11 @@ class IconCache(QObject):
         self._icon_cache: dict[str, dict[str, QIcon]] = {}
         self._resolved_paths: dict[str, dict[str, str]] = {}
         self._theme_suffix_cache: dict[str, str] = {}  # theme -> suffix mapping
-        
+        self._icon_manifest: dict[str, str] = {}
+        self._manifest_path = get_config_dir() / "assets" / "icon_manifest.json"
+
         # Get base icons directory
+        self._load_manifest()
         self._base_icons_dir = self._get_icons_directory()
         self._logger.info("IconCache base dir: %s", self._base_icons_dir)
         
@@ -75,15 +80,24 @@ class IconCache(QObject):
         version_token = str(int(os.path.getmtime(source)))
         target_root = get_config_dir() / "assets"
         versioned_dir = target_root / "icons" / version_token
+        checksum = self._calculate_directory_checksum(source)
+        manifest_entry = self._icon_manifest.get(checksum)
+        if manifest_entry and Path(manifest_entry).exists():
+            return manifest_entry
         try:
+            versioned_dir = target_root / "icons" / f"{version_token}_{checksum[:8]}"
             if versioned_dir.exists():
-                return str(versioned_dir)
-            versioned_dir.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(source, versioned_dir, dirs_exist_ok=True)
+                directory_path = str(versioned_dir)
+            else:
+                versioned_dir.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copytree(source, versioned_dir, dirs_exist_ok=True)
+                directory_path = str(versioned_dir)
+            self._icon_manifest[checksum] = directory_path
+            self._save_manifest()
             self._cleanup_old_icons(versioned_dir.parent, keep=2)
-            return str(versioned_dir)
+            return directory_path
         except OSError as exc:
-            self._logger.warning("Failed to mirror icons from %s to %s: %s", source, target, exc)
+            self._logger.warning("Failed to mirror icons from %s to %s: %s", source, versioned_dir, exc)
             return None
 
     def _cleanup_old_icons(self, base_dir: Path, keep: int = 2) -> None:
@@ -91,8 +105,28 @@ class IconCache(QObject):
             versions = sorted(p for p in base_dir.iterdir() if p.is_dir())
             for obsolete in versions[:-keep]:
                 shutil.rmtree(obsolete, ignore_errors=True)
+                self._remove_manifest_entry(str(obsolete))
         except OSError:
             pass
+        self._cleanup_manifest_references()
+
+    def _cleanup_manifest_references(self) -> None:
+        changed = False
+        for checksum, path in list(self._icon_manifest.items()):
+            if not Path(path).exists():
+                self._icon_manifest.pop(checksum, None)
+                changed = True
+        if changed:
+            self._save_manifest()
+
+    def _remove_manifest_entry(self, path: str) -> None:
+        removed = False
+        for checksum, stored_path in list(self._icon_manifest.items()):
+            if stored_path == path:
+                self._icon_manifest.pop(checksum, None)
+                removed = True
+        if removed:
+            self._save_manifest()
 
     def _get_icons_directory(self) -> str:
         """Get the base icons directory path."""
@@ -125,6 +159,39 @@ class IconCache(QObject):
         fallback = search_paths[0]
         self._logger.warning(f"Icons directory not found. Using fallback: {fallback}")
         return str(fallback)
+
+    def _calculate_directory_checksum(self, source: Path) -> str:
+        digest = hashlib.sha256()
+        try:
+            for root, _dirs, files in os.walk(source):
+                for name in sorted(files):
+                    file_path = Path(root) / name
+                    digest.update(str(file_path.relative_to(source)).encode("utf-8"))
+                    try:
+                        with open(file_path, "rb") as fh:
+                            for chunk in iter(lambda: fh.read(8192), b""):
+                                digest.update(chunk)
+                    except OSError:
+                        continue
+        except OSError:
+            return ""
+        return digest.hexdigest()
+
+    def _load_manifest(self) -> None:
+        if self._manifest_path.exists():
+            try:
+                self._icon_manifest = json.loads(self._manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                self._icon_manifest = {}
+        else:
+            self._icon_manifest = {}
+
+    def _save_manifest(self) -> None:
+        self._manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self._manifest_path.write_text(json.dumps(self._icon_manifest, indent=2), encoding="utf-8")
+        except OSError:
+            pass
     
     def _get_dpi_scale_factor(self) -> float:
         """Get the current DPI scale factor."""
