@@ -53,8 +53,9 @@ class QuickBlocksPanel(QtWidgets.QWidget):
 
         self._model = QuickBlocksListModel(repository)
         self._list_view.setModel(self._model)
-        self._delegate = QuickBlocksDelegate(self._list_view)
+        self._delegate = QuickBlocksDelegate(self._trigger_block, self._list_view)
         self._list_view.setItemDelegate(self._delegate)
+        self._list_view.setUniformItemSizes(False)
 
         self._list_view.clicked.connect(self._on_item_clicked)
         self._list_view.doubleClicked.connect(self._on_item_double_clicked)
@@ -130,6 +131,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._model.refresh()
         if self._selected_block:
             self._model.set_selected_block(self._selected_block)
+        self._list_view.reset()
 
     def update_block_state(self, block_id: str, state: str | None) -> None:
         self._model.update_indicator(block_id, state)
