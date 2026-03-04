@@ -267,7 +267,11 @@ class ConsolePanelView(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
-        
+
+        # Adaptive class for responsive margins (desktop/mobile widths)
+        self._toolbar_breakpoint_compact = 1260
+        self._toolbar_breakpoint_ultra = 1100
+
         # Set themeClass based on effective theme for consistent style application
         effective_theme = theme_manager._get_effective_theme()
         theme_class = "light" if effective_theme == "light" else "dark"
@@ -282,6 +286,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         toolbar_layout.addLayout(controls_row)
 
         layout.addWidget(self._toolbar_container)
+        self._update_toolbar_responsive_class(force=True)
         
         # Tab widget for different log views
         self._tab_widget = ContourTabWidget()
@@ -310,6 +315,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         layout.addWidget(self._tab_frame, 1)
 
         self.setLayout(layout)
+        self._update_toolbar_responsive_class(force=True)
 
     def _initialize_history_files(self) -> None:
         capacity = max(self._history_capacity_bytes, 1024 * 1024)
@@ -1445,3 +1451,33 @@ class ConsolePanelView(QtWidgets.QWidget):
             is_active = page is current_widget
             page.setProperty("activeTab", "true" if is_active else "false")
             self._refresh_widget_style(page)
+
+    def _update_toolbar_responsive_class(self, *, force: bool = False) -> None:
+        if not hasattr(self, '_toolbar_container') or not self._toolbar_container:
+            return
+        width = self.width()
+        if width <= 0:
+            return
+
+        compact_breakpoint = getattr(self, '_toolbar_breakpoint_compact', 1260)
+        ultra_breakpoint = getattr(self, '_toolbar_breakpoint_ultra', 1100)
+
+        if width <= ultra_breakpoint:
+            target_class = "ultra-compact"
+        elif width <= compact_breakpoint:
+            target_class = "compact"
+        else:
+            target_class = ""
+
+        current_class = self._toolbar_container.property("sizeClass") or ""
+        if not force and current_class == target_class:
+            return
+
+        self._toolbar_container.setProperty("sizeClass", target_class)
+        classes = set(filter(None, str(self._toolbar_container.property("class") or "").split()))
+        classes.discard("compact")
+        classes.discard("ultra-compact")
+        if target_class:
+            classes.add(target_class)
+        self._toolbar_container.setProperty("class", " ".join(sorted(classes)))
+        self._refresh_widget_style(self._toolbar_container)

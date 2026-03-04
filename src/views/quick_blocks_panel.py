@@ -17,6 +17,7 @@ from src.views.quick_blocks_model import (
     QuickBlockListItem,
     QuickBlocksListModel,
 )
+from src.views.widgets import SkeletonPanelPlaceholder
 
 
 class QuickBlocksPanel(QtWidgets.QWidget):
@@ -39,8 +40,12 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         root.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, 0)
         root.setSpacing(Sizes.LAYOUT_SPACING // 2)
 
-        toolbar = self._create_toolbar()
-        root.addLayout(toolbar)
+        self._toolbar_breakpoint_compact = 1020
+        self._toolbar_breakpoint_ultra = 860
+        self._toolbar_text_mode = "full"
+        self._toolbar_labels: dict[str, tuple[str, str]] = {}
+        self._toolbar_container = self._create_toolbar()
+        root.addWidget(self._toolbar_container)
 
         self._list_view = QtWidgets.QListView()
         self._list_view.setObjectName("quick_blocks_view")
@@ -71,6 +76,12 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(0, self.refresh)
         self._retranslate_ui()
         self._update_toolbar_icons()
+        self._update_toolbar_responsive_class(force=True)
+
+        # Skeleton placeholder until data arrives
+        self._skeleton_placeholder = SkeletonPanelPlaceholder()
+        root.addWidget(self._skeleton_placeholder)
+        self._update_skeleton_visibility()
 
         self._shortcut_dispatcher = _QuickBlockShortcutDispatcher(self)
         self._shortcut_dispatcher.rebuild()
@@ -80,8 +91,11 @@ class QuickBlocksPanel(QtWidgets.QWidget):
             self._shortcut_dispatcher.cleanup()
 
     # -- UI helpers --------------------------------------------------------
-    def _create_toolbar(self) -> QtWidgets.QHBoxLayout:
-        layout = QtWidgets.QHBoxLayout()
+    def _create_toolbar(self) -> QtWidgets.QWidget:
+        container = QtWidgets.QWidget()
+        container.setObjectName("quick_blocks_toolbar_container")
+        container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        layout = QtWidgets.QHBoxLayout(container)
         layout.setContentsMargins(Sizes.TOOLBAR_MARGIN, 0, Sizes.TOOLBAR_MARGIN, 0)
         layout.setSpacing(Sizes.TOOLBAR_SPACING)
 
@@ -106,16 +120,88 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         layout.addWidget(self._btn_reload)
 
         layout.addStretch(1)
-        return layout
+        return container
+
+    def _update_toolbar_responsive_class(self, *, force: bool = False) -> None:
+        if not hasattr(self, '_toolbar_container') or not self._toolbar_container:
+            return
+        width = self.width()
+        if width <= 0:
+            return
+
+        compact_breakpoint = self._toolbar_breakpoint_compact
+        ultra_breakpoint = self._toolbar_breakpoint_ultra
+
+        if width <= ultra_breakpoint:
+            target = "ultra-compact"
+        elif width <= compact_breakpoint:
+            target = "compact"
+        else:
+            target = ""
+
+        current = self._toolbar_container.property("sizeClass") or ""
+        if not force and current == target:
+            return
+
+        self._toolbar_container.setProperty("sizeClass", target)
+        classes = set(filter(None, str(self._toolbar_container.property("class") or "").split()))
+        classes.discard("compact")
+        classes.discard("ultra-compact")
+        if target:
+            classes.add(target)
+        self._toolbar_container.setProperty("class", " ".join(sorted(classes)))
+        self._refresh_widget_style(self._toolbar_container)
+        self._apply_toolbar_text_mode(target)
+
+    def _apply_toolbar_text_mode(self, size_class: str) -> None:
+        mode = "icons"
+        if size_class == "compact":
+            mode = "labels"
+        elif size_class == "":
+            mode = "full"
+
+        if self._toolbar_text_mode == mode and self._toolbar_labels:
+            return
+        self._toolbar_text_mode = mode
+
+        for button, key in (
+            (self._btn_add, "add"),
+            (self._btn_edit, "edit"),
+            (self._btn_reload, "reload"),
+        ):
+            if not button:
+                continue
+            icon_text = self._toolbar_labels.get(key, ("", ""))
+            if mode == "full":
+                button.setText(icon_text[0])
+            elif mode == "labels":
+                button.setText(icon_text[1])
+            else:
+                button.setText("")
 
     def _retranslate_ui(self) -> None:
-        if self._btn_add:
-            self._btn_add.setText(tr("add", "Add"))
-        if self._btn_edit:
-            self._btn_edit.setText(tr("edit", "Edit"))
-        if self._btn_reload:
-            self._btn_reload.setText(tr("reload", "Reload"))
+        self._toolbar_labels = {
+            "add": (tr("add_block", "Add block"), tr("add", "Add")),
+            "edit": (tr("edit_block", "Edit block"), tr("edit", "Edit")),
+            "reload": (tr("reload_quick_blocks", "Reload blocks"), tr("reload", "Reload")),
+        }
+
+        for key, button in (("add", self._btn_add), ("edit", self._btn_edit), ("reload", self._btn_reload)):
+            if not button:
+                continue
+            full_text, _ = self._toolbar_labels[key]
+            button.setToolTip(full_text)
+
+        size_class = ""
+        if hasattr(self, "_toolbar_container") and self._toolbar_container:
+            size_class = self._toolbar_container.property("sizeClass") or ""
+        self._apply_toolbar_text_mode(size_class)
         self._update_toolbar_icons()
+
+    def _refresh_widget_style(self, widget: QtWidgets.QWidget) -> None:
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        widget.update()
 
     def changeEvent(self, event: QtCore.QEvent) -> None:  # type: ignore[override]
         if event.type() == QtCore.QEvent.LanguageChange:
@@ -143,6 +229,17 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._list_view.reset()
         if self._shortcut_dispatcher:
             self._shortcut_dispatcher.rebuild()
+        self._update_skeleton_visibility()
+
+    def _update_skeleton_visibility(self) -> None:
+        has_data = self._model.has_real_data()
+        if getattr(self, "_skeleton_placeholder", None):
+            self._skeleton_placeholder.setVisible(not has_data)
+        self._list_view.setVisible(has_data)
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._update_toolbar_responsive_class()
 
     def update_block_state(self, block_id: str, state: str | None) -> None:
         self._model.update_indicator(block_id, state)
@@ -309,7 +406,10 @@ class _QuickBlockShortcutDispatcher(QtCore.QObject):
 
     def cleanup(self) -> None:
         for shortcut in self._shortcuts:
-            shortcut.disconnect()
+            try:
+                shortcut.activated.disconnect()
+            except TypeError:
+                pass
             shortcut.deleteLater()
         self._shortcuts.clear()
 
@@ -325,7 +425,7 @@ class _QuickBlockShortcutDispatcher(QtCore.QObject):
             if not sequence or sequence in used_sequences:
                 continue
             used_sequences.add(sequence)
-            shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(sequence), self._panel)
+            shortcut = QtGui.QShortcut(QtGui.QKeySequence(sequence), self._panel)
             shortcut.activated.connect(lambda _, bid=block.id: self._panel._trigger_block(bid, "on"))
             self._shortcuts.append(shortcut)
 
@@ -334,4 +434,3 @@ class _QuickBlockShortcutDispatcher(QtCore.QObject):
             return block.hotkey
         port_key = (block.port or "").lower() or "cpu1"
         return self._default_shortcuts.get(port_key)
-from PySide6 import QtCore, QtGui, QtWidgets

@@ -386,16 +386,45 @@ QWidget#console_toolbar_container QLineEdit {
 }
 
 /* Responsive adjustments via style classes */
+
 .compact QPushButton[semanticRole="command_combo"],
 .compact QPushButton[semanticRole="command_cpu1"],
 .compact QPushButton[semanticRole="command_cpu2"],
 .compact QPushButton[semanticRole="command_tlm"] {
     min-width: 72px;
-    padding: 0px 8px;
+    padding: 4px 12px;
+    font-weight: 600;
 }
 
-.compact QWidget#console_toolbar_container QLineEdit {
-    max-width: 320px;
+
+/* Quick Blocks toolbar responsive rules */
+QWidget#quick_blocks_toolbar_container {
+    margin-bottom: 8px;
+}
+
+
+
+.compact QWidget#quick_blocks_toolbar_container QPushButton[semanticRole="quick_toolbar_action"] {
+    min-width: 90px;
+    padding: 4px 8px;
+    font-weight: 600;
+}
+
+.compact QWidget#quick_blocks_toolbar_container {
+    margin-top: 4px;
+}
+
+.ultra-compact QWidget#quick_blocks_toolbar_container {
+    margin: 0 4px 8px 4px;
+}
+
+.ultra-compact QWidget#quick_blocks_toolbar_container QPushButton[semanticRole="quick_toolbar_action"] {
+    min-width: 40px;
+    padding: 4px;
+}
+
+.ultra-compact QWidget#quick_blocks_toolbar_container QPushButton[semanticRole="quick_toolbar_action"]::menu-indicator {
+    width: 0px;
 }
 
 .compact QWidget#console_toolbar_container QToolButton {
@@ -408,13 +437,15 @@ QWidget#console_toolbar_container QLineEdit {
 .ultra-compact QPushButton[semanticRole="command_cpu1"],
 .ultra-compact QPushButton[semanticRole="command_cpu2"],
 .ultra-compact QPushButton[semanticRole="command_tlm"] {
-    min-width: 64px;
-    font-size: 11px;
+    min-width: 58px;
+    font-size: 10px;
+    padding: 4px 6px;
 }
 
 .ultra-compact QWidget#console_toolbar_container {
     margin: 4px 8px 12px 8px;
 }
+
 
 .ultra-compact QWidget#console_toolbar_container QLineEdit {
     max-width: 260px;
@@ -538,19 +569,22 @@ QLabel[class~="console-section-label"] {
 /* LED indicators */
 QLabel.led-indicator {
     border-radius: 6px;
-    border: 1px solid palette(mid);
+    border: 1px solid rgba(15, 23, 42, 0.4);
 }
 
 QLabel.led-indicator[ledState="connected"] {
-    background-color: #22c55e;
+    background-color: #16a34a;
+    border-color: #166534;
 }
 
 QLabel.led-indicator[ledState="connecting"] {
-    background-color: #f59e0b;
+    background-color: #facc15;
+    border-color: #ca8a04;
 }
 
 QLabel.led-indicator[ledState="disconnected"] {
-    background-color: #9ca3af;
+    background-color: #6b7280;
+    border-color: #4b5563;
 }
 
 /* ==================== QUICK BLOCKS PANEL ==================== */

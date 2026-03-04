@@ -117,8 +117,15 @@ class QuickBlocksListModel(QtCore.QAbstractListModel):
 
         self.beginResetModel()
         self._items = new_items
+        previous_skeleton = self._skeleton_count
         self._skeleton_count = 0
         self.endResetModel()
+        if previous_skeleton:
+            self.dataChanged.emit(self.index(0), self.index(max(0, len(new_items) - 1)), [self.TYPE_ROLE])
+
+    def has_real_data(self) -> bool:
+        """Return True if the model currently holds real Quick Block items."""
+        return bool(self._items)
 
     def set_selected_block(self, block_id: str | None) -> None:
         indexes = [idx for idx, item in enumerate(self._items) if item.item_type == QuickBlockItemType.BLOCK]

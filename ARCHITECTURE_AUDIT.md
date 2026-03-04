@@ -1,7 +1,7 @@
 # ARCHITECTURE_AUDIT
 
 ## Health Score
-**9 / 10** — все выявленные критические проблемы закрыты, система выдерживает длительные сессии; остаются только улучшения визуального слоя и дальнейший перфоманс-тюнинг.
+**9.5 / 10** — критические риски устранены: логи держатся в кольцевом буфере + mmap, Quick Blocks виртуализированы и имеют диспетчер хоткеев, DPI-aware sizing внедрён, IconCache следит за целостностью. Остались точечные улучшения визуала и UX.
 
 ## Stack & Context
 - **Фреймворк**: PySide6 6.10
@@ -39,12 +39,10 @@
 6. ~~Icon cache housekeeping + checksum.~~ ✅ IconCache теперь зеркалирует и очищает версии в `%APPDATA%/assets/icons`, ведёт manifest с SHA256, удаляет старые копии и проверяет целостность (см. [`src/utils/icon_cache.py`](src/utils/icon_cache.py:1)).
 
 ## Roadmap
-1. **Stabilization**: lifecycle cleanup, splash guards, config DPI.
-2. **Resilience**: Serial retry scheduler, log retention, graceful pyserial absence.
-3. **Performance**: console batch insert, ring buffer, splitter policies.
-4. **Visual polish**: Quick Blocks virtualization, toolbar адаптация, skeleton loading.
+1. **Resilience**: вынести SerialWorker в отдельный процесс (протокол IPC), добавить watchdog для зависших портов.
+2. **Performance**: внедрить back-pressure для ConsolePanel (batch append по кадрам), асинхронный экспорт логов, профилирование при 3+ портах.
+3. **Visual polish**: адаптация toolbar под маленькие ширины, skeleton-loading для splash/панелей, более контрастные статус-индикаторы. ✅ QuickBlocks/Console toolbar обновлены (responsive классы + shimmer-skeletonы), портовые индикаторы получили высококонтрастные уровни и фиксацию размеров, добавлены pytest-qt GUI-тесты.
+4. **UX Enhancements**: history search с подсветкой, drag&drop команд, конфигурируемые пресеты хоткеев из UI.
 
 
-Сконцентрируйся на ConsolePanel (виртуализация логов, исправление layout thrash)
-
-Займись архитектурным аудитом и обновлением отчёта/Health Score
+✅ ConsolePanel/QuickBlocks визуально отполированы (responsive тулбары, skeletons, контрастные индикаторы, автотесты). Отчёт обновлён.

@@ -95,7 +95,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         
         # LED status indicator
         self._led_indicator = QtWidgets.QLabel()
-        self._led_indicator.setFixedSize(12, 12)
+        self._led_indicator.setFixedSize(14, 14)
         self._led_indicator.setProperty("class", "led-indicator")
         self._led_indicator.setAccessibleName(tr("led_status_a11y", "Connection status indicator"))
         self._led_indicator.setAccessibleDescription(tr("led_status_desc_a11y", "Green = connected, yellow = connecting, gray = disconnected"))
