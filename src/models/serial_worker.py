@@ -102,6 +102,7 @@ class SerialWorker(QThread):
     rx = Signal(str, str)         # port_label, data
     status = Signal(str, str)     # port_label, message
     error = Signal(str, str)       # port_label, error_message
+    heartbeat = Signal(str, float) # port_label, timestamp
     finished = Signal()            # Worker finished
     
     # Configuration defaults - load from config
@@ -192,11 +193,15 @@ class SerialWorker(QThread):
         self._connection_start_time: float = 0.0
         self._connection_timeout_reached: bool = False
         self._connection_attempts: int = 0
-        
+
         # Logging level override
         self._log_level: int | None = self._config.get('log_level')
         if self._log_level:
             logger.setLevel(self._log_level)
+
+        # Heartbeat tracking
+        self._heartbeat_interval = self._timing_config.get("heartbeat_interval", 0.5)
+        self._last_heartbeat_emit: float = 0.0
     
     @property
     def charset(self) -> str:
@@ -455,9 +460,10 @@ class SerialWorker(QThread):
                         break
                 
                 self._process_write()
-                
+
                 # Keep UI responsive with Qt-native sleep
                 self.msleep(int(self._read_interval * 1000))
+                self._emit_heartbeat()
         
         except Exception as e:
             logger.exception(f"Fatal error in worker loop: {e}")
@@ -696,10 +702,17 @@ class SerialWorker(QThread):
     def _emit_status(self, message: str) -> None:
         """Emit status signal."""
         self.status.emit(self._port_label, message)
-    
+
     def _emit_error(self, message: str) -> None:
         """Emit error signal."""
         self.error.emit(self._port_label, message)
+
+    def _emit_heartbeat(self) -> None:
+        """Emit periodic heartbeat for watchdog supervision."""
+        now = time.monotonic()
+        if now - self._last_heartbeat_emit >= self._heartbeat_interval:
+            self._last_heartbeat_emit = now
+            self.heartbeat.emit(self._port_label, now)
     
     def write(self, data: str) -> bool:
         """

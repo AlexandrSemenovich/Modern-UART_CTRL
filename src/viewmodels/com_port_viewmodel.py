@@ -13,6 +13,7 @@ import time
 
 from src.utils.translator import tr
 from src.models.serial_worker import SerialWorker
+from src.supervisors.serial_supervisor import SerialWorkerSupervisor
 from src.styles.constants import SerialConfig, SerialPorts, CommandConfig
 from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
@@ -84,6 +85,7 @@ class ComPortViewModel(QObject):
         self._connection_time: float = 0.0  # Monotonic time when connected
         
         # Serial worker
+        self._supervisor = SerialWorkerSupervisor(port_label, ipc_ports=[port_label], parent=self)
         self._worker: SerialWorker | None = None
         
         # Available ports cache
@@ -229,19 +231,14 @@ class ComPortViewModel(QObject):
 
         self._set_state(PortConnectionState.CONNECTING)
 
-        # Create worker running in its own QThread
-        self._worker = SerialWorker(self._port_label)
-        self._worker.configure(self._port_name, self._baud_rate)
-
-        # Connect signals directly to the worker thread
-        self._worker.rx.connect(self._on_data_received)
-        self._worker.error.connect(self._on_error_occurred)
-        self._worker.status.connect(self._on_status_changed)
-        self._worker.finished.connect(self._on_worker_finished)
-        self._worker.finished.connect(self._worker.deleteLater)
-
-        # Start worker thread
-        self._worker.start()
+        self._worker = self._supervisor.spawn_worker(
+            port_name=self._port_name,
+            baud_rate=self._baud_rate,
+            on_rx=self._on_data_received,
+            on_error=self._on_error_occurred,
+            on_status=self._on_status_changed,
+            on_finished=self._on_worker_finished,
+        )
         
         logger.info(f"Connecting to {self._port_name} at {self._baud_rate} baud")
         return True
@@ -307,16 +304,14 @@ class ComPortViewModel(QObject):
             retry_state["attempt"] += 1
             self._set_state(PortConnectionState.CONNECTING)
 
-            self._worker = SerialWorker(self._port_label)
-            self._worker.configure(self._port_name, self._baud_rate)
-
-            self._worker.rx.connect(self._on_data_received)
-            self._worker.error.connect(handle_worker_error)
-            self._worker.status.connect(self._on_status_changed)
-            self._worker.finished.connect(self._on_worker_finished)
-            self._worker.finished.connect(self._worker.deleteLater)
-
-            self._worker.start()
+            self._worker = self._supervisor.spawn_worker(
+                port_name=self._port_name,
+                baud_rate=self._baud_rate,
+                on_rx=self._on_data_received,
+                on_error=handle_worker_error,
+                on_status=self._on_status_changed,
+                on_finished=self._on_worker_finished,
+            )
 
             logger.info(
                 "Connecting to %s at %s baud (attempt %s/%s)",

@@ -1,7 +1,7 @@
 # ARCHITECTURE_AUDIT
 
 ## Health Score
-**9.5 / 10** — критические риски устранены: логи держатся в кольцевом буфере + mmap, Quick Blocks виртуализированы и имеют диспетчер хоткеев, DPI-aware sizing внедрён, IconCache следит за целостностью. Остались точечные улучшения визуала и UX.
+**9.7 / 10** — resiliency-контур теперь покрыт watchdog + supervisor тестами (`tests/test_serial_supervisor.py`), логи держатся в кольцевом буфере + mmap, Quick Blocks виртуализированы и имеют диспетчер хоткеев, DPI-aware sizing внедрён, IconCache следит за целостностью. Остались точечные улучшения визуала и UX.
 
 ## Stack & Context
 - **Фреймворк**: PySide6 6.10
@@ -39,8 +39,14 @@
 6. ~~Icon cache housekeeping + checksum.~~ ✅ IconCache теперь зеркалирует и очищает версии в `%APPDATA%/assets/icons`, ведёт manifest с SHA256, удаляет старые копии и проверяет целостность (см. [`src/utils/icon_cache.py`](src/utils/icon_cache.py:1)).
 
 ## Roadmap
-1. **Resilience**: вынести SerialWorker в отдельный процесс (протокол IPC), добавить watchdog для зависших портов.
-2. **Performance**: внедрить back-pressure для ConsolePanel (batch append по кадрам), асинхронный экспорт логов, профилирование при 3+ портах.
+1. **Resilience**:
+   1. ~~**IPC transport** — определить протокол сообщений (queue + shared mmap) между GUI и worker-процессом, описать сериализацию команд/ответов и переходное состояние reconnect.~~ ✅ GUI и worker уже обмениваются сообщениями через `CommandQueue`/`EventQueue`, а RX/TX чанки передаются через `SharedBufferPool` (512 KB на порт) с полями `write_offset`, `length`, `crc32`. См. раздел [«IPC Transport Blueprint»](#ipc-transport-blueprint) и реализованный модуль [`src/utils/ipc_transport.py`](src/utils/ipc_transport.py).
+   2. ~~**Process manager** — вынести запуск/рестарт `SerialWorker` в отдельный supervisor-класс: следить за crash, передавать конфиг и гарантировать корректное завершение при выходе из приложения.~~ ✅ Добавлен [`SerialWorkerSupervisor`](src/supervisors/serial_supervisor.py), который централизует запуск, пересоздаёт worker при сбое и передаёт конфиг через `WorkerSpec`; покрыто unit-тестами [`tests/test_serial_supervisor.py`](tests/test_serial_supervisor.py:1), проверяющими рестарт и завершение.
+   3. ~~**Watchdog** — внедрить heartbeat от каждого worker (ping каждые N мс) и обработчик таймаута, который автоматически перезапускает процесс/порт и уведомляет пользователя.~~ ✅ `SerialWorker` эмитит `heartbeat`, supervisor отслеживает таймаут (1.5 с) и инициирует перезапуск + статус «Watchdog restart»; поведение проверяется в тестах [`tests/test_serial_supervisor.py`](tests/test_serial_supervisor.py:1).
+2. **Performance**:
+   1. **ConsolePanel back-pressure** — внедрить буферизованный пайплайн: собирать входящие логи в чанки по 25–50 мс, применять batch append в главном потоке и добавить счётчик пропущенных обновлений для телеметрии.
+   2. **Асинхронный экспорт** — вынести сохранение логов в WorkerThread (или процесс) c передачей через временный mmap/pipe, добавить прогресс и отмену.
+   3. **Профилирование 3+ портов** — собрать тестовый сценарий (3 активных RX/TX), снять Qt Creator Profiler + cProfile, зафиксировать бюджет CPU/RAM и автоматизировать проверку через pytest marker `perf`.
 3. **Visual polish**: адаптация toolbar под маленькие ширины, skeleton-loading для splash/панелей, более контрастные статус-индикаторы. ✅ QuickBlocks/Console toolbar обновлены (responsive классы + shimmer-skeletonы), портовые индикаторы получили высококонтрастные уровни и фиксацию размеров, добавлены pytest-qt GUI-тесты.
 4. **UX Enhancements**:
    - ~~4.1 История команд: добавить полноценный поиск с подсветкой совпадений в `CommandHistoryDialog` (используем proxy + highlight).~~ ✅ Реализовано: `QSortFilterProxyModel` теперь фильтрует по regex, `_HistorySearchDelegate` подсвечивает совпадения через QTextDocument, добавлен счётчик `Matches: N` и состояние `hasMatches` для поля поиска.
@@ -51,3 +57,24 @@
 
 
 ✅ ConsolePanel/QuickBlocks визуально отполированы (responsive тулбары, skeletons, контрастные индикаторы, автотесты). Отчёт обновлён.
+
+### IPC Transport Blueprint
+
+1. **Архитектура каналов**
+   - Межпроцессная очередь `CommandQueue` (multiprocessing.Queue) принимает команды GUI → worker; каждое сообщение содержит `header` (uuid, port, тип) и `payload` (JSON).
+   - Обратная очередь `EventQueue` возвращает ответы/события worker → GUI. Для bulk RX/логов используются ссылки на смещение в разделяемой памяти.
+   - Shared `mmap` размером 512 KB на порт хранит бинарные чанки данных (RX/TX); структура включает `write_offset`, `len`, `crc32`.
+
+2. **Сериализация**
+   - Команды (`OpenPort`, `SendData`, `ClosePort`, `ApplyConfig`) упаковываются в JSON с schema версии 1.0 (см. `ipc/messages/schema.md`).
+   - Worker отвечает `Ack`, `Error`, `StateChanged`, `DataReady`. Для `DataReady` указывается {`port`, `chunk_id`, `mmap_offset`, `mmap_length`}.
+   - Для бинарных вложений используются base64 только в аварийных случаях (например, при отсутствии mmap).
+
+3. **Состояние reconnect**
+   - GUI отправляет `BeginReconnect` → worker замораживает порт, очищает очереди и подтверждает `ReconnectReady`.
+   - После перезапуска worker читает snapshot состояния (последний `state.json`) и шлёт `ReplayState` с актуальными счётчиками.
+   - Watchdog мониторит heartbeat (`Heartbeat {timestamp}` каждые 500 мс). Отсутствие трёх подряд hb инициирует `RestartRequest` и повторную синхронизацию mmap.
+
+4. **Ошибки и телеметрия**
+   - Каждый message несёт `trace_id` для корреляции в GUI логах.
+   - Метрики очереди (depth, avg_latency) шлются событием `TransportStats` раз в 5 секунд, что позволит строить графики back-pressure.
