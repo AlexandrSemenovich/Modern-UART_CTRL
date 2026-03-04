@@ -10,7 +10,7 @@ from src.utils.icon_cache import get_icon_cache
 from src.utils.quick_blocks_repository import QuickBlock, QuickBlocksRepository
 from src.utils.theme_manager import theme_manager
 from src.utils.translator import tr, translator
-from src.views.quick_block_editor_dialog import create_block
+from src.views.quick_block_editor_dialog import QuickBlockEditorDialog
 from src.views.quick_blocks_delegate import QuickBlocksDelegate
 from src.views.quick_blocks_model import (
     QuickBlockItemType,
@@ -279,6 +279,9 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         action_edit = menu.addAction(tr("edit", "Edit"))
         action_duplicate = menu.addAction(tr("duplicate", "Duplicate"))
         action_delete = menu.addAction(tr("delete", "Delete"))
+        menu.addSeparator()
+        action_hotkey_assign = menu.addAction(tr("assign_hotkey", "Assign Hotkey"))
+        action_hotkey_clear = menu.addAction(tr("clear_hotkey", "Clear Hotkey"))
         chosen = menu.exec(self._list_view.viewport().mapToGlobal(pos))
         if chosen == action_run_on:
             self._trigger_block(block.id, "on")
@@ -293,6 +296,12 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         elif chosen == action_delete:
             self._selected_block = block.id
             self._on_delete()
+        elif chosen == action_hotkey_assign:
+            self._selected_block = block.id
+            self._on_assign_hotkey()
+        elif chosen == action_hotkey_clear:
+            self._selected_block = block.id
+            self._clear_hotkey(block)
 
     def _trigger_block(self, block_id: str, action: str) -> None:
         self._model.update_indicator(block_id, "pending")
@@ -316,7 +325,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         if not groups:
             QtWidgets.QMessageBox.warning(self, self.windowTitle(), tr("no_groups", "Create a group first"))
             return
-        block = create_block(self, groups=groups)
+        block = self._open_editor(groups=groups)
         if block:
             self._repository.add_block(block)
             self.refresh()
@@ -326,7 +335,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         if not block:
             return
         groups = self._repository.list_groups()
-        updated = create_block(self, groups=groups, block=block)
+        updated = self._open_editor(groups=groups, block=block)
         if updated:
             self._repository.update_block(updated)
             self.refresh()
@@ -380,6 +389,71 @@ class QuickBlocksPanel(QtWidgets.QWidget):
             self._flash_reload_button()
             if self._shortcut_dispatcher:
                 self._shortcut_dispatcher.rebuild(reset_overrides=True)
+
+    def _open_editor(self, *, groups: list, block: QuickBlock | None = None) -> QuickBlock | None:
+        dialog = QuickBlockEditorDialog(self, groups=groups, block=block)
+        dialog.set_hotkey_validator(self._validate_hotkey)
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
+            return dialog.result_block()
+        return None
+
+    def _validate_hotkey(self, sequence: str | None, exclude_id: str | None) -> tuple[bool, str]:
+        cleaned = (sequence or "").strip()
+        if not cleaned:
+            return True, ""
+        normalized = cleaned.lower()
+        for group in self._repository.list_groups():
+            for block in group.blocks:
+                if exclude_id and block.id == exclude_id:
+                    continue
+                if (block.hotkey or "").strip().lower() == normalized:
+                    return False, tr("hotkey_conflict_message", "Hotkey {sequence} is already used.").format(sequence=cleaned)
+        return True, ""
+
+    def _on_assign_hotkey(self) -> None:
+        block = self._current_block()
+        if not block:
+            return
+        groups = self._repository.list_groups()
+        block_clone = QuickBlock(
+            id=block.id,
+            title=block.title,
+            command_on=block.command_on,
+            command_off=block.command_off,
+            send_to_combo=block.send_to_combo,
+            group_id=block.group_id,
+            order=block.order,
+            mode=block.mode,
+            icon=block.icon,
+            port=block.port,
+            hotkey=block.hotkey,
+        )
+        dialog = QuickBlockEditorDialog(self, groups=groups, block=block_clone)
+        dialog.set_hotkey_validator(self._validate_hotkey)
+        dialog._title_edit.setReadOnly(True)
+        dialog._group_combo.setEnabled(False)
+        dialog._port_combo.setEnabled(False)
+        dialog._command_on.setReadOnly(True)
+        dialog._command_off.setReadOnly(True)
+        dialog._mode_checkbox.setEnabled(False)
+        dialog._send_combo_chk.setEnabled(False)
+        if dialog.exec() != QtWidgets.QDialog.Accepted:
+            return
+        updated = dialog.result_block()
+        block.hotkey = updated.hotkey
+        self._repository.update_block(block)
+        self.refresh()
+        if self._shortcut_dispatcher:
+            self._shortcut_dispatcher.rebuild()
+
+    def _clear_hotkey(self, block: QuickBlock) -> None:
+        if not block.hotkey:
+            return
+        block.hotkey = None
+        self._repository.update_block(block)
+        self.refresh()
+        if self._shortcut_dispatcher:
+            self._shortcut_dispatcher.rebuild()
 
     def _flash_reload_button(self) -> None:
         if not self._btn_reload:

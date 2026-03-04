@@ -74,11 +74,15 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
 
         hotkey_row = QtWidgets.QHBoxLayout()
         self._hotkey_edit = QtWidgets.QKeySequenceEdit()
+        self._hotkey_edit.editingFinished.connect(self._update_hotkey_status)
         hotkey_row.addWidget(self._hotkey_edit, 1)
         self._hotkey_clear = QtWidgets.QToolButton()
         self._hotkey_clear.setText("✕")
-        self._hotkey_clear.clicked.connect(lambda: self._hotkey_edit.clear())
+        self._hotkey_clear.clicked.connect(self._on_clear_hotkey)
         hotkey_row.addWidget(self._hotkey_clear)
+        self._hotkey_status = QtWidgets.QLabel()
+        self._hotkey_status.setObjectName("quick_block_hotkey_status")
+        hotkey_row.addWidget(self._hotkey_status, 0)
         hotkey_widget = QtWidgets.QWidget()
         hotkey_widget.setLayout(hotkey_row)
         self._hotkey_label = QtWidgets.QLabel()
@@ -123,6 +127,7 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         self._hotkey_label.setText(tr("hotkey", "Hotkey:"))
         self._hotkey_edit.setToolTip(tr("hotkey_hint", "e.g. Ctrl+Alt+1"))
         self._hotkey_clear.setToolTip(tr("clear", "Clear"))
+        self._hotkey_status.setText("")
         self._command_on_label.setText(tr("command_on", "Command ON:"))
         self._command_on.setPlaceholderText(tr("command_on", "Command ON"))
         self._command_off_label.setText(tr("command_off", "Command OFF:"))
@@ -179,6 +184,7 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
             self._hotkey_edit.setKeySequence(QtGui.QKeySequence(block.hotkey))
         else:
             self._hotkey_edit.clear()
+        self._update_hotkey_status()
 
     def _validate(self) -> tuple[bool, str]:
         title = self._title_edit.text().strip()
@@ -197,6 +203,11 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
                 return False, tr("validation_off", "Command OFF is required")
             if len(cmd_off) > 1024:
                 return False, tr("validation_off_len", "Command OFF too long")
+        if hasattr(self, "_hotkey_validator") and self._hotkey_validator:
+            sequence = self._hotkey_edit.keySequence().toString().strip() or None
+            is_valid, message = self._hotkey_validator(sequence, self._editing_block.id if self._editing_block else None)
+            if not is_valid:
+                return False, message
         return True, ""
 
     def _on_accept(self) -> None:
@@ -227,6 +238,22 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
             port=self._port_combo.currentText(),
             hotkey=self._hotkey_edit.keySequence().toString().strip() or None,
         )
+
+    def set_hotkey_validator(self, validator):
+        self._hotkey_validator = validator
+        self._hotkey_edit.editingFinished.connect(self._update_hotkey_status)
+
+    def _update_hotkey_status(self) -> None:
+        sequence = self._hotkey_edit.keySequence().toString().strip() or None
+        if not hasattr(self, "_hotkey_validator") or not self._hotkey_validator:
+            self._hotkey_status.setText("")
+            return
+        is_valid, message = self._hotkey_validator(sequence, self._editing_block.id if self._editing_block else None)
+        self._hotkey_status.setText("" if is_valid or not sequence else message)
+
+    def _on_clear_hotkey(self) -> None:
+        self._hotkey_edit.clear()
+        self._update_hotkey_status()
 
 
 def create_block(
