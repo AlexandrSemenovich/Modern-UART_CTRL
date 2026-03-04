@@ -238,6 +238,12 @@ class CommandHistoryTableModel(QtCore.QAbstractTableModel):
             return entry
         return None
 
+    def flags(self, index: QtCore.QModelIndex) -> QtCore.Qt.ItemFlags:  # type: ignore[override]
+        default_flags = super().flags(index)
+        if not index.isValid():
+            return default_flags
+        return default_flags | QtCore.Qt.ItemIsDragEnabled
+
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: int = QtCore.Qt.DisplayRole):  # type: ignore[override]
         if role != QtCore.Qt.DisplayRole or orientation != QtCore.Qt.Horizontal:
             return super().headerData(section, orientation, role)

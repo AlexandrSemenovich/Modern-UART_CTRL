@@ -140,7 +140,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         layout.addWidget(search_widget)
 
         # Table
-        self._table = QtWidgets.QTableView()
+        self._table = CommandHistoryTableView(self)
         self._table.setModel(self._proxy_model)
         self._table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self._table.setSelectionMode(
@@ -506,3 +506,84 @@ class _HistorySearchDelegate(QtWidgets.QStyledItemDelegate):
             ctx.palette.setColor(QtGui.QPalette.Text, option.palette.color(QtGui.QPalette.HighlightedText))
         doc.documentLayout().draw(painter, ctx)
         painter.restore()
+
+
+class CommandHistoryTableView(QtWidgets.QTableView):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.setDefaultDropAction(QtCore.Qt.CopyAction)
+
+    def startDrag(self, supportedActions: QtCore.Qt.DropActions) -> None:  # type: ignore[override]
+        commands = self._collect_selected_commands()
+        if not commands:
+            return
+        text = "\n".join(commands)
+        mime = QtCore.QMimeData()
+        mime.setText(text)
+        mime.setData("application/x-command-history", text.encode("utf-8"))
+        drag = QtGui.QDrag(self)
+        drag.setMimeData(mime)
+        drag.setPixmap(self._build_drag_pixmap(text))
+        drag.exec(QtCore.Qt.CopyAction)
+
+    def _collect_selected_commands(self) -> list[str]:
+        selection = self.selectionModel()
+        if not selection:
+            return []
+        indexes = selection.selectedRows()
+        if not indexes:
+            return []
+        dialog = self.parent()
+        source_model = getattr(dialog, "_table_model", None)
+        proxy_model = self.model()
+        if source_model is None or proxy_model is None:
+            return []
+        commands: list[str] = []
+        for index in indexes:
+            source_index = proxy_model.mapToSource(index) if hasattr(proxy_model, "mapToSource") else index
+            entry = source_model.entry_at(source_index.row()) if source_model else None
+            if entry and entry.command:
+                commands.append(entry.command)
+        return commands
+
+    def _build_drag_pixmap(self, text: str) -> QtGui.QPixmap:
+        truncated = text if len(text) <= 160 else text[:159] + "…"
+        lines = truncated.splitlines() or [""]
+
+        font = QtGui.QFont(self.font())
+        font.setBold(True)
+        metrics = QtGui.QFontMetrics(font)
+        line_height = metrics.height()
+        padding_x = 24
+        padding_y = 16
+        content_width = max(metrics.horizontalAdvance(line) for line in lines)
+        width = content_width + padding_x
+        height = line_height * len(lines) + padding_y
+
+        pixmap = QtGui.QPixmap(width, height)
+        pixmap.fill(QtCore.Qt.transparent)
+
+        painter = QtGui.QPainter(pixmap)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        palette = self.palette()
+        base_color = palette.color(QtGui.QPalette.Base)
+        text_color = palette.color(QtGui.QPalette.Text)
+        border_color = palette.color(QtGui.QPalette.Highlight)
+
+        rect = QtCore.QRectF(0.5, 0.5, width - 1, height - 1)
+        painter.setPen(QtGui.QPen(border_color, 1))
+        painter.setBrush(QtGui.QBrush(base_color))
+        painter.drawRoundedRect(rect, 8, 8)
+
+        painter.setFont(font)
+        painter.setPen(text_color)
+        y = padding_y / 2 + metrics.ascent()
+        for line in lines:
+            painter.drawText(padding_x / 2, y, line)
+            y += line_height
+
+        painter.end()
+        return pixmap

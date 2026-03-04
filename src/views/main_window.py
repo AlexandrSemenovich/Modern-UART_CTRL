@@ -547,7 +547,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Command input
         input_layout = QtWidgets.QHBoxLayout()
-        self._le_command = QtWidgets.QLineEdit()
+        self._le_command = _CommandInputLineEdit()
         self._le_command.setMinimumHeight(Sizes.INPUT_MIN_HEIGHT)
         self._le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
         self._le_command.setAccessibleName(tr("cmd_input_a11y", "Command input"))
@@ -1687,3 +1687,35 @@ class MainWindow(QtWidgets.QMainWindow):
             return 1.0
         dpi = screen.logicalDotsPerInch()
         return max(1.0, dpi / 96.0)
+class _CommandInputLineEdit(QtWidgets.QLineEdit):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:  # type: ignore[override]
+        if event.mimeData().hasFormat("application/x-command-history"):
+            event.acceptProposedAction()
+            return
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+            return
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event: QtGui.QDragMoveEvent) -> None:  # type: ignore[override]
+        if event.mimeData().hasFormat("application/x-command-history") or event.mimeData().hasText():
+            event.acceptProposedAction()
+            return
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event: QtGui.QDropEvent) -> None:  # type: ignore[override]
+        mime = event.mimeData()
+        text = ""
+        if mime.hasFormat("application/x-command-history"):
+            text = bytes(mime.data("application/x-command-history")).decode("utf-8", errors="ignore")
+        elif mime.hasText():
+            text = mime.text()
+        if text:
+            self.setText(text.strip())
+            event.acceptProposedAction()
+            return
+        super().dropEvent(event)

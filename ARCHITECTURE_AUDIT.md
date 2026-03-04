@@ -46,7 +46,7 @@
    - ~~4.1 История команд: добавить полноценный поиск с подсветкой совпадений в `CommandHistoryDialog` (используем proxy + highlight).~~ ✅ Реализовано: `QSortFilterProxyModel` теперь фильтрует по regex, `_HistorySearchDelegate` подсвечивает совпадения через QTextDocument, добавлен счётчик `Matches: N` и состояние `hasMatches` для поля поиска.
    - ~~4.4 Покрыть новый UX набор pytest/pytest-qt тестами и обновить ARCHITECTURE_AUDIT.md после завершения.~~ ✅ Добавлен `tests/test_command_history_dialog.py`, который проверяет фильтрацию и очистку поиска, а также обновлён этот отчёт.
    - ~~4.5 UI поиска истории: обеспечить адаптивную ширину поля и единый стиль навигации.~~ ✅ Поле поиска теперь стартует во всю ширину, динамически сужается при появлении кнопок навигации, контуры контейнера убраны, а кнопки стилизованы через QSS в духе ConsolePanel.
-   - 4.2 Drag&Drop: разрешить перетаскивание записей истории в поле ввода главного окна (вставка текста по drop).
+   - ~~4.2 Drag&Drop: разрешить перетаскивание записей истории в поле ввода главного окна (вставка текста по drop).~~ ✅ Реализовано: `CommandHistoryTableView` формирует MIME `application/x-command-history`, а `_CommandInputLineEdit` (в MainWindow) принимает drop и заполняет поле команд текстом записи.
    - ~~4.3 Quick Blocks: предоставить мини-UI для переназначения хоткеев (`CTRL+ALT+N`) с валидацией конфликтов и сохранением в config.~~ ✅ Для каждого блока в `QuickBlocksPanel` появилось контекстное меню «Assign/Clear Hotkey», диалог использует `QKeySequenceEdit` и хук `set_hotkey_validator`, конфликты показываются inline, а `_QuickBlockShortcutDispatcher` мгновенно пересоздаёт QShortcut и обновляет `quick_blocks.yaml`.
 
 
