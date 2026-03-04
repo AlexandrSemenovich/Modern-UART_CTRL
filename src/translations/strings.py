@@ -236,6 +236,10 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Поиск...",
         "en": "Search...",
     },
+    "history_search_matches": {
+        "ru": "Совпадений: {count}",
+        "en": "Matches: {count}",
+    },
     "history_column_command": {
         "ru": "Команда",
         "en": "Command",

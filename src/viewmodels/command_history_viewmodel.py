@@ -22,7 +22,6 @@ class CommandHistoryDisplay(NamedTuple):
     """
     command: str
     port: str
-    status: str
     timestamp: str
 
 
@@ -43,7 +42,6 @@ class CommandHistoryEntry:
         return CommandHistoryDisplay(
             self.command,
             self.port,
-            self.status,
             self.timestamp,
         )
 
@@ -105,7 +103,7 @@ class CommandHistoryModel(QtCore.QObject):
             CommandHistoryEntry(
                 command=item.get("command", ""),
                 port=item.get("port", "unknown"),
-                status=item.get("status", "unknown"),
+                status=item.get("status", "success"),
                 timestamp=item.get("timestamp", ""),
             )
             for item in raw_items

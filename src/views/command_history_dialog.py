@@ -14,7 +14,7 @@ from src.viewmodels.command_history_viewmodel import (
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
 from src.utils.icon_cache import get_icon
-from src.styles.constants import Sizes
+from src.styles.constants import Sizes, Colors
 
 
 class CommandHistoryDialog(QtWidgets.QDialog):
@@ -29,7 +29,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._table_model = CommandHistoryTableModel(model, self)
         self._proxy_model = QtCore.QSortFilterProxyModel(self)
         self._proxy_model.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        self._proxy_model.setFilterKeyColumn(-1)
+        self._proxy_model.setFilterKeyColumn(0)
         self._proxy_model.setSourceModel(self._table_model)
 
         self._build_ui()
@@ -89,13 +89,54 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._search.setPlaceholderText(
             tr("history_search_placeholder", "Search...")
         )
-        self._search.setMaximumWidth(Sizes.SEARCH_FIELD_MAX_WIDTH)
+        self._search.setMaximumWidth(int(Sizes.SEARCH_FIELD_MAX_WIDTH * 6))
 
         search_widget = QtWidgets.QWidget()
         search_layout = QtWidgets.QHBoxLayout(search_widget)
         search_layout.setContentsMargins(0, 0, 0, 0)
         search_layout.setSpacing(Sizes.LAYOUT_SPACING)
-        search_layout.addWidget(self._search)
+        search_layout.addWidget(self._search, 1)
+
+        self._search_controls = QtWidgets.QWidget()
+        self._search_controls.setObjectName("history_search_controls")
+        controls_layout = QtWidgets.QHBoxLayout(self._search_controls)
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.setSpacing(6)
+        control_height = Sizes.INPUT_MIN_HEIGHT
+
+        self._btn_prev_match = QtWidgets.QToolButton()
+        self._btn_prev_match.setText("<")
+        self._btn_prev_match.setObjectName("history_prev_match")
+        self._btn_prev_match.setFixedSize(control_height, control_height)
+        self._btn_prev_match.setToolTip(tr("prev_match", "Previous match"))
+        self._btn_prev_match.setAccessibleName(tr("prev_match", "Previous match"))
+        self._btn_prev_match.setVisible(False)
+        self._btn_prev_match.clicked.connect(self._jump_to_previous_result)
+        controls_layout.addWidget(self._btn_prev_match)
+
+        self._btn_next_match = QtWidgets.QToolButton()
+        self._btn_next_match.setText(">")
+        self._btn_next_match.setObjectName("history_next_match")
+        self._btn_next_match.setFixedSize(control_height, control_height)
+        self._btn_next_match.setToolTip(tr("next_match", "Next match"))
+        self._btn_next_match.setAccessibleName(tr("next_match", "Next match"))
+        self._btn_next_match.setVisible(False)
+        self._btn_next_match.clicked.connect(self._jump_to_next_result)
+        controls_layout.addWidget(self._btn_next_match)
+
+        self._lbl_search_results = QtWidgets.QLabel()
+        self._lbl_search_results.setObjectName("history_search_results")
+        self._lbl_search_results.setMinimumWidth(120)
+        self._lbl_search_results.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        self._lbl_search_results.setAlignment(QtCore.Qt.AlignCenter)
+        self._lbl_search_results.setText("\u200b")
+        controls_layout.addWidget(self._lbl_search_results)
+
+        self._search_controls.setVisible(False)
+        search_layout.addWidget(self._search_controls, 0)
         layout.addWidget(search_widget)
 
         # Table
@@ -109,6 +150,8 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         header = self._table.horizontalHeader()
         header.setStretchLastSection(True)
         header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        self._highlight_delegate = _HistorySearchDelegate(self._table)
+        self._table.setItemDelegate(self._highlight_delegate)
         layout.addWidget(self._table)
 
         # Summary + close aligned to the right
@@ -133,7 +176,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._update_summary()
 
     def _connect_signals(self) -> None:
-        self._search.textChanged.connect(self._proxy_model.setFilterFixedString)
+        self._search.textChanged.connect(self._on_search_text_changed)
         self._act_send.triggered.connect(self._send_selected)
         self._act_edit.triggered.connect(self._insert_selected)
         self._act_delete.triggered.connect(self._delete_selected)
@@ -141,7 +184,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._act_export.triggered.connect(self._export_all)
         self._btn_close.clicked.connect(self.close)
         self._table.doubleClicked.connect(self._insert_selected)
-        self._model.entries_changed.connect(self._update_summary)
+        self._model.entries_changed.connect(self._on_entries_changed)
         translator.language_changed.connect(self._on_language_changed)
         theme_manager.theme_changed.connect(self._apply_theme)
 
@@ -199,6 +242,10 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         count = self._model.entry_count()
         self._lbl_summary.setText(tr("history_total", "{count} entries").format(count=count))
 
+    def _on_entries_changed(self) -> None:
+        self._update_summary()
+        self._refresh_search_feedback()
+
     def _on_language_changed(self, _: str) -> None:
         self.setWindowTitle(tr("command_history", "Command History"))
         self._search.setPlaceholderText(tr("history_search_placeholder", "Search..."))
@@ -209,6 +256,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._act_export.setText(tr("history_export", "Export"))
         self._btn_close.setText(tr("history_close", "Close"))
         self._update_summary()
+        self._refresh_search_feedback(retranslate_only=True)
 
     def _apply_theme(self, _: str) -> None:
         theme_class = "light" if theme_manager.is_light_theme() else "dark"
@@ -243,3 +291,218 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         # Force repaint of toolbar
         if hasattr(self, '_toolbar'):
             self._toolbar.update()
+
+    def _on_search_text_changed(self, text: str) -> None:
+        pattern = self._build_search_pattern(text)
+        self._apply_search_filter(pattern)
+        self._highlight_delegate.set_pattern(pattern)
+        self._refresh_search_feedback()
+
+    def _build_search_pattern(self, text: str) -> QtCore.QRegularExpression | None:
+        cleaned = text.strip()
+        if not cleaned:
+            return None
+        pattern = QtCore.QRegularExpression(QtCore.QRegularExpression.escape(cleaned))
+        pattern.setPatternOptions(QtCore.QRegularExpression.CaseInsensitiveOption)
+        return pattern if pattern.isValid() else None
+
+    def _apply_search_filter(self, pattern: QtCore.QRegularExpression | None) -> None:
+        if pattern is None:
+            self._proxy_model.setFilterRegularExpression(QtCore.QRegularExpression())
+            return
+        self._proxy_model.setFilterRegularExpression(pattern)
+
+    def _refresh_search_feedback(self, *, retranslate_only: bool = False) -> None:
+        pattern = self._highlight_delegate.pattern
+        if pattern is None:
+            self._lbl_search_results.setText("\u200b")
+            self._lbl_search_results.setVisible(False)
+            self._search.setProperty("hasMatches", False)
+            self._search.style().unpolish(self._search)
+            self._search.style().polish(self._search)
+            self._search_results = []
+            self._current_match_index = -1
+            self._highlight_delegate.set_current_match_index(-1)
+            self._search_active = False
+            self._adjust_search_layout(expanded=True)
+            self._update_navigation_controls()
+            return
+
+        if retranslate_only:
+            count = getattr(self, "_last_match_count", 0)
+        else:
+            count = self._count_search_matches(pattern)
+            self._last_match_count = count
+
+        self._lbl_search_results.setVisible(True)
+        self._lbl_search_results.setText(
+            tr("history_search_matches", "Matches: {count}").format(count=count)
+        )
+        has_matches = bool(count)
+        self._search.setProperty("hasMatches", has_matches)
+        self._search.style().unpolish(self._search)
+        self._search.style().polish(self._search)
+        self._search_results = self._collect_match_rows(pattern)
+        self._current_match_index = 0 if self._search_results else -1
+        self._highlight_delegate.set_current_match_index(
+            self._search_results[self._current_match_index]
+            if self._current_match_index >= 0
+            else -1
+        )
+        self._search_active = True
+        self._adjust_search_layout(expanded=not has_matches)
+        self._update_navigation_controls()
+
+    def _update_navigation_controls(self) -> None:
+        if not getattr(self, "_search_active", False):
+            self._lbl_search_results.setText("\u200b")
+            self._lbl_search_results.setVisible(False)
+            self._btn_prev_match.setVisible(False)
+            self._btn_next_match.setVisible(False)
+            return
+
+        total_rows = len(getattr(self, "_search_results", []))
+        total_matches = getattr(self, "_last_match_count", total_rows)
+        has_matches = total_rows > 0
+        self._btn_prev_match.setVisible(has_matches)
+        self._btn_next_match.setVisible(has_matches)
+        self._lbl_search_results.setVisible(True)
+        self._search_controls.setVisible(True)
+        if not has_matches:
+            matches_text = tr("history_search_matches", "Matches: {count}").format(count=total_matches)
+            self._lbl_search_results.setText(matches_text)
+            return
+
+        matches_text = tr("history_search_matches", "Matches: {count}").format(count=total_matches)
+        current_position = self._current_match_index + 1 if self._current_match_index >= 0 else 0
+        if current_position and total_rows:
+            position_text = tr("position_of", "{current} of {total}").format(
+                current=current_position,
+                total=total_rows,
+            )
+            self._lbl_search_results.setText(f"{matches_text} · {position_text}")
+        else:
+            self._lbl_search_results.setText(matches_text)
+
+    def _adjust_search_layout(self, *, expanded: bool) -> None:
+        self._search.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding if expanded else QtWidgets.QSizePolicy.Fixed,
+            QtWidgets.QSizePolicy.Fixed,
+        )
+        if expanded:
+            self._search_controls.hide()
+            self._search.setMaximumWidth(int(Sizes.SEARCH_FIELD_MAX_WIDTH * 6))
+        else:
+            self._search_controls.show()
+            self._search.setMaximumWidth(int(Sizes.SEARCH_FIELD_MAX_WIDTH * 2))
+
+    def _collect_match_rows(self, pattern: QtCore.QRegularExpression) -> list[int]:
+        rows: list[int] = []
+        row_count = self._proxy_model.rowCount()
+        for row in range(row_count):
+            index = self._proxy_model.index(row, 0)
+            value = self._proxy_model.data(index, QtCore.Qt.DisplayRole)
+            if not value:
+                continue
+            if pattern.match(str(value)).hasMatch():
+                rows.append(row)
+        return rows
+
+    def _jump_to_next_result(self) -> None:
+        self._current_match_index = (self._current_match_index + 1) % len(self._search_results)
+        self._highlight_delegate.set_current_match_index(self._search_results[self._current_match_index])
+        self._scroll_to_current_match()
+        self._update_navigation_controls()
+
+    def _jump_to_previous_result(self) -> None:
+        self._current_match_index = (self._current_match_index - 1) % len(self._search_results)
+        self._highlight_delegate.set_current_match_index(self._search_results[self._current_match_index])
+        self._scroll_to_current_match()
+        self._update_navigation_controls()
+
+    def _scroll_to_current_match(self) -> None:
+        row = self._search_results[self._current_match_index]
+        index = self._proxy_model.index(row, 0)
+        self._table.selectRow(index.row())
+        self._table.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
+    def _count_search_matches(self, pattern: QtCore.QRegularExpression) -> int:
+        if not pattern.isValid():
+            return 0
+        total = 0
+        row_count = self._proxy_model.rowCount()
+        for row in range(row_count):
+            index = self._proxy_model.index(row, 0)
+            value = self._proxy_model.data(index, QtCore.Qt.DisplayRole)
+            if not value:
+                continue
+            iterator = pattern.globalMatch(str(value))
+            while iterator.hasNext():
+                iterator.next()
+                total += 1
+        return total
+
+
+class _HistorySearchDelegate(QtWidgets.QStyledItemDelegate):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._pattern: QtCore.QRegularExpression | None = None
+        self._match_color = QtGui.QColor(*Colors.SEARCH_MATCH_COLOR)
+        self._current_color = QtGui.QColor(*Colors.SEARCH_CURRENT_COLOR)
+        self._current_row: int = -1
+
+    def set_current_match_index(self, row: int) -> None:
+        self._current_row = row
+        parent = self.parent()
+        if parent:
+            parent.viewport().update()  # type: ignore[call-arg]
+
+    @property
+    def pattern(self) -> QtCore.QRegularExpression | None:
+        return self._pattern
+
+    def set_pattern(self, pattern: QtCore.QRegularExpression | None) -> None:
+        changed = (self._pattern is None) != (pattern is None)
+        if self._pattern and pattern:
+            changed = self._pattern.pattern() != pattern.pattern()
+        self._pattern = pattern
+        if changed and self.parent():
+            self.parent().viewport().update()  # type: ignore[call-arg]
+
+    def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex) -> None:  # type: ignore[override]
+        self.initStyleOption(option, index)
+        text = option.text or ""
+        pattern = self._pattern
+        if index.column() != 0 or not text or pattern is None or not pattern.isValid():
+            return super().paint(painter, option, index)
+
+        doc = QtGui.QTextDocument()
+        doc.setDefaultFont(option.font)
+        doc.setPlainText(text)
+
+        iterator = pattern.globalMatch(text)
+        fmt = QtGui.QTextCharFormat()
+        fmt.setBackground(self._match_color)
+        while iterator.hasNext():
+            match = iterator.next()
+            start = match.capturedStart()
+            length = match.capturedLength()
+            if start < 0 or length <= 0:
+                continue
+            cursor = QtGui.QTextCursor(doc)
+            cursor.setPosition(start)
+            cursor.setPosition(start + length, QtGui.QTextCursor.KeepAnchor)
+            cursor.mergeCharFormat(fmt)
+
+        option.text = ""
+        style = option.widget.style() if option.widget else QtWidgets.QApplication.style()
+        style.drawControl(QtWidgets.QStyle.CE_ItemViewItem, option, painter)
+
+        painter.save()
+        painter.translate(option.rect.topLeft())
+        doc.setTextWidth(option.rect.width())
+        ctx = QtGui.QAbstractTextDocumentLayout.PaintContext()
+        if option.state & QtWidgets.QStyle.State_Selected:
+            ctx.palette.setColor(QtGui.QPalette.Text, option.palette.color(QtGui.QPalette.HighlightedText))
+        doc.documentLayout().draw(painter, ctx)
+        painter.restore()
