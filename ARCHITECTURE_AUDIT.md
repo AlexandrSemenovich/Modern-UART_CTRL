@@ -1,7 +1,7 @@
 # ARCHITECTURE_AUDIT
 
 ## Health Score
-**9.7 / 10** — resiliency-контур теперь покрыт watchdog + supervisor тестами (`tests/test_serial_supervisor.py`), логи держатся в кольцевом буфере + mmap, Quick Blocks виртуализированы и имеют диспетчер хоткеев, DPI-aware sizing внедрён, IconCache следит за целостностью. Остались точечные улучшения визуала и UX.
+**9.9 / 10** — все roadmap-задачи выполнены: async export с QThread + mmap (прогресс/отмена), watchdog + supervisor, 3+ портов профилирование (perf marker, CPU <15%, RAM <50MB), Visual polish (responsive toolbar, skeletons, контрастные индикаторы), полный UX-набор (поиск, drag&drop, hotkeys).
 
 ## Stack & Context
 - **Фреймворк**: PySide6 6.10
@@ -45,8 +45,8 @@
    3. ~~**Watchdog** — внедрить heartbeat от каждого worker (ping каждые N мс) и обработчик таймаута, который автоматически перезапускает процесс/порт и уведомляет пользователя.~~ ✅ `SerialWorker` эмитит `heartbeat`, supervisor отслеживает таймаут (1.5 с) и инициирует перезапуск + статус «Watchdog restart»; поведение проверяется в тестах [`tests/test_serial_supervisor.py`](tests/test_serial_supervisor.py:1).
 2. **Performance**:
    1. ~~**ConsolePanel back-pressure** — внедрить буферизованный пайплайн: собирать входящие логи в чанки по 25–50 мс, применять batch append в главном потоке и добавить счётчик пропущенных обновлений для телеметрии.~~ ✅ ConsolePanel использует буферизацию с интервалом 25 мс, дропы собираются по метрикам `_dropped_updates_total`, значения конфигурируются через `log_batch_interval_ms`, `log_max_pending_chunks`, `log_back_pressure_threshold`, а сценарий покрыт pytest-qt тестами [`tests/test_console_panel_backpressure.py`](tests/test_console_panel_backpressure.py:1).
-   2. **Асинхронный экспорт** — вынести сохранение логов в WorkerThread (или процесс) c передачей через временный mmap/pipe, добавить прогресс и отмену.
-   3. **Профилирование 3+ портов** — собрать тестовый сценарий (3 активных RX/TX), снять Qt Creator Profiler + cProfile, зафиксировать бюджет CPU/RAM и автоматизировать проверку через pytest marker `perf`.
+   2. ~~**Асинхронный экспорт** — вынести сохранение логов в WorkerThread (или процесс) c передачей через временный mmap/pipe, добавить прогресс и отмену.~~ ✅ Реализовано: [`LogExportWorker`](src/utils/log_exporter.py:56) работает в отдельном QThread, использует временный mmap-файл для экспорта больших данных (>10MB), [`ConsolePanelView._start_export_worker`](src/views/console_panel_view.py:1367) создаёт QProgressDialog с поддержкой отмены, сигналы `progress_changed`/`chunk_ready` обеспечивают прогресс-индикацию.
+   3. ~~**Профилирование 3+ портов** — собрать тестовый сценарий (3 активных RX/TX), снять Qt Creator Profiler + cProfile, зафиксировать бюджет CPU/RAM и автоматизировать проверку через pytest marker `perf`.~~ ✅ Реализовано: создан [`tests/test_performance.py`](tests/test_performance.py:1) с тестами `test_three_port_performance`, `test_high_throughput_three_ports`, `test_concurrent_logging_performance`, `test_cpu_profiling`; добавлен pytest marker `perf` в [`pytest.ini`](pytest.ini:7); бюджеты: CPU <15%, RAM <50MB, latency <100ms.
 3. **Visual polish**: адаптация toolbar под маленькие ширины, skeleton-loading для splash/панелей, более контрастные статус-индикаторы. ✅ QuickBlocks/Console toolbar обновлены (responsive классы + shimmer-skeletonы), портовые индикаторы получили высококонтрастные уровни и фиксацию размеров, добавлены pytest-qt GUI-тесты.
 4. **UX Enhancements**:
    - ~~4.1 История команд: добавить полноценный поиск с подсветкой совпадений в `CommandHistoryDialog` (используем proxy + highlight).~~ ✅ Реализовано: `QSortFilterProxyModel` теперь фильтрует по regex, `_HistorySearchDelegate` подсвечивает совпадения через QTextDocument, добавлен счётчик `Matches: N` и состояние `hasMatches` для поля поиска.
@@ -56,7 +56,7 @@
    - ~~4.3 Quick Blocks: предоставить мини-UI для переназначения хоткеев (`CTRL+ALT+N`) с валидацией конфликтов и сохранением в config.~~ ✅ Для каждого блока в `QuickBlocksPanel` появилось контекстное меню «Assign/Clear Hotkey», диалог использует `QKeySequenceEdit` и хук `set_hotkey_validator`, конфликты показываются inline, а `_QuickBlockShortcutDispatcher` мгновенно пересоздаёт QShortcut и обновляет `quick_blocks.yaml`.
 
 
-✅ ConsolePanel/QuickBlocks визуально отполированы (responsive тулбары, skeletons, контрастные индикаторы, автотесты). Отчёт обновлён.
+✅ Async export реализован (QThread + mmap, progress dialog, cancellation), Visual polish выполнен (responsive тулбары, skeletons, контрастные индикаторы). Отчёт обновлён.
 
 ### IPC Transport Blueprint
 

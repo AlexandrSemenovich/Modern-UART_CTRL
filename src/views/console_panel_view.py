@@ -3,6 +3,7 @@ ConsolePanelView: UI component for displaying serial console logs.
 Reusable widget for showing RX/TX data from multiple ports.
 """
 
+from pathlib import Path
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Signal, Qt, QTimer
 from collections import deque
@@ -16,6 +17,7 @@ from src.utils.config_loader import config_loader
 from src.utils.theme_manager import theme_manager
 from src.utils.icon_cache import get_icon, get_icon_cache
 from src.utils.mmap_log_history import create_history_for_port, MemoryMappedLogHistory
+from src.utils.log_exporter import ExportRequest, LogExportWorker
 
 class LogWidget:
     """Container for log widget and its label."""
@@ -211,6 +213,9 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._log_cache: dict[str, deque[str]] = {}
         # Memory-mapped history storage per port
         self._history_files: dict[str, MemoryMappedLogHistory] = {}
+        self._export_worker: LogExportWorker | None = None
+        self._export_dialog: QtWidgets.QProgressDialog | None = None
+        self._recent_export_dir: Path | None = None
         from src.styles.constants import ConsoleLimits as _ConsoleLimits  # local import to avoid cycles
         self._max_lines: int = int(self._config.get('max_lines', _ConsoleLimits.MAX_CACHE_LINES))
         self._history_capacity_bytes = int(
@@ -1305,6 +1310,15 @@ class ConsolePanelView(QtWidgets.QWidget):
     
     def clear_all(self) -> None:
         """Clear all logs."""
+        # Delete old history files to ensure clean state
+        for history in self._history_files.values():
+            history.close()
+            try:
+                if history._path.exists():
+                    history._path.unlink()
+            except OSError:
+                pass
+        
         for port_label, widget in self._log_widgets.items():
             if widget.text_edit:
                 widget.text_edit.clear()
@@ -1312,8 +1326,6 @@ class ConsolePanelView(QtWidgets.QWidget):
             text_edit.clear()
         
         self._log_cache.clear()
-        for history in self._history_files.values():
-            history.close()
         self._history_files.clear()
         self._initialize_history_files()
     
@@ -1342,8 +1354,154 @@ class ConsolePanelView(QtWidgets.QWidget):
             self._search_edit.setFocus()
     
     def save_logs(self) -> None:
-        """Request to save logs."""
-        self.save_requested.emit()
+        """Open directory chooser and run asynchronous export."""
+        if self._export_worker:
+            self._show_toast("export_in_progress", "Export already running")
+            return
+        
+        # Generate timestamp for folder name
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        initial_dir = str(self._recent_export_dir or Path.home())
+        target = QtWidgets.QFileDialog.getExistingDirectory(self, tr("export_logs", "Export Logs"), initial_dir)
+        if not target:
+            return
+        
+        # Append timestamp to folder name
+        target_path = Path(target)
+        self._recent_export_dir = target_path / f"uart_logs_{timestamp}"
+        
+        # Create directory if it doesn't exist
+        self._recent_export_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Get history file paths - use placeholder for ports without history
+        files = {}
+        for label in self._port_labels:
+            history = self._history_files.get(label)
+            if history:
+                files[label] = history._path
+            else:
+                # Use empty path as placeholder - worker will use cache instead
+                files[label] = Path()
+        
+        request = ExportRequest(
+            target_dir=self._recent_export_dir,
+            chunk_bytes=ConsoleLimits.EXPORT_CHUNK_MB * 1024 * 1024,
+            port_files=files,
+            include_history=True,
+        )
+        self._start_export_worker(request)
+
+    def _start_export_worker(self, request: ExportRequest) -> None:
+        """
+        Start asynchronous export worker with progress dialog.
+        
+        Args:
+            request: Export request with target directory and port files
+        """
+        from src.utils.translator import tr
+        
+        # Create progress dialog
+        self._export_dialog = QtWidgets.QProgressDialog(
+            tr("exporting_logs", "Exporting logs..."),
+            tr("cancel", "Cancel"),
+            0, 100, self
+        )
+        self._export_dialog.setWindowTitle(tr("export_title", "Export Logs"))
+        self._export_dialog.setWindowModality(QtCore.Qt.WindowModal)
+        self._export_dialog.setAutoClose(False)
+        self._export_dialog.setAutoReset(False)
+        self._export_dialog.canceled.connect(self._cancel_export)
+        self._export_dialog.show()
+        
+        # Create callbacks for history reader and text fetcher
+        def history_reader(port_label: str) -> str:
+            history = self._history_files.get(port_label)
+            if history:
+                return history.read_all()
+            return ""
+        
+        def text_fetcher(port_label: str) -> str:
+            cache = self._log_cache.get(port_label)
+            if cache:
+                return "".join(cache)
+            return ""
+        
+        # Create and configure worker
+        self._export_worker = LogExportWorker(
+            request=request,
+            history_reader=history_reader,
+            text_fetcher=text_fetcher,
+            parent=self
+        )
+        
+        # Connect signals
+        self._export_worker.progress_changed.connect(self._on_export_progress)
+        self._export_worker.finished_success.connect(self._on_export_finished)
+        self._export_worker.failed.connect(self._on_export_failed)
+        
+        # Start export
+        self._export_worker.start()
+
+    def _cancel_export(self) -> None:
+        """Cancel ongoing export operation."""
+        if self._export_worker and self._export_worker.isRunning():
+            self._export_worker.cancel()
+            self._export_worker.wait(2000)  # Wait up to 2 seconds
+            if self._export_worker.isRunning():
+                self._export_worker.terminate()
+        self._cleanup_export()
+        self._show_toast("export_cancelled", "Export cancelled")
+
+    def _on_export_progress(self, percent: int, port_label: str) -> None:
+        """Handle export progress updates."""
+        from src.utils.translator import tr
+        if self._export_dialog:
+            self._export_dialog.setValue(percent)
+            self._export_dialog.setLabelText(
+                tr("exporting_port", f"Exporting {port_label}...")
+            )
+
+    def _on_export_finished(self, target_dir: Path) -> None:
+        """Handle successful export completion."""
+        from src.utils.translator import tr
+        self._cleanup_export()
+        self._show_toast(
+            "export_complete",
+            tr("export_success", f"Logs exported to {target_dir}")
+        )
+
+    def _on_export_failed(self, error: str) -> None:
+        """Handle export failure."""
+        from src.utils.translator import tr
+        self._cleanup_export()
+        self._show_toast(
+            "export_failed",
+            tr("export_error", f"Export failed: {error[:100]}")
+        )
+
+    def _cleanup_export(self) -> None:
+        """Clean up export worker and dialog."""
+        try:
+            if hasattr(self, '_export_dialog') and self._export_dialog:
+                self._export_dialog.close()
+                self._export_dialog.deleteLater()
+                self._export_dialog = None
+        except Exception:
+            self._export_dialog = None
+        self._export_worker = None
+    
+    def _show_toast(self, key: str, default_message: str) -> None:
+        """Show toast notification."""
+        from src.utils.translator import tr
+        from src.views.toast_notification import get_toast_manager
+        
+        if not hasattr(self, '_toast_manager') or self._toast_manager is None:
+            self._toast_manager = get_toast_manager(self)
+        
+        message = tr(key, default_message)
+        self._toast_manager.show_info(message)
     
     def get_logs_text(self, port_label: str | None = None) -> str:
         """

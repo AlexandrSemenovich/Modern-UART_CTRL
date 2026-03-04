@@ -51,7 +51,10 @@ class TestCommandHistoryEntry:
         
         display = entry.to_display_tuple()
         
-        assert display == ('TEST', 'CPU2', 'error', '2024-01-01T10:00:00')
+        # to_display_tuple returns CommandHistoryDisplay (NamedTuple with 3 fields)
+        assert display.command == 'TEST'
+        assert display.port == 'CPU2'
+        assert display.timestamp == '2024-01-01T10:00:00'
 
 
 class TestCommandHistoryModel:

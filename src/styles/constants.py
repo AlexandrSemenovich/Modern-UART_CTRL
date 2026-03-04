@@ -290,6 +290,7 @@ class ConsoleLimits:
     MAX_PENDING_CHUNKS = max(10, _cfg.max_pending_chunks)
     # Threshold (0-1) before dropping: fraction of MAX_PENDING_CHUNKS
     BACK_PRESSURE_THRESHOLD = min(1.0, max(0.1, _cfg.back_pressure_threshold))
+    EXPORT_CHUNK_MB = max(1, _cfg.export_chunk_mb)
 
 
 # ==================== Charset Detection ====================

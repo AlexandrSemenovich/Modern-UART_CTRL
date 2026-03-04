@@ -1373,60 +1373,13 @@ class MainWindow(QtWidgets.QMainWindow):
             theme_manager.set_scale_factor(scale_factor)
     
     def _save_logs(self) -> None:
-        """Save logs to file."""
+        """Save logs to separate files for each port (async)."""
         if not self._console_panel:
             return
         
-        # Get logs text
-        logs_text = self._console_panel.get_logs_text()
-        
-        if not logs_text:
-            # Use toast notification instead of blocking dialog
-            if not self._toast_manager:
-                from src.views.toast_notification import get_toast_manager
-                self._toast_manager = get_toast_manager(self)
-            
-            self._toast_manager.show_info(
-                tr("no_logs_to_save", "No logs to save")
-            )
-            return
-        
-        # Generate filename with timestamp
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = tr(
-            "logs_default_filename",
-            f"uart_logs_{timestamp}.txt",
-            timestamp=timestamp,
-        )
-        
-        
-        # Show save dialog
-        file_filter = tr(
-            "text_files_filter",
-            "Text Files (*.txt);;All Files (*)",
-        )
-
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self,
-            tr("save_logs", "Save Logs"),
-            default_name,
-            file_filter,
-        )
-        
-        if file_path:
-            try:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(logs_text)
-                
-                self.statusBar().showMessage(tr("logs_saved", f"Logs saved to {file_path}"), 3000)
-                
-            except Exception as e:
-                # Use toast notification instead of blocking dialog
-                if not self._toast_manager:
-                    from src.views.toast_notification import get_toast_manager
-                    self._toast_manager = get_toast_manager(self)
-                
-                self._toast_manager.show_error(tr("save_error", f"Failed to save logs: {str(e)}"))
+        # Delegate to ConsolePanelView's async export
+        # This will show a folder picker and save CPU1.txt, CPU2.txt, TLM.txt
+        self._console_panel.save_logs()
                 
     
     def _update_icons_on_theme_change(self) -> None:

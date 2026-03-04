@@ -129,6 +129,7 @@ class ConsoleConfig:
     batch_interval_ms: int
     max_pending_chunks: int
     back_pressure_threshold: float
+    export_chunk_mb: int
     
     def __repr__(self) -> str:
         return f"ConsoleConfig(max_html_length={self.max_html_length}, max_document_lines={self.max_document_lines}, ...)"
@@ -517,6 +518,7 @@ class ConfigLoader:
             batch_interval_ms=self._get_int(section, "log_batch_interval_ms", 40),
             max_pending_chunks=self._get_int(section, "log_max_pending_chunks", 200),
             back_pressure_threshold=self._get_int(section, "log_back_pressure_threshold", 50) / 100,
+            export_chunk_mb=self._get_int(section, "log_export_chunk_mb", 2),
         )
 
     def get_toast_config(self) -> ToastConfig:
