@@ -8,6 +8,7 @@ from PySide6.QtCore import Signal, Qt, QTimer
 from collections import deque
 import html
 import re
+import time
 
 from src.utils.translator import tr, translator
 from src.styles.constants import Fonts, Sizes, ConsoleLimits
@@ -227,9 +228,22 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._search_text: str = ""
         
         # Throttled update state
-        self._pending_updates: dict[str, list[tuple]] = {}
+        from src.styles.constants import ConsoleLimits as _ConsoleLimits  # local import to avoid cycles
+        self._pending_updates: dict[str, list[tuple[str, str]]] = {}
+        self._dropped_updates: dict[str, int] = {}
+        self._dropped_updates_total: int = 0
+        self._last_flush_timestamp: float = 0.0
         self._update_timer: QTimer | None = None
-        self._update_interval_ms: int = 50  # Batch updates every 50ms
+        self._update_interval_ms: int = int(
+            self._config.get('batch_interval_ms', _ConsoleLimits.BATCH_INTERVAL_MS)
+        )
+        self._max_pending_chunks: int = int(
+            self._config.get('max_pending_chunks', _ConsoleLimits.MAX_PENDING_CHUNKS)
+        )
+        threshold = float(
+            self._config.get('back_pressure_threshold', _ConsoleLimits.BACK_PRESSURE_THRESHOLD)
+        )
+        self._back_pressure_threshold: float = threshold
 
         # Search debounce timer (300ms)
         self._search_timer: QTimer | None = None
@@ -988,7 +1002,9 @@ class ConsolePanelView(QtWidgets.QWidget):
                     if port_label in self._history_files:
                         all_plain = "".join([u[1] for u in updates])
                         self._history_files[port_label].append(all_plain)
+        # Update telemetry after flush
         self._pending_updates.clear()
+        self._last_flush_timestamp = time.monotonic()
 
     def _append_to_combined(self, port_label: str, html_chunk: str) -> None:
         """Mirror CPU1/CPU2 updates inside the combined tab."""
@@ -1036,12 +1052,27 @@ class ConsolePanelView(QtWidgets.QWidget):
             self._log_cache[port_label] = deque(maxlen=self._max_lines)
         
         self._log_cache[port_label].append(html_content)
-        
+
         # Queue UI update for throttling
         if port_label not in self._pending_updates:
             self._pending_updates[port_label] = []
-        self._pending_updates[port_label].append((html_content, plain_text))
-        
+        queue = self._pending_updates[port_label]
+        queue.append((html_content, plain_text))
+
+        # Apply back-pressure if queue grows beyond threshold
+        max_chunks = max(1, self._max_pending_chunks)
+        threshold = max(1, int(max_chunks * self._back_pressure_threshold))
+        while len(queue) > max_chunks:
+            queue.pop(0)
+            drops = self._dropped_updates.get(port_label, 0) + 1
+            self._dropped_updates[port_label] = drops
+            self._dropped_updates_total += 1
+        if len(queue) > threshold:
+            queue.pop(0)
+            drops = self._dropped_updates.get(port_label, 0) + 1
+            self._dropped_updates[port_label] = drops
+            self._dropped_updates_total += 1
+
         # Trigger timer if not already running
         if self._update_timer and not self._update_timer.isActive():
             self._update_timer.start(self._update_interval_ms)

@@ -126,6 +126,9 @@ class ConsoleConfig:
     trim_chunk_size: int
     max_cache_lines: int
     history_file_size_mb: int
+    batch_interval_ms: int
+    max_pending_chunks: int
+    back_pressure_threshold: float
     
     def __repr__(self) -> str:
         return f"ConsoleConfig(max_html_length={self.max_html_length}, max_document_lines={self.max_document_lines}, ...)"
@@ -511,6 +514,9 @@ class ConfigLoader:
             trim_chunk_size=self._get_int(section, "trim_chunk_size"),
             max_cache_lines=self._get_int(section, "max_cache_lines"),
             history_file_size_mb=self._get_int(section, "history_file_size_mb", 8),
+            batch_interval_ms=self._get_int(section, "log_batch_interval_ms", 40),
+            max_pending_chunks=self._get_int(section, "log_max_pending_chunks", 200),
+            back_pressure_threshold=self._get_int(section, "log_back_pressure_threshold", 50) / 100,
         )
 
     def get_toast_config(self) -> ToastConfig:
