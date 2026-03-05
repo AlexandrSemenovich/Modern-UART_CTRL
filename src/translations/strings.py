@@ -404,6 +404,34 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Вид",
         "en": "View",
     },
+    "open_stopwatch": {
+        "ru": "Открыть секундомер",
+        "en": "Open Stopwatch",
+    },
+    "stopwatch": {
+        "ru": "Секундомер",
+        "en": "Stopwatch",
+    },
+    "stopwatch_window_title": {
+        "ru": "Секундомер",
+        "en": "Stopwatch",
+    },
+    "stopwatch_start": {
+        "ru": "Старт",
+        "en": "Start",
+    },
+    "stopwatch_stop": {
+        "ru": "Стоп",
+        "en": "Stop",
+    },
+    "stopwatch_reset": {
+        "ru": "Сброс",
+        "en": "Reset",
+    },
+    "stopwatch_status": {
+        "ru": "Секундомер",
+        "en": "Stopwatch",
+    },
     "tools": {
         "ru": "Инструменты",
         "en": "Tools",

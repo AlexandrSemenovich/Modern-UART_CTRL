@@ -135,6 +135,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._input_animation_active: bool = False  # Track input field animation
         self._last_command_port: int = 1
         self._quick_send_port: int = 1
+        self._stopwatch_status_label: QtWidgets.QLabel | None = None
 
         # Command history - use factory for composition
         self._history_model = self._viewmodel_factory.create_history_model(parent=self)
@@ -174,15 +175,26 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         status_bar.showMessage(tr("ready", "Ready"))
         
-        # Language toggle in status bar
+        info_layout = QtWidgets.QHBoxLayout()
+        info_widget = QtWidgets.QWidget()
+        info_widget.setLayout(info_layout)
+
         self._lang_label = QtWidgets.QLabel(tr("lang", "Lang:"))
-        status_bar.addPermanentWidget(self._lang_label)
-        
+        info_layout.addWidget(self._lang_label)
+
         self._lang_btn = QtWidgets.QPushButton(translator.get_language().upper())
         self._lang_btn.setFixedWidth(60)
         self._lang_btn.setToolTip(tr("switch_language", "Click to switch language"))
         self._lang_btn.clicked.connect(self._toggle_language)
-        status_bar.addPermanentWidget(self._lang_btn)
+        info_layout.addWidget(self._lang_btn)
+
+        info_layout.addSpacing(Sizes.LAYOUT_SPACING)
+        self._stopwatch_status_label = QtWidgets.QLabel()
+        self._stopwatch_status_label.setObjectName("stopwatch_status_label")
+        info_layout.addWidget(self._stopwatch_status_label)
+        self._update_stopwatch_status_label_text()
+
+        status_bar.addPermanentWidget(info_widget)
     
     def _setup_window(self) -> None:
         """Configure window properties."""
@@ -751,11 +763,55 @@ class MainWindow(QtWidgets.QMainWindow):
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp)
 
+        # Stopwatch group
+        self._stopwatch_group = QtWidgets.QGroupBox()
+        stopwatch_layout = QtWidgets.QVBoxLayout()
+        stopwatch_layout.setSpacing(Sizes.LAYOUT_SPACING)
+        stopwatch_layout.setContentsMargins(
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+        )
+        self._stopwatch_viewmodel = self._viewmodel_factory.create_stopwatch_viewmodel()
+        from src.views.widgets.stopwatch_widget import StopwatchWidget
+        self._stopwatch_widget = StopwatchWidget(self._stopwatch_viewmodel)
+        self._stopwatch_viewmodel.time_changed.connect(self._update_stopwatch_status)
+        self._stopwatch_window: StopwatchWindow | None = None
+        stopwatch_layout.addWidget(self._stopwatch_widget)
+        self._stopwatch_group.setLayout(stopwatch_layout)
+        layout.addWidget(self._stopwatch_group)
+        self._update_stopwatch_group_title()
+
         layout.addStretch()
         content.setLayout(layout)
         scroll_area.setWidget(content)
 
         return scroll_area
+
+    def _update_stopwatch_status(self, formatted: str) -> None:
+        label = getattr(self, "_stopwatch_status_label", None)
+        if label is not None:
+            label.setToolTip(tr("stopwatch_status", "Stopwatch"))
+            label.setText(formatted)
+            label.setAccessibleName(tr("stopwatch_status", "Stopwatch"))
+
+    def _update_stopwatch_status_label_text(self) -> None:
+        label = getattr(self, "_stopwatch_status_label", None)
+        if label is not None:
+            label.setText(tr("stopwatch_status", "Stopwatch"))
+            label.setAccessibleName(tr("stopwatch_status", "Stopwatch"))
+
+    def _toggle_stopwatch_window(self) -> None:
+        if self._stopwatch_window is None:
+            from src.views.stopwatch_window import StopwatchWindow
+            self._stopwatch_window = StopwatchWindow(self._stopwatch_viewmodel, self)
+        if self._stopwatch_window.isVisible():
+            self._stopwatch_window.hide()
+        else:
+            self._stopwatch_window.show()
+            self._stopwatch_window.raise_()
+            self._stopwatch_window.activateWindow()
 
     def _create_quick_blocks_panel(self) -> QtWidgets.QWidget | None:
         if not self._quick_blocks_repository:
@@ -951,7 +1007,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # View menu
         view_menu = menubar.addMenu(tr("view", "View"))
-        
+
         # Language submenu
         language_menu = view_menu.addMenu(tr("language", "Language"))
         language_group = QActionGroup(self)
@@ -979,7 +1035,12 @@ class MainWindow(QtWidgets.QMainWindow):
                             lambda: theme_manager.set_theme("dark"))
         theme_menu.addAction(tr("system_theme", "System"), 
                             lambda: theme_manager.set_theme("system"))
-        
+
+        view_menu.addSeparator()
+        action_stopwatch = view_menu.addAction(tr("open_stopwatch", "Open Stopwatch"))
+        action_stopwatch.triggered.connect(self._toggle_stopwatch_window)
+        self._action_stopwatch = action_stopwatch
+
         # Scale submenu
         scale_menu = view_menu.addMenu(tr("scale", "Scale"))
         scale_menu.addAction("100%", lambda: self._set_ui_scale(1.0))
@@ -1052,10 +1113,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # Find in console (Ctrl+F)
         shortcut_find = QShortcut(QKeySequence("Ctrl+F"), self)
         shortcut_find.activated.connect(self._toggle_console_search)
-        
+
         # Reconnect all ports (Ctrl+F5)
         shortcut_reconnect = QShortcut(QKeySequence("F5"), self)
         shortcut_reconnect.activated.connect(self._reconnect_all_ports)
+
+        shortcut_stopwatch_window = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
+        shortcut_stopwatch_window.activated.connect(self._toggle_stopwatch_window)
 
         shortcut_escape = QShortcut(QKeySequence("Escape"), self)
         shortcut_escape.activated.connect(self.close)
@@ -1453,6 +1517,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if getattr(self, "_quick_blocks_group", None):
             self._quick_blocks_group.setTitle(tr("quick_blocks", "Quick Blocks"))
         self._le_command.setPlaceholderText(tr("enter_command", "Enter command..."))
+        self._update_stopwatch_group_title()
         self._btn_combo.setText(tr("send_to_both", "1+2"))
         self._btn_cpu1.setText(tr("send_to_cpu1", "CPU1"))
         self._btn_cpu2.setText(tr("send_to_cpu2", "CPU2"))

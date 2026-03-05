@@ -768,3 +768,43 @@ QLabel#history_search_results {
     font-weight: 600;
     padding: 0 4px;
 }
+.StopwatchWidget QLabel#stopwatch_display {
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #0d0d0d;
+    background: transparent;
+    border: none;
+    padding: 4px 6px;
+}
+
+.StopwatchWidget QPushButton {
+    min-width: 0;
+}
+.StopwatchWidget QLabel#stopwatch_display {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.StopwatchWidget QPushButton {
+    min-width: 0;
+}
+
+QLabel#stopwatch_status_label {
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+}
+
+QFrame#stopwatch_window_card {
+    border: 1px solid palette(mid);
+    border-radius: 12px;
+    background: palette(window);
+}
+.StopwatchWidget #stopwatch_card {
+    border: 1px solid palette(mid);
+    border-radius: 12px;
+    background: palette(window);
+}

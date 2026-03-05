@@ -4,6 +4,7 @@ from src.utils.service_container import service_container
 from src.utils.config_loader import ConfigLoader
 from src.utils.theme_manager import ThemeManager
 from src.utils.quick_blocks_repository import QuickBlocksRepository
+from src.utils.stopwatch import StopwatchService
 
 
 def get_theme_manager() -> ThemeManager:
@@ -19,3 +20,8 @@ def get_config_loader() -> ConfigLoader:
 def get_quick_blocks_repository() -> QuickBlocksRepository:
     """Resolve Quick Blocks repository instance."""
     return service_container.resolve("quick_blocks_repository")
+
+
+def get_stopwatch_service() -> StopwatchService:
+    """Resolve application-wide stopwatch service instance."""
+    return service_container.resolve("stopwatch_service")

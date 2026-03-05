@@ -11,7 +11,9 @@ from src.viewmodels.protocols import (
     ViewModelFactoryProtocol,
     ComPortViewModelProtocol,
     CommandHistoryModelProtocol,
+    StopwatchViewModelProtocol,
 )
+from src.viewmodels.stopwatch_viewmodel import StopwatchViewModel
 
 
 class ViewModelFactory:
@@ -60,6 +62,11 @@ class ViewModelFactory:
             CommandHistoryModel instance
         """
         return CommandHistoryModel(parent=parent)
+
+    def create_stopwatch_viewmodel(self) -> StopwatchViewModelProtocol:
+        """Create Stopwatch ViewModel instance."""
+
+        return StopwatchViewModel()
 
 
 # Singleton instance for application-wide use

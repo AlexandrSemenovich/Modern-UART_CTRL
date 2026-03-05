@@ -6,6 +6,7 @@ Provides abstract interfaces for type-safe dependency injection.
 from typing import Protocol, Optional, runtime_checkable, Any
 
 from src.utils.state_utils import PortConnectionState
+from src.utils.stopwatch import StopwatchState
 
 
 @runtime_checkable
@@ -142,10 +143,39 @@ class ViewModelFactoryProtocol(Protocol):
         """Create a command history model instance."""
         ...
 
+    def create_stopwatch_viewmodel(self) -> "StopwatchViewModelProtocol":
+        """Create stopwatch ViewModel."""
+        ...
+
+
+@runtime_checkable
+class StopwatchViewModelProtocol(Protocol):
+    """Protocol for stopwatch ViewModel interactions."""
+
+    time_changed: Any
+    state_changed: Any
+
+    def start_manual(self) -> None: ...
+
+    def stop_manual(self) -> None: ...
+
+    def reset_manual(self) -> None: ...
+
+    def toggle_manual(self) -> None: ...
+
+    def set_auto_mode(self, mode: str | None) -> None: ...
+
+    @property
+    def state(self) -> StopwatchState: ...
+
+    @property
+    def formatted_time(self) -> str: ...
+
 
 # Re-export for convenience
 __all__ = [
     "ComPortViewModelProtocol",
     "CommandHistoryModelProtocol",
     "ViewModelFactoryProtocol",
+    "StopwatchViewModelProtocol",
 ]

@@ -2,7 +2,7 @@ configuration_version: 1
 groups:
 - id: config_group
   name: Config
-  collapsed: false
+  collapsed: true
   order: 0
   blocks:
   - id: arm
