@@ -73,16 +73,14 @@ class CommandHistoryDialog(QtWidgets.QDialog):
             get_icon("floppy-disk"),
             tr("history_export", "Export"),
         )
-
-        # Use action texts as tooltips in icon-only mode
-        for act in (
+        self._toolbar_actions = (
             self._act_send,
             self._act_edit,
             self._act_delete,
             self._act_clear,
             self._act_export,
-        ):
-            act.setToolTip(act.text())
+        )
+        self._set_toolbar_tooltips()
 
         # Search row
         self._search = QtWidgets.QLineEdit()
@@ -105,7 +103,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         control_height = Sizes.INPUT_MIN_HEIGHT
 
         self._btn_prev_match = QtWidgets.QToolButton()
-        self._btn_prev_match.setText("<")
+        self._btn_prev_match.setText(tr("prev_match_symbol", "<"))
         self._btn_prev_match.setObjectName("history_prev_match")
         self._btn_prev_match.setFixedSize(control_height, control_height)
         self._btn_prev_match.setToolTip(tr("prev_match", "Previous match"))
@@ -115,7 +113,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         controls_layout.addWidget(self._btn_prev_match)
 
         self._btn_next_match = QtWidgets.QToolButton()
-        self._btn_next_match.setText(">")
+        self._btn_next_match.setText(tr("next_match_symbol", ">"))
         self._btn_next_match.setObjectName("history_next_match")
         self._btn_next_match.setFixedSize(control_height, control_height)
         self._btn_next_match.setToolTip(tr("next_match", "Next match"))
@@ -150,6 +148,7 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         header = self._table.horizontalHeader()
         header.setStretchLastSection(True)
         header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        self._set_table_headers()
         self._highlight_delegate = _HistorySearchDelegate(self._table)
         self._table.setItemDelegate(self._highlight_delegate)
         layout.addWidget(self._table)
@@ -187,6 +186,13 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._model.entries_changed.connect(self._on_entries_changed)
         translator.language_changed.connect(self._on_language_changed)
         theme_manager.theme_changed.connect(self._apply_theme)
+        self.destroyed.connect(self._disconnect_translator)
+
+    def _disconnect_translator(self) -> None:
+        try:
+            translator.language_changed.disconnect(self._on_language_changed)
+        except (RuntimeError, TypeError):
+            pass
 
     def _selected_entries(self) -> list[CommandHistoryEntry]:
         entries: list[CommandHistoryEntry] = []
@@ -255,8 +261,27 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._act_clear.setText(tr("history_clear_all", "Clear All"))
         self._act_export.setText(tr("history_export", "Export"))
         self._btn_close.setText(tr("history_close", "Close"))
+        self._set_toolbar_tooltips()
+        self._set_table_headers()
         self._update_summary()
         self._refresh_search_feedback(retranslate_only=True)
+        self._update_navigation_controls()
+
+    def _set_toolbar_tooltips(self) -> None:
+        for act in self._toolbar_actions:
+            act.setToolTip(act.text())
+
+    def _set_table_headers(self) -> None:
+        headers = {
+            0: tr("history_column_command", "Command"),
+            1: tr("history_column_port", "Port"),
+            2: tr("history_column_status", "Status"),
+            3: tr("history_column_timestamp", "Timestamp"),
+        }
+        for column, title in headers.items():
+            self._table_model.setHeaderData(column, QtCore.Qt.Horizontal, title)
+        if hasattr(self._table_model, "headerDataChanged"):
+            self._table_model.headerDataChanged.emit(QtCore.Qt.Horizontal, 0, len(headers) - 1)
 
     def _apply_theme(self, _: str) -> None:
         theme_class = "light" if theme_manager.is_light_theme() else "dark"

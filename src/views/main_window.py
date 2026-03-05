@@ -691,7 +691,9 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         
         # Counters group - restructured for better readability
-        counters_grp = QtWidgets.QGroupBox(tr("port_counters", "Port Counters"))
+        counters_grp = QtWidgets.QGroupBox()
+        self._counters_group = counters_grp
+        self._update_counter_group_title()
         counters_layout = QtWidgets.QVBoxLayout()  # Vertical layout for ports
         counters_layout.setSpacing(16)  # More spacing between ports
         counters_layout.setContentsMargins(
@@ -762,6 +764,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         counters_grp.setLayout(counters_layout)
         layout.addWidget(counters_grp)
+        self._update_counter_texts()
 
         # Stopwatch group
         self._stopwatch_group = QtWidgets.QGroupBox()
@@ -781,7 +784,7 @@ class MainWindow(QtWidgets.QMainWindow):
         stopwatch_layout.addWidget(self._stopwatch_widget)
         self._stopwatch_group.setLayout(stopwatch_layout)
         layout.addWidget(self._stopwatch_group)
-        self._update_stopwatch_group_title()
+        self._retranslate_stopwatch_block()
 
         layout.addStretch()
         content.setLayout(layout)
@@ -789,12 +792,61 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return scroll_area
 
+    def _update_counter_group_title(self) -> None:
+        group = getattr(self, "_counters_group", None)
+        if group is not None:
+            group.setTitle(tr("port_counters", "Port Counters"))
+
+    def _update_counter_texts(self) -> None:
+        if not hasattr(self, "_counter_ports") or not hasattr(self, "_counter_label_widgets"):
+            return
+
+        port_viewmodels = getattr(self, "_port_viewmodels", {}) or {}
+
+        for row, port_key in enumerate(self._counter_ports):
+            if row >= len(self._counter_label_widgets):
+                continue
+
+            port_num = row + 1
+            port_name = tr(port_key, port_key.upper())
+            label_widget = self._counter_label_widgets[row]
+            label_widget.setText(tr("port_label_template", "{name}:", name=port_name))
+
+            viewmodel = port_viewmodels.get(port_num)
+            rx_count = viewmodel.rx_count if viewmodel else 0
+            tx_count = viewmodel.tx_count if viewmodel else 0
+            error_count = viewmodel.error_count if viewmodel else 0
+            conn_time = int(viewmodel.connection_time) if viewmodel else 0
+
+            rx_label = self._counter_labels.get(f"{port_key}_rx")
+            tx_label = self._counter_labels.get(f"{port_key}_tx")
+            error_label = self._counter_labels.get(f"{port_key}_error")
+            time_label = self._counter_labels.get(f"{port_key}_time")
+
+            if rx_label:
+                rx_label.setText(tr("rx_label", "RX: {count}", count=rx_count))
+            if tx_label:
+                tx_label.setText(tr("tx_label", "TX: {count}", count=tx_count))
+            if error_label:
+                error_label.setText(tr("error_label", "Errors: {count}", count=error_count))
+            if time_label:
+                time_label.setText(tr("time_label", "Time: {time}s", time=conn_time))
+
     def _update_stopwatch_status(self, formatted: str) -> None:
         label = getattr(self, "_stopwatch_status_label", None)
         if label is not None:
             label.setToolTip(tr("stopwatch_status", "Stopwatch"))
             label.setText(formatted)
             label.setAccessibleName(tr("stopwatch_status", "Stopwatch"))
+
+    def _update_stopwatch_group_title(self) -> None:
+        group = getattr(self, "_stopwatch_group", None)
+        if group is not None:
+            group.setTitle(tr("stopwatch_group", "Stopwatch"))
+        if hasattr(self, "_stopwatch_widget") and self._stopwatch_widget:
+            tooltip_text = tr("stopwatch_status", "Stopwatch")
+            self._stopwatch_widget.setToolTip(tooltip_text)
+            self._stopwatch_widget.setAccessibleName(tooltip_text)
 
     def _update_stopwatch_status_label_text(self) -> None:
         label = getattr(self, "_stopwatch_status_label", None)
@@ -1488,27 +1540,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._setup_menu()
 
-        for row, (port_num, port_key) in enumerate(zip([1, 2, 3], self._counter_ports)):
-            port_name = tr(port_key, port_key.upper())
-            label_text = tr("port_label_template", f"{{name}}:", name=port_name)
-            label_widget = self._counter_label_widgets[row]
-            label_widget.setText(label_text)
-
-            rx_label = self._counter_labels[f"{port_key}_rx"]
-            tx_label = self._counter_labels[f"{port_key}_tx"]
-            error_label = self._counter_labels[f"{port_key}_error"]
-            time_label = self._counter_labels[f"{port_key}_time"]
-            
-            rx_label.setText(tr("rx_label", f"RX: {{count}}", count=self._port_viewmodels[port_num].rx_count))
-
-            tx_label.setText(tr("tx_label", f"TX: {{count}}", count=self._port_viewmodels[port_num].tx_count))
-
-            if error_label:
-                error_label.setText(tr("error_label", f"Errors: {{count}}", count=self._port_viewmodels[port_num].error_count))
-
-            if time_label:
-                conn_time = self._port_viewmodels[port_num].connection_time
-                time_label.setText(tr("time_label", f"Time: {{time}}s", time=int(conn_time)))
+        self._update_counter_group_title()
+        self._update_counter_texts()
+        self._retranslate_stopwatch_block()
                     
         self._lbl_history_title.setText(tr("command_history", "Command History"))
         self._btn_open_history.setText(tr("history_open", "History"))
@@ -1699,12 +1733,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show()
             self.activateWindow()
             self.raise_()
+
     def _effective_scale_factor(self) -> float:
         screen = self.screen()
         if not screen:
             return 1.0
         dpi = screen.logicalDotsPerInch()
         return max(1.0, dpi / 96.0)
+
+    def _retranslate_stopwatch_block(self) -> None:
+        self._update_stopwatch_group_title()
+        self._update_stopwatch_status_label_text()
+
+
 class _CommandInputLineEdit(QtWidgets.QLineEdit):
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)

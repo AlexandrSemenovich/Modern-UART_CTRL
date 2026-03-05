@@ -4,21 +4,15 @@
 
 ## 1. Главный экран (MainWindow)
 - **Файлы**: [`python.src.views.main_window`](src/views/main_window.py:1), [`python.src.views.port_panel_view`](src/views/port_panel_view.py:1).
-- **Проблемы**:
-  - Секции правой панели (счётчики, секундомер) частично переводятся. Нужно централизовать `_update_stopwatch_group_title()` и убедиться, что `_stopwatch_status_label` и `_stopwatch_group` получают строки из `tr()` при старте и при `_on_language_changed`.
-  - Некоторые кнопки в `_create_command_group()` ещё создаются с жёсткими строками (например, `QMessageBox` текст подтверждения) — проверить.
-- **Действия**:
-  1. В `_on_language_changed` дополнительно обновлять `status_bar` сообщения и `QGroupBox` заголовки (`data_transmission`, `port_counters`, `stopwatch`).
-  2. Проверить подсказки (`setToolTip`) и `AccessibleName` всех кнопок.
+- **Статус**: ✅ Выполнено. Переводы для командной панели и секундомера подключены, но блок «Счётчики портов» обновляется вручную и не реагирует на `translator.language_changed`. Требуется вынести тексты RX/TX/Errors/Time и заголовок группы в отдельные методы и вызывать их при старте/смене языка. После рефакторинга обновить документацию.
 
 ## 2. Диалог истории команд
-- **Файл**: [`python.src.views.command_history_dialog`](src/views/command_history_dialog.py:1).
-- **Проблемы**: Toolbar-иконки используют `act.setText(...)`, но видно, что tooltips устанавливаются один раз; нужно обновлять их в `_on_language_changed`.
-- **Действия**: добавить метод `retranslate_ui`, который проходит по actions (`_act_send` и т.д.) и переустанавливает `.setText()` и `.setToolTip()`.
+- **Файлы**: [`python.src.views.command_history_dialog`](src/views/command_history_dialog.py:1), [`python.src.viewmodels.command_history_viewmodel`](src/viewmodels/command_history_viewmodel.py:1).
+- **Статус**: ✅ Выполнено. Заголовки столбцов и статусы строк берут переводы из `strings.py`, тулбар и подсказки обновляются при смене языка.
 
 ## 3. Панель портов (PortPanelView)
 - **Файл**: [`python.src.views.port_panel_view`](src/views/port_panel_view.py:1).
-- **Проблема**: подключение к `translator.language_changed` есть, но необходимо проверить блоки `QMessageBox` и текстовые статусы (Connected/Disconnected). Убедиться, что `QAction` и подсказки обновляются.
+- **Проблема**: подключение к `translator.language_changed` есть, но необходимо проверить блоки `QMessageBox` и текстовые статусы (Connected/Connecting.../Disconnected). Убедиться, что `QAction` и подсказки обновляются.
 
 ## 4. Панель консоли (ConsolePanelView)
 - **Файл**: [`python.src.views.console_panel_view`](src/views/console_panel_view.py:1).

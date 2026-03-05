@@ -13,6 +13,7 @@ import logging
 from PySide6 import QtCore
 
 from src.utils.paths import get_config_file
+from src.utils.translator import tr
 
 
 class CommandHistoryDisplay(NamedTuple):
@@ -204,12 +205,17 @@ class CommandHistoryModel(QtCore.QObject):
 class CommandHistoryTableModel(QtCore.QAbstractTableModel):
     """Qt model for binding command history to QTableView."""
 
-    HEADERS = ("command", "port", "status", "timestamp")
+    _STATUS_KEYS: dict[str, tuple[str, str]] = {
+        "success": ("history_status_success", "Success"),
+        "failed": ("history_status_failed", "Failed"),
+        "error": ("history_status_failed", "Failed"),
+    }
 
     def __init__(self, model: CommandHistoryModel, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)
         self._model = model
         model.entries_changed.connect(self._on_entries_changed)
+        self._headers: dict[int, str] = {}
 
     def _on_entries_changed(self) -> None:
         self.beginResetModel()
@@ -220,7 +226,7 @@ class CommandHistoryTableModel(QtCore.QAbstractTableModel):
         return 0 if parent and parent.isValid() else self._model.entry_count()
 
     def columnCount(self, parent: QtCore.QModelIndex | None = None) -> int:  # type: ignore[override]
-        return 0 if parent and parent.isValid() else len(self.HEADERS)
+        return 0 if parent and parent.isValid() else 4
 
     def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.DisplayRole):  # type: ignore[override]
         if not index.isValid():
@@ -229,7 +235,7 @@ class CommandHistoryTableModel(QtCore.QAbstractTableModel):
         column_map = {
             0: entry.command,
             1: entry.port,
-            2: entry.status,
+            2: self._status_display(entry.status),
             3: entry.timestamp,
         }
         if role in (QtCore.Qt.DisplayRole, QtCore.Qt.EditRole):
@@ -247,9 +253,23 @@ class CommandHistoryTableModel(QtCore.QAbstractTableModel):
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: int = QtCore.Qt.DisplayRole):  # type: ignore[override]
         if role != QtCore.Qt.DisplayRole or orientation != QtCore.Qt.Horizontal:
             return super().headerData(section, orientation, role)
-        if 0 <= section < len(self.HEADERS):
-            return self.HEADERS[section]
+        if section in self._headers:
+            return self._headers[section]
         return super().headerData(section, orientation, role)
+
+    def setHeaderData(self, section: int, orientation: QtCore.Qt.Orientation, value, role: int = QtCore.Qt.EditRole) -> bool:  # type: ignore[override]
+        if orientation == QtCore.Qt.Horizontal and role in (QtCore.Qt.DisplayRole, QtCore.Qt.EditRole):
+            self._headers[section] = str(value)
+            self.headerDataChanged.emit(QtCore.Qt.Horizontal, section, section)
+            return True
+        return super().setHeaderData(section, orientation, value, role)
+
+    def _status_display(self, status: str) -> str:
+        lookup = self._STATUS_KEYS.get(status.lower())
+        if lookup is None:
+            return status
+        key, default = lookup
+        return tr(key, default)
 
     def entry_at(self, row: int) -> CommandHistoryEntry | None:
         entries = self._model.entries()

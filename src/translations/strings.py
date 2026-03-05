@@ -174,6 +174,14 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "TX: {count}",
         "en": "TX: {count}",
     },
+    "error_label": {
+        "ru": "Ошибки: {count}",
+        "en": "Errors: {count}",
+    },
+    "time_label": {
+        "ru": "Время: {time} с",
+        "en": "Time: {time}s",
+    },
     "error_with_message": {
         "ru": "Ошибка: {message}",
         "en": "Error: {message}",
@@ -232,6 +240,14 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Закрыть",
         "en": "Close",
     },
+    "prev_match_symbol": {
+        "ru": "<",
+        "en": "<",
+    },
+    "next_match_symbol": {
+        "ru": ">",
+        "en": ">",
+    },
     "history_search_placeholder": {
         "ru": "Поиск...",
         "en": "Search...",
@@ -253,7 +269,7 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "en": "Status",
     },
     "history_column_timestamp": {
-        "ru": "Время",
+        "ru": "Метка времени",
         "en": "Timestamp",
     },
     "history_status_success": {
@@ -382,6 +398,14 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Язык",
         "en": "Language",
     },
+    "lang_label": {
+        "ru": "Язык:",
+        "en": "Lang:",
+    },
+    "switch_language": {
+        "ru": "Нажмите для смены языка",
+        "en": "Click to switch language",
+    },
     "russian": {
         "ru": "Русский",
         "en": "Russian",
@@ -409,6 +433,10 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "en": "Open Stopwatch",
     },
     "stopwatch": {
+        "ru": "Секундомер",
+        "en": "Stopwatch",
+    },
+    "stopwatch_group": {
         "ru": "Секундомер",
         "en": "Stopwatch",
     },
