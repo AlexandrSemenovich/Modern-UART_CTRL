@@ -367,7 +367,8 @@ class PortPanelView(QtWidgets.QGroupBox):
     def _animate_connect_button(self) -> None:
         """Animate the connect button with rotating indicator."""
         from src.styles.constants import Timing
-        frames = ["Connecting", "Connecting.", "Connecting..", "Connecting..."]
+        base = tr("connecting", "Connecting...").rstrip(".")
+        frames = [base, f"{base}.", f"{base}..", f"{base}..."]
         self._connect_animation_frame = (self._connect_animation_frame + 1) % Timing.CONNECT_ANIMATION_FRAMES
         self._connect_btn.setText(frames[self._connect_animation_frame])
 

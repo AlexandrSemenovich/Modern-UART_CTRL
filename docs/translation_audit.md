@@ -12,7 +12,7 @@
 
 ## 3. Панель портов (PortPanelView)
 - **Файл**: [`python.src.views.port_panel_view`](src/views/port_panel_view.py:1).
-- **Проблема**: подключение к `translator.language_changed` есть, но необходимо проверить блоки `QMessageBox` и текстовые статусы (Connected/Connecting.../Disconnected). Убедиться, что `QAction` и подсказки обновляются.
+- **Статус**: ✅ Выполнено. Все статические строки проходят через `tr()`, кнопки/подписи обновляются в `retranslate_ui()`, `translator.language_changed` подключён. Статусы «Подключение/Подключен/Отключен» используют ключи из `strings.py`, а fallback `QMessageBox` получает локализованный заголовок. Дополнительных `QAction` не используется.
 
 ## 4. Панель консоли (ConsolePanelView)
 - **Файл**: [`python.src.views.console_panel_view`](src/views/console_panel_view.py:1).
