@@ -31,3 +31,15 @@ def test_serial_worker_structure():
     assert hasattr(SerialWorker, 'rx')
     assert hasattr(SerialWorker, 'status')
     assert hasattr(SerialWorker, 'error')
+
+
+def test_stopwatch_modules_exist():
+    from src.utils import stopwatch
+    from src.viewmodels import stopwatch_viewmodel
+    from src.views.widgets import stopwatch_widget
+    from src.views import stopwatch_window
+
+    assert hasattr(stopwatch, 'StopwatchService')
+    assert hasattr(stopwatch_viewmodel, 'StopwatchViewModel')
+    assert hasattr(stopwatch_widget, 'StopwatchWidget')
+    assert hasattr(stopwatch_window, 'StopwatchWindow')

@@ -61,16 +61,13 @@
 2. Режим «tool window»: `self.setWindowFlag(Qt.Tool)` + `self.setAttribute(Qt.WA_DeleteOnClose, False)` чтобы переиспользовать окно.
 3. Поддержка тем/локализаций: подключиться к `theme_manager.theme_changed` и `translator.language_changed` аналогично `MainWindow`.
 
-## 6. Тестирование
+## 6. Тестирование *(выполнено)*
 
-1. **Юнит-тесты utils**
-   - `tests/utils/test_stopwatch_service.py`: проверка форматирования, старт/стоп, сброс, авто-режим (имитация сигналов через `QSignalSpy`).
-2. **ViewModel**
-   - `tests/viewmodels/test_stopwatch_viewmodel.py`: сигналы `time_changed`, ручные команды, реакция на `StopwatchService`.
-3. **Интеграция View**
-   - `tests/test_main_viewmodel.py` или новый `tests/test_stopwatch_widget.py`: фейковый ViewModel, проверка отображения, доступности кнопок.
-4. **Snapshot/стили**
-   - Расширить `tests/test_structure.py` для проверки наличия файлов и регистраций `StopwatchWidget`.
+1. **Юнит-тесты utils** — [`tests/utils/test_stopwatch_service.py`](tests/utils/test_stopwatch_service.py:1) переписан без `QSignalSpy`, проверяет формат времени, старт/стоп/сброс и гарантирует эмиссию `StopwatchState`.
+2. **ViewModel** — [`tests/viewmodels/test_stopwatch_viewmodel.py`](tests/viewmodels/test_stopwatch_viewmodel.py:1) подтверждает сигналы `time_changed` и команды `start/stop/reset`.
+3. **Интеграция View** — [`tests/test_stopwatch_widget.py`](tests/test_stopwatch_widget.py:1) проверяет построение UI и наличие основных виджетов.
+4. **Структура** — [`tests/test_structure.py`](tests/test_structure.py:36) содержит проверки существования модулей секундомера.
+5. **Следующие улучшения** — добавить smoke-тест `scripts/smoke_run.py` и визуальные snapshot-тесты для поддержания регрессий при будущей автоматизации.
 
 ## 7. Пошаговый план реализации
 
@@ -86,10 +83,12 @@
    - ✅ Добавить действие «Открыть секундомер» в меню View + QShortcut + Tray (по необходимости).
 5. **Переводы и стили** *(выполнено)*
    - ✅ Добавить строки в `translations`, классы стилей в QSS (например, `.stopwatch-display`).
-6. **Тесты**
-   - Реализовать тесты согласно разделу 6.
-7. **Документация**
+6. **Тесты**  *(выполнено)*
+   - ✅ Реализовать тесты согласно разделу 6 (см. выше).
+   - ✅ Добавить smoke-тест запуска приложения с секундомером (`scripts/smoke_run.py`) для проверки UI при разных темах.
+7. **Документация** *(в работе)*
    - Обновить [`docs/architecture.md`](docs/architecture.md) коротким описанием секундомера и его связей.
+   - Добавить раздел в [`README.md`](README.md) о горячих клавишах секундомера и отдельном окне (для QA).
 
 ## 8. Будущая автоматизация
 
