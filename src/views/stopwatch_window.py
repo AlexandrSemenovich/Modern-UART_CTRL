@@ -6,7 +6,7 @@ from PySide6 import QtWidgets, QtCore, QtGui
 
 from src.viewmodels.stopwatch_viewmodel import StopwatchViewModel
 from src.views.widgets.stopwatch_widget import StopwatchWidget
-from src.utils.translator import tr
+from src.utils.translator import tr, translator
 
 
 class StopwatchWindow(QtWidgets.QWidget):
@@ -36,10 +36,15 @@ class StopwatchWindow(QtWidgets.QWidget):
         layout.addWidget(card)
 
         self.resize(340, 220)
+        translator.language_changed.connect(self._on_language_changed)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:  # type: ignore[override]
         event.ignore()
         self.hide()
+
+    def _on_language_changed(self, *_args) -> None:
+        self.setWindowTitle(tr("stopwatch_window_title", "Stopwatch"))
+        self.setToolTip(tr("stopwatch_status", "Stopwatch"))
 
 
 __all__ = ["StopwatchWindow"]

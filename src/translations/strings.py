@@ -448,13 +448,25 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Старт",
         "en": "Start",
     },
+    "stopwatch_start_tooltip": {
+        "ru": "Запустить секундомер",
+        "en": "Start stopwatch",
+    },
     "stopwatch_stop": {
         "ru": "Стоп",
         "en": "Stop",
     },
+    "stopwatch_stop_tooltip": {
+        "ru": "Остановить секундомер",
+        "en": "Stop stopwatch",
+    },
     "stopwatch_reset": {
         "ru": "Сброс",
         "en": "Reset",
+    },
+    "stopwatch_reset_tooltip": {
+        "ru": "Сбросить секундомер",
+        "en": "Reset stopwatch",
     },
     "stopwatch_status": {
         "ru": "Секундомер",

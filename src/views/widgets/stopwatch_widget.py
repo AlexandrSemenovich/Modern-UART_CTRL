@@ -23,6 +23,7 @@ class StopwatchWidget(QtWidgets.QWidget):
         self._build_ui()
         self._bind_viewmodel()
         translator.language_changed.connect(self._retranslate_ui)
+        self.destroyed.connect(self._disconnect_translator)
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
@@ -83,8 +84,22 @@ class StopwatchWidget(QtWidgets.QWidget):
 
     def _retranslate_ui(self) -> None:
         self._btn_start.setText(tr("stopwatch_start", "Start"))
+        self._btn_start.setToolTip(tr("stopwatch_start_tooltip", "Start stopwatch"))
+        self._btn_start.setAccessibleName(tr("stopwatch_start_tooltip", "Start stopwatch"))
+
         self._btn_stop.setText(tr("stopwatch_stop", "Stop"))
+        self._btn_stop.setToolTip(tr("stopwatch_stop_tooltip", "Stop stopwatch"))
+        self._btn_stop.setAccessibleName(tr("stopwatch_stop_tooltip", "Stop stopwatch"))
+
         self._btn_reset.setText(tr("stopwatch_reset", "Reset"))
+        self._btn_reset.setToolTip(tr("stopwatch_reset_tooltip", "Reset stopwatch"))
+        self._btn_reset.setAccessibleName(tr("stopwatch_reset_tooltip", "Reset stopwatch"))
+
+    def _disconnect_translator(self) -> None:
+        try:
+            translator.language_changed.disconnect(self._retranslate_ui)
+        except (RuntimeError, TypeError):
+            pass
 
 
 __all__ = ["StopwatchWidget"]

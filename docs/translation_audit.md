@@ -24,11 +24,11 @@
 
 ## 6. Диалог секундомера (StopwatchWindow)
 - **Файл**: [`python.src.views.stopwatch_window`](src/views/stopwatch_window.py:1).
-- **Проблемы**: окно использует `StopwatchWidget`, но само название и `toolTip` окна нужно обновлять при смене языка (подписаться на `translator.language_changed`).
+- **Статус**: ✅ Выполнено. Окно подписано на `translator.language_changed`, `setWindowTitle` и `setToolTip` обновляются через `tr("stopwatch_window_title")` и `tr("stopwatch_status")`, сам `StopwatchWidget` уже реагирует на смену языка.
 
 ## 7. Виджет секундомера
 - **Файл**: [`python.src.views.widgets.stopwatch_widget`](src/views/widgets/stopwatch_widget.py:1).
-- **Проблемы**: кнопки уже используют `tr`, но требуется отписка от `translator.language_changed` при удалении (во избежание утечек). Добавить `def cleanup()` или переопределить `event` с `QEvent.LanguageChange`.
+- **Статус**: ✅ Выполнено. Виджет подключается к `translator.language_changed`, а сигнал автоматически отключается при уничтожении (через `destroyed.connect`). Кнопки обновляют подписи через `_retranslate_ui()`.
 
 ## 8. Диалог быстрых команд (QuickBlockEditor)
 - **Файл**: [`python.src/views/quick_block_editor_dialog`](src/views/quick_block_editor_dialog.py:1).
