@@ -28,6 +28,7 @@ class DummyWorker(QtCore.QObject):
         self._running = False
         self._port_name: str | None = None
         self._baud_rate: int | None = None
+        self.fatal_error = False
         DummyWorker.instances.append(self)
 
     @classmethod

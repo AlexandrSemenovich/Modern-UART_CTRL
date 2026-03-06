@@ -41,6 +41,8 @@ class WorkerContext:
     callbacks: WorkerCallbacks
     last_heartbeat: float
     stopping: bool = False
+    awaiting_first_heartbeat: bool = True
+    fatal_stop: bool = False
 
 
 class SerialWorkerSupervisor(QtCore.QObject):
@@ -125,6 +127,7 @@ class SerialWorkerSupervisor(QtCore.QObject):
         context = self._contexts.get(port_label)
         if context:
             context.last_heartbeat = timestamp
+            context.awaiting_first_heartbeat = False
 
     def _handle_finished(self, port_label: str) -> None:
         context = self._contexts.get(port_label)
@@ -133,6 +136,16 @@ class SerialWorkerSupervisor(QtCore.QObject):
 
         ctx = context
         if ctx.stopping:
+            ctx.callbacks.on_finished()
+            self._contexts.pop(port_label, None)
+            return
+
+        if ctx.worker.fatal_error:
+            ctx.callbacks.on_finished()
+            self._contexts.pop(port_label, None)
+            return
+
+        if not ctx.worker.isRunning():
             ctx.callbacks.on_finished()
             self._contexts.pop(port_label, None)
             return
@@ -154,6 +167,8 @@ class SerialWorkerSupervisor(QtCore.QObject):
         now = time.monotonic()
         for port_label, context in list(self._contexts.items()):
             if context.stopping:
+                continue
+            if context.awaiting_first_heartbeat and now - context.last_heartbeat <= self._heartbeat_timeout:
                 continue
             if now - context.last_heartbeat > self._heartbeat_timeout:
                 logger.warning("Watchdog timeout for %s; restarting worker", port_label)

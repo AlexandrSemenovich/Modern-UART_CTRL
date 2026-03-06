@@ -193,6 +193,7 @@ class SerialWorker(QThread):
         self._connection_start_time: float = 0.0
         self._connection_timeout_reached: bool = False
         self._connection_attempts: int = 0
+        self._fatal_error: bool = False
 
         # Logging level override
         self._log_level: int | None = self._config.get('log_level')
@@ -352,15 +353,19 @@ class SerialWorker(QThread):
             return ser
         
         except SerialException as e:
-            self._connection_attempts += 1
             logger.error(f"Serial connection error (attempt {self._connection_attempts}): {e}")
             self._emit_error(tr("worker_open_error", f"Open error ({{port_name}}): {{error}}", port_name=self._port_name or "N/A", error=e))
+            if self._is_fatal_port_error(e):
+                self._fatal_error = True
+                self._should_stop = True
             return None
-        
+
         except Exception as e:
-            self._connection_attempts += 1
             logger.exception(f"Unexpected error during connection (attempt {self._connection_attempts}): {e}")
             self._emit_error(tr("worker_open_error", f"Connection error: {{error}}", error=e))
+            if self._is_fatal_port_error(e):
+                self._fatal_error = True
+                self._should_stop = True
             return None
     
     def _handle_read_error(self, error: Exception) -> bool:
@@ -371,13 +376,17 @@ class SerialWorker(QThread):
             True if should continue, False if too many errors
         """
         if isinstance(error, SerialException):
-            # Handle permission errors gracefully
             logger.warning(f"Serial exception on {self._port_label}: {error}")
             self._emit_error(str(error))
         else:
             logger.warning(f"Unexpected error in read loop: {error}")
             self._emit_error(str(error))
-        
+
+        if self._is_fatal_port_error(error):
+            self._fatal_error = True
+            self._should_stop = True
+            return False
+
         self._consecutive_errors += 1
         if self._consecutive_errors >= self.MAX_CONSECUTIVE_ERRORS:
             logger.error(f"Too many consecutive errors, stopping {self._port_label}")
@@ -409,6 +418,8 @@ class SerialWorker(QThread):
         
         ser = None
         for attempt in range(1, self.MAX_CONNECTION_ATTEMPTS + 1):
+            if self._should_stop:
+                break
             self._connection_attempts = attempt
             try:
                 ser = self._open_connection()
@@ -421,12 +432,36 @@ class SerialWorker(QThread):
                 connection_error = str(e)
                 logger.exception(f"Unexpected error during connection attempt {attempt}: {e}")
                 self._emit_error(tr("worker_open_error", f"Connection error: {{error}}", error=e))
+            if self._should_stop:
+                break
             if ser is None:
                 delay = self.CONNECTION_RETRY_DELAY * attempt
                 logger.warning(f"Retrying connection to {self._port_label} in {delay:.2f}s (attempt {attempt}/{self.MAX_CONNECTION_ATTEMPTS})")
                 time.sleep(delay)
         if ser is None:
-            self._handle_simulation_mode()
+            if self._should_stop:
+                self._cleanup(None)
+                self.finished.emit()
+                return
+            if connection_error:
+                self._emit_error(
+                    tr(
+                        "worker_connection_failed",
+                        "Failed to connect after {attempts} attempts: {error}",
+                        attempts=self.MAX_CONNECTION_ATTEMPTS,
+                        error=connection_error,
+                    )
+                )
+            else:
+                self._emit_error(
+                    tr(
+                        "worker_connection_failed",
+                        "Failed to connect after {attempts} attempts",
+                        attempts=self.MAX_CONNECTION_ATTEMPTS,
+                    )
+                )
+            self._cleanup(None)
+            self.finished.emit()
             return
         
         # Main loop with simplified exception handling using helper method
@@ -438,7 +473,10 @@ class SerialWorker(QThread):
                     if elapsed > self.CONNECTION_TIMEOUT:
                         logger.warning(f"Connection timeout for {self._port_label}")
                         self._emit_error(tr("worker_connection_timeout", "Connection timeout"))
+                        # Treat connection timeout as fatal to avoid endless restarts
+                        self._fatal_error = True
                         self._connection_timeout_reached = True
+                        self._should_stop = True
                         self._running = False
                         break
                 
@@ -697,6 +735,9 @@ class SerialWorker(QThread):
         except Exception as e:
             logger.exception(f"Write error on {self._port_label}: {e}")
             self._emit_error(tr("worker_write_error", f"Write error ({{port_name}}): {{error}}", port_name=self._port_name or "N/A", error=e))
+            if self._is_fatal_port_error(e):
+                self._fatal_error = True
+                self._should_stop = True
             return False
     
     def _emit_status(self, message: str) -> None:
@@ -713,7 +754,34 @@ class SerialWorker(QThread):
         if now - self._last_heartbeat_emit >= self._heartbeat_interval:
             self._last_heartbeat_emit = now
             self.heartbeat.emit(self._port_label, now)
-    
+
+    def _is_fatal_port_error(self, error: Exception) -> bool:
+        to_check = [error]
+        original = getattr(error, "original_exception", None)
+        if original and original is not error:
+            to_check.append(original)
+
+        fatal_tokens = [
+            "превышен таймаут семафора",
+            "semaphore timeout",
+            "access is denied",
+            "permission",
+            "error 121",
+        ]
+
+        for candidate in to_check:
+            errno = getattr(candidate, "errno", None)
+            if errno in {5, 121}:
+                return True
+            message = str(candidate).lower()
+            if any(token in message for token in fatal_tokens):
+                return True
+        return False
+
+    @property
+    def fatal_error(self) -> bool:
+        return self._fatal_error
+
     def write(self, data: str) -> bool:
         """
         Queue a string to be written to the serial port.

@@ -241,6 +241,27 @@ class TestSerialWorkerEdgeCases:
         assert hasattr(worker, 'MAX_WRITE_SIZE')
         assert worker.MAX_WRITE_SIZE == 65536
 
+    def test_open_connection_semaphore_timeout_stops_retry(self, monkeypatch):
+        """SerialWorker should stop retrying on semaphore timeout errors."""
+
+        worker = SerialWorker('CPU1')
+        worker.configure('COM27', 115200)
+
+        class FakeOSError(OSError):
+            def __init__(self):
+                super().__init__(22, 'Превышен таймаут семафора.', None, 121)
+
+        monkeypatch.setattr(
+            'src.models.serial_worker.serial.Serial',
+            lambda *args, **kwargs: (_ for _ in ()).throw(FakeOSError()),
+        )
+
+        with patch.object(worker, '_cleanup') as cleanup_mock, patch.object(worker, 'finished') as finished_mock:
+            finished_mock.emit = MagicMock()
+            worker.run()
+            cleanup_mock.assert_called()
+            finished_mock.emit.assert_called()
+
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

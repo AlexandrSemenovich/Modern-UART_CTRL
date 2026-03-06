@@ -294,7 +294,7 @@ class TestErrorCounter:
                 pass
             
             def _safe_stop_worker(self):
-                pass
+                self._worker_stopped = True
             
             def _on_error(self, port_label: str, error_message: str) -> None:
                 self._error_count += 1

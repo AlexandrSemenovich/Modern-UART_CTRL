@@ -238,6 +238,11 @@ class PortPanelView(QtWidgets.QGroupBox):
     
     def _on_connect_clicked(self) -> None:
         """Handle connect/disconnect button click."""
+        logger.info(
+            "Connect button clicked for %s (port %s)",
+            self._viewmodel.port_label,
+            self._port_combo.currentText().strip() or "<empty>",
+        )
         state = normalize_state(self._viewmodel.state)
         if state in (
             PortConnectionState.CONNECTED,
@@ -324,6 +329,10 @@ class PortPanelView(QtWidgets.QGroupBox):
             # Gray for disconnected
             state_name = "disconnected"
             self._stop_led_pulse_animation()
+            if hasattr(self, "_connect_btn") and self._connect_btn:
+                # Keep connect button enabled even when internal state is connecting,
+                # so that user can break any pending attempt
+                self._connect_btn.setEnabled(True)
 
         self._led_indicator.setProperty("ledState", state_name)
         self._led_indicator.style().unpolish(self._led_indicator)

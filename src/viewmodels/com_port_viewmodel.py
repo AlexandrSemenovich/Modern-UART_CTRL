@@ -83,6 +83,7 @@ class ComPortViewModel(QObject):
         self._tx_bytes: int = 0
         self._error_count: int = 0
         self._connection_time: float = 0.0  # Monotonic time when connected
+        self._fatal_error_blocked: bool = False
         
         # Serial worker
         self._supervisor = SerialWorkerSupervisor(port_label, ipc_ports=[port_label], parent=self)
@@ -215,7 +216,11 @@ class ComPortViewModel(QObject):
         if self._state == PortConnectionState.CONNECTED:
             logger.warning(f"Port {self._port_label} already connected")
             return False
-        
+
+        if self._fatal_error_blocked:
+            self._emit_error(tr("error_fatal_blocked", "Previous fatal error; reconnect not allowed"))
+            return False
+
         if not self._port_name:
             self._emit_error(tr("error_no_port", "No port selected"))
             return False
@@ -337,6 +342,9 @@ class ComPortViewModel(QObject):
             return
 
         self._safe_stop_worker()
+
+        if self._fatal_error_blocked:
+            self._fatal_error_blocked = False
 
         # Release port from active ports
         port_manager.release(self._port_name)
@@ -467,16 +475,23 @@ class ComPortViewModel(QObject):
         self._error_count += 1
         self._emit_counter_update()
         
-        # Surface error to UI and mark the port as faulted
+
+        if self._is_fatal_access_error(error_message):
+            self._fatal_error_blocked = True
+            self._set_state(PortConnectionState.DISCONNECTED)
+            self.send_completed.emit()
+            self._safe_stop_worker()
+            return
+
         self._set_state(PortConnectionState.ERROR)
         self._emit_error(error_message)
-        
+
         # Emit send completed to reset animation
         self.send_completed.emit()
 
         # Ensure worker is stopped
         self._safe_stop_worker()
-    
+
     def _on_status_changed(self, port_label: str, status_message: str) -> None:
         """
         Handle status update from serial worker.
@@ -496,7 +511,8 @@ class ComPortViewModel(QObject):
             # Track connection time using monotonic time (immune to system time changes)
             self._connection_time = time.monotonic()
         elif status_message == disconnected_msg:
-            self._set_state(PortConnectionState.DISCONNECTED)
+            if not self._fatal_error_blocked:
+                self._set_state(PortConnectionState.DISCONNECTED)
         elif status_message == connecting_msg:
             self._set_state(PortConnectionState.CONNECTING)
 
@@ -581,10 +597,26 @@ class ComPortViewModel(QObject):
             self._set_state(PortConnectionState.DISCONNECTED)
 
     def _safe_stop_worker(self) -> None:
-        if self._worker:
+        if not self._worker:
+            return
+
+        try:
+            self._supervisor.stop_worker(self._port_label)
+        except RuntimeError:
+            # Fallback to direct stop if supervisor context is already gone
             try:
                 self._worker.stop()
                 if self._worker.isRunning():
                     self._worker.wait(1000)
             except RuntimeError:
                 pass
+
+    def _is_fatal_access_error(self, message: str) -> bool:
+        fatal_tokens = [
+            "превышен таймаут семафора",
+            "access is denied",
+            "permission",
+            "error 121",
+        ]
+        lowered = message.lower()
+        return any(token in lowered for token in fatal_tokens)

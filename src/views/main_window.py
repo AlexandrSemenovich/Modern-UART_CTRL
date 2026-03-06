@@ -1473,9 +1473,27 @@ class MainWindow(QtWidgets.QMainWindow):
             self._console_panel.toggle_search_bar()
     
     def _reconnect_all_ports(self) -> None:
-        """Reconnect all disconnected ports."""
+        """Reconnect all disconnected ports that are not blocked by fatal errors."""
+        logger.info("Ctrl+F5 reconnect requested")
         for port_num, viewmodel in self._port_viewmodels.items():
+            fatal_blocked = False
+            # Use public API when available to detect fatal block state
+            if hasattr(viewmodel, "is_fatal_error_blocked") and callable(getattr(viewmodel, "is_fatal_error_blocked")):
+                fatal_blocked = bool(viewmodel.is_fatal_error_blocked())
+            else:
+                fatal_blocked = bool(getattr(viewmodel, "_fatal_error_blocked", False))
+
+            if fatal_blocked:
+                logger.warning(
+                    "Skipping reconnect for %s due to fatal error block",
+                    viewmodel.port_label,
+                )
+                continue
+
             if not viewmodel.is_connected:
+                logger.info(
+                    "Triggering reconnect for %s via MainWindow", viewmodel.port_label
+                )
                 viewmodel.connect()
     
     def _set_ui_scale(self, scale_factor: float) -> None:
