@@ -648,20 +648,9 @@ QLabel#quick-block-indicator[blockState="idle"] {
     background: palette(midlight);
 }
 
-QPushButton[semanticRole="quick_block_on"] {
-    background: palette(base);
-    border: 1px solid palette(mid);
-}
-
-QPushButton[semanticRole="quick_block_off"] {
-    background: palette(base);
-    border: 1px solid palette(mid);
-}
-
 /* Unified card container */
 QFrame.card,
 QFrame#counter_card,
-QFrame#stopwatch_window_card,
 .StopwatchWidget #stopwatch_card {
     background: palette(window);
     border-radius: 12px;
