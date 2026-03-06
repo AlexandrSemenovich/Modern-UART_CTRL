@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PySide6 import QtWidgets, QtCore, QtGui
 
+from src.styles.constants import Sizes
 from src.viewmodels.stopwatch_viewmodel import StopwatchViewModel
 from src.views.widgets.stopwatch_widget import StopwatchWidget
 from src.utils.translator import tr, translator
@@ -22,10 +23,15 @@ class StopwatchWindow(QtWidgets.QWidget):
         self.setWindowTitle(tr("stopwatch_window_title", "Stopwatch"))
         self._viewmodel = viewmodel
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+        )
 
         card = QtWidgets.QFrame()
-        card.setObjectName("stopwatch_window_card")
+        card.setProperty("class", "card")
         card.setFrameShape(QtWidgets.QFrame.StyledPanel)
         card.setFrameShadow(QtWidgets.QFrame.Plain)
         card_layout = QtWidgets.QVBoxLayout(card)

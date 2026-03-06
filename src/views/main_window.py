@@ -170,9 +170,7 @@ class MainWindow(QtWidgets.QMainWindow):
         status_bar.setContentsMargins(Sizes.LAYOUT_MARGIN, 2, Sizes.LAYOUT_MARGIN, 2)
         status_bar.setSizeGripEnabled(False)
         status_bar.setMinimumHeight(int(Sizes.INPUT_MIN_HEIGHT * 0.75))
-        status_bar.setStyleSheet(
-            "QStatusBar { background-color: palette(window); border-top: 1px solid palette(mid); }"
-        )
+        status_bar.setStyleSheet("QStatusBar { background-color: palette(window); border-top: 1px solid palette(mid); }")
         status_bar.showMessage(tr("ready", "Ready"))
         
         info_layout = QtWidgets.QHBoxLayout()
@@ -401,7 +399,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._left_panel = self._create_left_panel()
         left_panel = self._left_panel
         left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
-        left_panel.setMaximumWidth(Sizes.LEFT_PANEL_MAX_WIDTH)
+        left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
         left_panel.setObjectName("left_panel")
         hsplit.addWidget(left_panel)
         
@@ -414,7 +412,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # RIGHT PANEL: Counters + Quick Blocks
         self._right_panel = self._create_right_panel()
         self._right_panel.setMinimumWidth(Sizes.RIGHT_PANEL_MIN_WIDTH)
-        self._right_panel.setMaximumWidth(Sizes.RIGHT_PANEL_MAX_WIDTH)
         self._right_panel.setObjectName("right_panel")
         hsplit.addWidget(self._right_panel)
         
@@ -467,8 +464,10 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(content)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
+            Sizes.LAYOUT_MARGIN * 1,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
         )
         
         # Create ViewModels and Views for each port
@@ -555,8 +554,10 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout()
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
         )
         
         # Command input
@@ -681,20 +682,18 @@ class MainWindow(QtWidgets.QMainWindow):
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+        scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
         content = QtWidgets.QWidget()
-        content.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        content.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         layout = QtWidgets.QVBoxLayout(content)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
-        layout.setContentsMargins(
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
-        )
+        layout.setContentsMargins(0, 0, 0, 0)
         
         # Counters group - restructured for better readability
         counters_grp = QtWidgets.QGroupBox()
         self._counters_group = counters_grp
+        counters_grp.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self._update_counter_group_title()
         counters_layout = QtWidgets.QVBoxLayout()  # Vertical layout for ports
         counters_layout.setSpacing(16)  # More spacing between ports
@@ -702,7 +701,10 @@ class MainWindow(QtWidgets.QMainWindow):
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
             Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
         )
-        
+
+        counters_grp.setProperty("class", "card")
+        counters_grp.setStyleSheet("QGroupBox { margin-top: 8px; }")
+
         # Counter labels
         self._counter_labels: dict[str, QtWidgets.QLabel] = {}
         
@@ -713,9 +715,10 @@ class MainWindow(QtWidgets.QMainWindow):
         for port_key in self._counter_ports:
             # Create a card-like container for each port
             port_card = QtWidgets.QFrame()
-            port_card.setObjectName("counter_card")
+            port_card.setProperty("class", "card")
+            port_card.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
             port_card_layout = QtWidgets.QVBoxLayout(port_card)
-            port_card_layout.setSpacing(4)
+            port_card_layout.setSpacing(Sizes.LAYOUT_SPACING)
             port_card_layout.setContentsMargins(
                 Sizes.CARD_MARGIN, Sizes.CARD_MARGIN,
                 Sizes.CARD_MARGIN, Sizes.CARD_MARGIN
@@ -770,6 +773,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Stopwatch group
         self._stopwatch_group = QtWidgets.QGroupBox()
+        self._stopwatch_group.setProperty("class", "card")
+        self._stopwatch_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         stopwatch_layout = QtWidgets.QVBoxLayout()
         stopwatch_layout.setSpacing(Sizes.LAYOUT_SPACING)
         stopwatch_layout.setContentsMargins(
@@ -790,7 +795,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
         layout.addStretch()
         content.setLayout(layout)
-        scroll_area.setWidget(content)
+
+        wrapper = QtWidgets.QWidget()
+        wrapper_layout = QtWidgets.QHBoxLayout(wrapper)
+        wrapper_layout.setContentsMargins(
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+        )
+        wrapper_layout.setSpacing(0)
+        wrapper_layout.addWidget(content)
+        scroll_area.setWidget(wrapper)
 
         return scroll_area
 

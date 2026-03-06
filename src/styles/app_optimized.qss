@@ -658,11 +658,35 @@ QPushButton[semanticRole="quick_block_off"] {
     border: 1px solid palette(mid);
 }
 
-/* Counter cards */
-QFrame#counter_card {
-    background: palette(base);
-    border-radius: 16px;
+/* Unified card container */
+QFrame.card,
+QFrame#counter_card,
+QFrame#stopwatch_window_card,
+.StopwatchWidget #stopwatch_card {
+    background: palette(window);
+    border-radius: 12px;
+    border: 1px solid palette(mid);
     padding: 8px;
+    min-width: 220px;
+}
+
+QGroupBox.card {
+    background: palette(window);
+    border-radius: 12px;
+    border: 1px solid palette(mid);
+    margin-top: 0;
+    padding: 24px 16px 16px 16px;
+}
+
+QGroupBox.card::title {
+    subcontrol-origin: border;
+    subcontrol-position: top left;
+    left: 16px;
+    top: 6px;
+    padding: 0 8px;
+    color: palette(window-text);
+    font-weight: 600;
+    background: transparent;
 }
 
 /* Toast notifications */
@@ -769,9 +793,11 @@ QLabel#history_search_results {
     padding: 0 4px;
 }
 .StopwatchWidget QLabel#stopwatch_display {
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    color: #0d0d0d;
+    font-family: "Cascadia Code", Consolas, "OCR A Extended", monospace;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    color: palette(text);
     background: transparent;
     border: none;
     padding: 4px 6px;
@@ -779,14 +805,7 @@ QLabel#history_search_results {
 
 .StopwatchWidget QPushButton {
     min-width: 0;
-}
-.StopwatchWidget QLabel#stopwatch_display {
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
-.StopwatchWidget QPushButton {
-    min-width: 0;
+    min-height: 28px;
 }
 
 QLabel#stopwatch_status_label {
@@ -807,4 +826,9 @@ QFrame#stopwatch_window_card {
     border: 1px solid palette(mid);
     border-radius: 12px;
     background: palette(window);
+}
+
+
+.StopwatchWidget QPushButton {
+    min-height: 28px;
 }

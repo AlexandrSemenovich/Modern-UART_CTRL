@@ -36,11 +36,16 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(Sizes.LAYOUT_SPACING)
+        layout.setContentsMargins(
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+        )
 
         form = QtWidgets.QFormLayout()
-        form.setSpacing(8)
+        form.setSpacing(Sizes.LAYOUT_SPACING)
         form.setLabelAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
 
         self._title_edit = QtWidgets.QLineEdit()
@@ -48,6 +53,7 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         form.addRow(self._title_label, self._title_edit)
 
         group_row = QtWidgets.QHBoxLayout()
+        group_row.setSpacing(Sizes.LAYOUT_SPACING // 2)
         self._group_combo = QtWidgets.QComboBox()
         group_row.addWidget(self._group_combo, 1)
         add_group_btn = QtWidgets.QToolButton()
@@ -74,6 +80,7 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         form.addRow("", self._mode_checkbox)
 
         hotkey_row = QtWidgets.QHBoxLayout()
+        hotkey_row.setSpacing(Sizes.LAYOUT_SPACING // 2)
         self._hotkey_edit = QtWidgets.QKeySequenceEdit()
         self._hotkey_edit.editingFinished.connect(self._update_hotkey_status)
         hotkey_row.addWidget(self._hotkey_edit, 1)

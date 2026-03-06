@@ -28,12 +28,12 @@ class StopwatchWidget(QtWidgets.QWidget):
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(Sizes.LAYOUT_SPACING)
 
         card = QtWidgets.QFrame()
-        card.setObjectName("stopwatch_card")
+        card.setProperty("class", "card")
         card_layout = QtWidgets.QVBoxLayout(card)
-        card_layout.setSpacing(8)
+        card_layout.setSpacing(Sizes.LAYOUT_SPACING)
         card_layout.setContentsMargins(
             Sizes.CARD_MARGIN,
             Sizes.CARD_MARGIN,
@@ -42,7 +42,8 @@ class StopwatchWidget(QtWidgets.QWidget):
         )
 
         self._lbl_display = QtWidgets.QLabel("00 00:00:00.000")
-        display_font = QtGui.QFont("OCR A Extended", 32)
+        display_font = Fonts.get_monospace_font()
+        display_font.setPointSize(display_font.pointSize() + 16)
         display_font.setStyleHint(QtGui.QFont.Monospace)
         display_font.setFixedPitch(True)
         self._lbl_display.setFont(display_font)
@@ -56,6 +57,13 @@ class StopwatchWidget(QtWidgets.QWidget):
         self._btn_start = QtWidgets.QPushButton()
         self._btn_stop = QtWidgets.QPushButton()
         self._btn_reset = QtWidgets.QPushButton()
+
+        self._btn_start.setProperty("class", "btn-primary")
+        self._btn_stop.setProperty("class", "btn-secondary")
+        self._btn_reset.setProperty("class", "btn-ghost")
+
+        for button in (self._btn_start, self._btn_stop, self._btn_reset):
+            button.setMinimumHeight(Sizes.BUTTON_MIN_HEIGHT)
         self._retranslate_ui()
 
         buttons_layout.addWidget(self._btn_start)

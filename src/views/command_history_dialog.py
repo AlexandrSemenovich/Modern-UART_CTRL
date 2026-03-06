@@ -166,8 +166,6 @@ class CommandHistoryDialog(QtWidgets.QDialog):
         self._btn_close.setMinimumHeight(Sizes.BUTTON_MIN_HEIGHT)
         self._btn_close.setMaximumWidth(Sizes.BUTTON_MAX_WIDTH)
         self._btn_close.setProperty("class", "btn-secondary")
-        self._btn_close.style().unpolish(self._btn_close)
-        self._btn_close.style().polish(self._btn_close)
         bottom_row.addWidget(self._btn_close)
 
         layout.addLayout(bottom_row)
