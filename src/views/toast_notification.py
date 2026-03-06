@@ -13,6 +13,7 @@ from PySide6 import QtWidgets, QtCore, QtGui
 import logging
 
 from src.styles.constants import ToastConfig
+from src.utils.translator import tr, translator
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,15 @@ class ToastNotification(QtWidgets.QFrame):
     WARNING = "warning"
     ERROR = "error"
     
+    CLOSE_SYMBOL = "×"
+
+    ICON_MAP: dict[str, str] = {
+        INFO: "ℹ",
+        SUCCESS: "✓",
+        WARNING: "⚠",
+        ERROR: "✕"
+    }
+
     def __init__(
         self,
         message: str,
@@ -40,9 +50,10 @@ class ToastNotification(QtWidgets.QFrame):
         self._message = message
         self._toast_type = toast_type
         self._duration_ms = duration_ms
-        
+
         self._setup_ui()
         self._apply_style()
+        translator.language_changed.connect(self._on_language_changed)
         
     def _setup_ui(self) -> None:
         """Create and layout the toast UI."""
@@ -70,7 +81,7 @@ class ToastNotification(QtWidgets.QFrame):
         layout.addWidget(self._icon_label)
 
         # Message label (compact - just the message)
-        self._message_label = QtWidgets.QLabel(self._message)
+        self._message_label = QtWidgets.QLabel()
         self._message_label.setObjectName("toast_message")
         self._message_label.setWordWrap(False)
         self._message_label.setSizePolicy(
@@ -81,7 +92,7 @@ class ToastNotification(QtWidgets.QFrame):
         layout.addWidget(self._message_label)
         
         # Close button (single)
-        self._close_btn = QtWidgets.QPushButton("×")
+        self._close_btn = QtWidgets.QPushButton(self.CLOSE_SYMBOL)
         self._close_btn.setFixedSize(20, 20)
         self._close_btn.setObjectName("toast_close")
         self._close_btn.setCursor(QtCore.Qt.PointingHandCursor)
@@ -98,13 +109,8 @@ class ToastNotification(QtWidgets.QFrame):
         self.update()
         
         # Set icon based on type
-        icon_map = {
-            self.INFO: "ℹ",
-            self.SUCCESS: "✓",
-            self.WARNING: "⚠",
-            self.ERROR: "✕"
-        }
-        self._icon_label.setText(icon_map.get(self._toast_type, "ℹ"))
+        self._icon_label.setText(self._icon_for_type())
+        self._message_label.setText(self._message)
         
     def showEvent(self, event: QtCore.QEvent) -> None:
         """Start auto-dismiss timer when shown."""
@@ -119,6 +125,19 @@ class ToastNotification(QtWidgets.QFrame):
         # Notify manager to remove from list
         if hasattr(self, '_manager'):
             self._manager._on_toast_closed(self)
+        try:
+            translator.language_changed.disconnect(self._on_language_changed)
+        except Exception:
+            pass
+
+    def _on_language_changed(self, *_args) -> None:
+        self._message_label.setText(self._message)
+        self._close_btn.setToolTip(tr("toast_close", "Close notification"))
+        self._icon_label.setText(self._icon_for_type())
+
+    def _icon_for_type(self, toast_type: str | None = None) -> str:
+        target_type = toast_type or self._toast_type
+        return self.ICON_MAP.get(target_type, self.ICON_MAP[self.INFO])
         
 
 

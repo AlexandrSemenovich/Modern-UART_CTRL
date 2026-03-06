@@ -76,6 +76,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         translator.language_changed.connect(self.retranslate_ui)
         theme_manager.theme_changed.connect(self._on_theme_changed)
         self._on_theme_changed()
+        self._build_context_menu()
         
         # Initial port scan
         QTimer.singleShot(100, self._scan_ports)
@@ -141,6 +142,8 @@ class PortPanelView(QtWidgets.QGroupBox):
         layout.addRow(self._connect_btn)
         
         self.setLayout(layout)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
     
     def _connect_signals(self) -> None:
         """Connect UI signals to handlers."""
@@ -455,11 +458,13 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._lbl_baud.setText(tr("baud_rate", "Baud:"))
         self._scan_btn.setText(tr("scan", "Scan"))
         self._update_connect_button_text(self._viewmodel.state)
+        self._localize_context_menu()
 
     def _on_theme_changed(self, *_args) -> None:
         """Refresh status colors when global theme switches."""
         self._apply_theme_to_all_buttons()
         self._update_connect_button_text(self._viewmodel.state)
+        self._localize_context_menu()
 
     def _register_button(
         self,
@@ -493,3 +498,40 @@ class PortPanelView(QtWidgets.QGroupBox):
 
     def _refresh_widget_style(self, widget: QtWidgets.QWidget) -> None:
         widget.update()
+
+    def _build_context_menu(self) -> None:
+        self._context_menu = QtWidgets.QMenu(self)
+        self._action_connect = self._context_menu.addAction("")
+        self._action_connect.triggered.connect(self._on_connect_clicked)
+        self._action_scan = self._context_menu.addAction("")
+        self._action_scan.triggered.connect(self._scan_ports)
+        self._context_menu.addSeparator()
+        self._action_warn = self._context_menu.addAction("")
+        self._action_warn.triggered.connect(
+            lambda: self._show_toast_warning(
+                tr("operation_in_progress", "Operation already in progress")
+            )
+        )
+        self._localize_context_menu()
+
+    def _localize_context_menu(self) -> None:
+        if not hasattr(self, "_context_menu"):
+            return
+        current_state = normalize_state(self._viewmodel.state)
+        if hasattr(self, "_action_connect") and self._action_connect:
+            text = (
+                tr("disconnect", "Disconnect")
+                if current_state == PortConnectionState.CONNECTED
+                else tr("connect", "Connect")
+            )
+            self._action_connect.setText(text)
+        if hasattr(self, "_action_scan") and self._action_scan:
+            self._action_scan.setText(tr("scan_ports", "Scan Ports"))
+        if hasattr(self, "_action_warn") and self._action_warn:
+            self._action_warn.setText(tr("cancel_operation", "Cancel Operation"))
+
+    def _show_context_menu(self, pos: QtCore.QPoint) -> None:
+        if not hasattr(self, "_context_menu"):
+            return
+        self._localize_context_menu()
+        self._context_menu.exec(self.mapToGlobal(pos))

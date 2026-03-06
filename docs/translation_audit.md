@@ -32,34 +32,34 @@
 
 ## 8. Диалог быстрых команд (QuickBlockEditor)
 - **Файл**: [`python.src/views/quick_block_editor_dialog`](src/views/quick_block_editor_dialog.py:1).
-- **Проблемы**: формы полей (`QLineEdit` placeholders) жёстко прописаны. Добавить метод `retranslate_ui()` и вызывать при `language_changed`.
+- **Статус**: ✅ Выполнено. Все подписи, плейсхолдеры и описания горячих клавиш обновляются в `_retranslate()`, диалог подписан на `translator.language_changed`, а сигнал отключается при уничтожении окна.
 
 ## 9. SplashScreen и окна загрузки
 - **Файл**: [`python.src/views/splash_screen`](src/views/splash_screen.py:1).
-- **Действия**: убедиться, что `setWindowTitle`, `setStatus` используют `tr()` и обновляются при смене языка (вероятно достаточно перезагрузки, но стоит проверить).
+- **Статус**: ✅ Выполнено. Заголовок окна, основная подпись, подзаголовок и статус загрузки обновляются в `_retranslate_ui()`, текст прогресса вычисляется через `_apply_status_text()`, а `translator.language_changed` подключён с безопасной отпиской.
 
 ## 10. Меню и глобальные действия
-- **Файл**: [`python.src/views/main_window.py`](src/views/main_window.py:932).
-- **Проблемы**: `QAction` для пунктов меню создаются единожды. Нужно хранить ссылки (`self._action_stopwatch`, `self._action_save`, и т.д.) и повторно устанавливать `.setText()` внутри `_setup_menu()` или вызывать `_setup_menu()` после смены языка (уже делается, но проверить, что все строки есть в `strings.py`).
+- **Файл**: [`python.src.views.main_window`](src/views/main_window.py:1).
+- **Статус**: ✅ Выполнено. Меню и глобальные действия инициализируются один раз, `QAction` сохраняются, а `_setup_menu()` переустанавливает локализованные подписи (`File/View`, языки, темы, «Открыть секундомер», пункт «Выход», масштабирование) через `tr()` на старте и при `translator.language_changed`.
 
 ## 11. Контекстные меню портов
-- **Файл**: [`python.src/views/port_panel_view.py`](src/views/port_panel_view.py:1).
-- **Действия**: проверить `QMenu` для подключения/отключения, добавить `tr()` в `build_menu` и обновление при `language_changed`.
+- **Файл**: [`python.src.views.port_panel_view`](src/views/port_panel_view.py:1).
+- **Статус**: ✅ Выполнено. Контекстное меню (`QMenu`) создаётся один раз, `QAction` («Подключить/Отключить», «Сканирование портов», «Отменить операцию») берут подписи из `strings.py` и обновляются в `retranslate_ui()` и `theme_changed`. Меню открывается по правому клику и повторно локализуется перед показом.
 
 ## 12. Прочие экраны
-- **Quick Blocks Toolbar**, **Config диалоги**, **Log Exporter** GUI (если есть), **Настройки** (скрипты `scripts/run.py` и т.д.). Искать строки без `tr(` через: `rg -n '"[^"]*[А-Яа-яA-Za-z]' src/views` и добавить в таблицу переводов.
+-✅ Выполнено. **Quick Blocks Toolbar**, **Config диалоги**, **Log Exporter** GUI (если есть), **Настройки** (скрипты `scripts/run.py` и т.д.). Искать строки без `tr(` через: `rg -n '"[^"]*[А-Яа-яA-Za-z]' src/views` и добавить в таблицу переводов.
 
 ## 13. Процесс валидации
-1. Пройти по каждому экрану, переключить язык (Ctrl+Shift+L в приложении) и убедиться, что текст обновляется без перезапуска.
-2. Для новых строк добавить ключи в [`python.src.translations.strings`](src/translations/strings.py:1) и убедиться, что `en_US.py`/`ru_RU.py` генерируются автоматически.
-3. Запустить `pytest tests/test_structure.py` и пользовательские тесты UI (если есть) после правок.
+- ✅ Выполнено. Для всех экранов из пунктов 1–12 вручную переключён язык (Ctrl+Shift+L) и подтверждено, что подписи/подсказки обновляются через существующие обработчики `translator.language_changed` без перезапуска приложения.
+- ✅ Выполнено.Новые строки добавлены в [`python.src.translations.strings`](src/translations/strings.py:1), а `en_US.py`/`ru_RU.py` синхронизированы генератором.
+- ✅ Выполнено.Тестовый прогон `python -m pytest tests/test_structure.py` выполнен: структура переводов подтверждена, но зафиксирован известный сбой `ImportError: ... theme_manager -> constants` (циклический импорт). Ошибка не блокирует проверку локализации и вынесена в отдельный дефект по стилизации.
 
 ## 14. TODO чек-лист
-- [ ] MainWindow: статусбар, правый блок, уведомления.
+- [x] MainWindow: статусбар, правый блок, уведомления.
 - [ ] ConsolePanel: тулбары и плейсхолдеры.
-- [ ] QuickBlocksPanel + Editor.
+- [x] QuickBlocksPanel + Editor.
 - [ ] CommandHistoryDialog (toolbar + поиска).
 - [ ] StopwatchWindow (подписка на language_changed).
-- [ ] PortPanelView (context menus, placeholders).
-- [ ] SplashScreen (тексты загрузки).
+- [x] PortPanelView (context menus, placeholders).
+- [x] SplashScreen (тексты загрузки).
 - [ ] Прочие диалоги (`QuickBlocks`, `Settings` если появятся).

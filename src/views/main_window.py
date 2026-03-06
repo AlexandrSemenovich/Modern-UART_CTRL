@@ -179,10 +179,12 @@ class MainWindow(QtWidgets.QMainWindow):
         info_widget = QtWidgets.QWidget()
         info_widget.setLayout(info_layout)
 
-        self._lang_label = QtWidgets.QLabel(tr("lang", "Lang:"))
+        self._lang_label = QtWidgets.QLabel(tr("lang_label", "Lang:"))
         info_layout.addWidget(self._lang_label)
 
         self._lang_btn = QtWidgets.QPushButton(translator.get_language().upper())
+        self._lang_btn.setAccessibleName(tr("lang_button_a11y", "Switch language"))
+        self._lang_btn.setAccessibleDescription(tr("lang_button_desc_a11y", "Toggle UI language"))
         self._lang_btn.setFixedWidth(60)
         self._lang_btn.setToolTip(tr("switch_language", "Click to switch language"))
         self._lang_btn.clicked.connect(self._toggle_language)
@@ -1038,68 +1040,88 @@ class MainWindow(QtWidgets.QMainWindow):
         )
     
     def _setup_menu(self) -> None:
-        """Setup application menu bar."""
+        """Setup application menu bar and refresh localized captions."""
         menubar = self.menuBar()
-        menubar.clear()
-        
-        self._language_actions: dict[str, QtGui.QAction] = {}
 
-        # File menu
-        file_menu = menubar.addMenu(tr("file", "File"))
-        
-        save_action = file_menu.addAction(tr("save_logs", "Save Logs"))
-        save_action.setShortcut("Ctrl+S")
-        save_action.triggered.connect(self._save_logs)
-        
-        file_menu.addSeparator()
-        
-        exit_action = file_menu.addAction(tr("close", "Exit"))
-        exit_action.setShortcut("Ctrl+Q")
-        exit_action.triggered.connect(self.close)
-        
-        # View menu
-        view_menu = menubar.addMenu(tr("view", "View"))
+        if not getattr(self, "_menu_initialized", False):
+            self._file_menu = menubar.addMenu("")
+            self._action_save_logs = QtGui.QAction(self)
+            self._action_save_logs.setShortcut("Ctrl+S")
+            self._action_save_logs.triggered.connect(self._save_logs)
+            self._file_menu.addAction(self._action_save_logs)
 
-        # Language submenu
-        language_menu = view_menu.addMenu(tr("language", "Language"))
-        language_group = QActionGroup(self)
-        language_group.setExclusive(True)
+            self._file_menu.addSeparator()
+            self._action_exit = QtGui.QAction(self)
+            self._action_exit.setShortcut("Ctrl+Q")
+            self._action_exit.triggered.connect(self.close)
+            self._file_menu.addAction(self._action_exit)
 
-        action_ru = language_menu.addAction(tr("russian", "Russian"))
-        action_ru.setCheckable(True)
-        language_group.addAction(action_ru)
-        action_ru.triggered.connect(lambda: translator.set_language("ru_RU"))
-        self._language_actions["ru_RU"] = action_ru
+            self._view_menu = menubar.addMenu("")
+            self._language_menu = self._view_menu.addMenu("")
+            self._language_group = QActionGroup(self)
+            self._language_group.setExclusive(True)
+            self._language_actions = {}
+            action_ru = QtGui.QAction(self)
+            action_ru.setCheckable(True)
+            action_ru.triggered.connect(lambda _=False: translator.set_language("ru_RU"))
+            self._language_group.addAction(action_ru)
+            self._language_menu.addAction(action_ru)
+            self._language_actions["ru_RU"] = action_ru
 
-        action_en = language_menu.addAction(tr("english", "English"))
-        action_en.setCheckable(True)
-        language_group.addAction(action_en)
-        action_en.triggered.connect(lambda: translator.set_language("en_US"))
-        self._language_actions["en_US"] = action_en
+            action_en = QtGui.QAction(self)
+            action_en.setCheckable(True)
+            action_en.triggered.connect(lambda _=False: translator.set_language("en_US"))
+            self._language_group.addAction(action_en)
+            self._language_menu.addAction(action_en)
+            self._language_actions["en_US"] = action_en
 
-        view_menu.addSeparator()
+            self._view_menu.addSeparator()
 
-        # Theme submenu
-        theme_menu = view_menu.addMenu(tr("theme", "Theme"))
-        theme_menu.addAction(tr("light_theme", "Light"), 
-                            lambda: theme_manager.set_theme("light"))
-        theme_menu.addAction(tr("dark_theme", "Dark"), 
-                            lambda: theme_manager.set_theme("dark"))
-        theme_menu.addAction(tr("system_theme", "System"), 
-                            lambda: theme_manager.set_theme("system"))
+            self._theme_menu = self._view_menu.addMenu("")
+            self._theme_actions: dict[str, QtGui.QAction] = {}
+            for theme_key in ("light", "dark", "system"):
+                action = QtGui.QAction(self)
+                action.triggered.connect(lambda _=False, key=theme_key: theme_manager.set_theme(key))
+                self._theme_menu.addAction(action)
+                self._theme_actions[theme_key] = action
 
-        view_menu.addSeparator()
-        action_stopwatch = view_menu.addAction(tr("open_stopwatch", "Open Stopwatch"))
-        action_stopwatch.triggered.connect(self._toggle_stopwatch_window)
-        self._action_stopwatch = action_stopwatch
+            self._view_menu.addSeparator()
+            self._action_stopwatch = QtGui.QAction(self)
+            self._action_stopwatch.triggered.connect(self._toggle_stopwatch_window)
+            self._view_menu.addAction(self._action_stopwatch)
 
-        # Scale submenu
-        scale_menu = view_menu.addMenu(tr("scale", "Scale"))
-        scale_menu.addAction("100%", lambda: self._set_ui_scale(1.0))
-        scale_menu.addAction("125%", lambda: self._set_ui_scale(1.25))
-        scale_menu.addAction("150%", lambda: self._set_ui_scale(1.5))
-        scale_menu.addAction("175%", lambda: self._set_ui_scale(1.75))
-        scale_menu.addAction("200%", lambda: self._set_ui_scale(2.0))
+            self._scale_menu = self._view_menu.addMenu("")
+            self._scale_actions: list[tuple[float, QtGui.QAction]] = []
+            for factor in (1.0, 1.25, 1.5, 1.75, 2.0):
+                action = QtGui.QAction(f"{int(factor * 100)}%", self)
+                action.triggered.connect(lambda _=False, value=factor: self._set_ui_scale(value))
+                self._scale_menu.addAction(action)
+                self._scale_actions.append((factor, action))
+
+            self._menu_initialized = True
+
+        # Retranslate menu titles and actions
+        self._file_menu.setTitle(tr("file", "File"))
+        self._action_save_logs.setText(tr("save_logs", "Save Logs"))
+        self._action_exit.setText(tr("exit_app", "Exit"))
+
+        self._view_menu.setTitle(tr("view", "View"))
+        self._language_menu.setTitle(tr("language", "Language"))
+        if "ru_RU" in self._language_actions:
+            self._language_actions["ru_RU"].setText(tr("russian", "Russian"))
+        if "en_US" in self._language_actions:
+            self._language_actions["en_US"].setText(tr("english", "English"))
+
+        self._theme_menu.setTitle(tr("theme", "Theme"))
+        if "light" in self._theme_actions:
+            self._theme_actions["light"].setText(tr("light_theme", "Light"))
+        if "dark" in self._theme_actions:
+            self._theme_actions["dark"].setText(tr("dark_theme", "Dark"))
+        if "system" in self._theme_actions:
+            self._theme_actions["system"].setText(tr("system_theme", "System"))
+
+        self._action_stopwatch.setText(tr("open_stopwatch", "Open Stopwatch"))
+        self._scale_menu.setTitle(tr("scale", "Scale"))
 
     # Maximum number of error dialogs to keep
     _MAX_ERROR_DIALOGS = 5
@@ -1169,6 +1191,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # Reconnect all ports (Ctrl+F5)
         shortcut_reconnect = QShortcut(QKeySequence("F5"), self)
         shortcut_reconnect.activated.connect(self._reconnect_all_ports)
+
+        # Toggle language (Ctrl+Shift+L)
+        shortcut_language_toggle = QShortcut(QKeySequence("Ctrl+Shift+L"), self)
+        shortcut_language_toggle.activated.connect(self._toggle_language)
 
         shortcut_stopwatch_window = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
         shortcut_stopwatch_window.activated.connect(self._toggle_stopwatch_window)

@@ -18,6 +18,8 @@ class ModernSplashScreen(QWidget):
         super().__init__()
         self._language = language
         self.theme_mode = theme_mode
+        self._progress_value = 0
+        self._status_override = None
         
         # Window setup
         self.setFixedSize(400, 500)
@@ -49,7 +51,7 @@ class ModernSplashScreen(QWidget):
         self._set_icon()
         
         # Title
-        self.lbl_title = QLabel(tr("splash_title", "UART Control"), self.background)
+        self.lbl_title = QLabel("", self.background)
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_title.setGeometry(0, 200, 380, 40)
         self.lbl_title.setObjectName("SplashTitle")
@@ -58,7 +60,7 @@ class ModernSplashScreen(QWidget):
         self.lbl_title.setFont(title_font)
         
         # Subtitle
-        self.lbl_subtitle = QLabel(tr("splash_subtitle", "Modern COM Port Control"), self.background)
+        self.lbl_subtitle = QLabel("", self.background)
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setGeometry(0, 235, 380, 20)
         self.lbl_subtitle.setObjectName("SplashSubtitle")
@@ -67,7 +69,7 @@ class ModernSplashScreen(QWidget):
         self.lbl_subtitle.setFont(subtitle_font)
         
         # Loading status
-        self.lbl_status = QLabel(tr("loading", "Initializing..."), self.background)
+        self.lbl_status = QLabel("", self.background)
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_status.setGeometry(0, 350, 380, 20)
         self.lbl_status.setObjectName("SplashStatus")
@@ -82,6 +84,9 @@ class ModernSplashScreen(QWidget):
 
         # Apply background style based on theme (after all widgets are created)
         self._apply_theme()
+        self._retranslate_ui()
+        translator.language_changed.connect(self._on_language_changed)
+        self.destroyed.connect(self._disconnect_translator)
         
     
     def _apply_theme(self):
@@ -128,29 +133,53 @@ class ModernSplashScreen(QWidget):
     
     def update_progress(self, value: int, status_text: str = None):
         """Update progress and status"""
-        self.progress.setValue(min(100, max(0, value)))
+        self._progress_value = min(100, max(0, value))
+        self.progress.setValue(self._progress_value)
 
-        # If explicit status is passed - show it (one line)
-        if status_text:
-            self.lbl_status.setText(status_text)
+        if status_text is not None:
+            self._status_override = status_text
         else:
-            # Automatic text based on progress with translations
-            if value < 20:
-                txt = tr("loading_initializing", "Initializing application...")
-            elif value < 40:
-                txt = tr("loading_theme_manager", "Loading theme manager...")
-            elif value < 60:
-                txt = tr("loading_translator", "Loading translator...")
-            elif value < 80:
-                txt = tr("loading_models", "Initializing models...")
-            elif value < 95:
-                txt = tr("loading_ui", "Building user interface...")
-            elif value < 100:
-                txt = tr("loading_styles", "Applying styles...")
-            else:
-                txt = tr("ready", "Ready!")
-            # Update single status line (overwrite)
-            self.lbl_status.setText(txt)
+            self._status_override = None
+
+        self._apply_status_text()
+
+    def _status_for_progress(self, value: int) -> str:
+        if value < 20:
+            return tr("loading_initializing", "Initializing application...")
+        if value < 40:
+            return tr("loading_theme_manager", "Loading theme manager...")
+        if value < 60:
+            return tr("loading_translator", "Loading translator...")
+        if value < 80:
+            return tr("loading_models", "Initializing models...")
+        if value < 95:
+            return tr("loading_ui", "Building user interface...")
+        if value < 100:
+            return tr("loading_styles", "Applying styles...")
+        return tr("ready", "Ready!")
+
+    def _apply_status_text(self) -> None:
+        if self._status_override:
+            self.lbl_status.setText(self._status_override)
+            return
+        self.lbl_status.setText(self._status_for_progress(self._progress_value))
+
+    def _retranslate_ui(self) -> None:
+        self.setWindowTitle(tr("splash_window_title", "Modern UART Control"))
+        self.lbl_title.setText(tr("splash_title", "UART Control"))
+        self.lbl_subtitle.setText(tr("splash_subtitle", "Modern COM Port Control"))
+        if not self.lbl_icon.pixmap() or self.lbl_icon.pixmap().isNull():
+            self.lbl_icon.setText(tr("splash_logo_text", "UART"))
+        self._apply_status_text()
+
+    def _on_language_changed(self, _: str) -> None:
+        self._retranslate_ui()
+
+    def _disconnect_translator(self) -> None:
+        try:
+            translator.language_changed.disconnect(self._on_language_changed)
+        except Exception:
+            pass
 
 
 class SplashController(QObject):

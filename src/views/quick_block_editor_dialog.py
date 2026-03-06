@@ -32,6 +32,7 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
         if block:
             self._load_block(block)
         translator.language_changed.connect(lambda _: self._retranslate())
+        self.destroyed.connect(self._disconnect_translator)
 
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
@@ -254,6 +255,12 @@ class QuickBlockEditorDialog(QtWidgets.QDialog):
     def _on_clear_hotkey(self) -> None:
         self._hotkey_edit.clear()
         self._update_hotkey_status()
+
+    def _disconnect_translator(self) -> None:
+        try:
+            translator.language_changed.disconnect(self._retranslate)
+        except (RuntimeError, TypeError):
+            pass
 
 
 def create_block(

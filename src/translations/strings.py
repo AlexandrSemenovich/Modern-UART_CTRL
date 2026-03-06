@@ -80,6 +80,10 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Закрыть",
         "en": "Close",
     },
+    "exit_app": {
+        "ru": "Выход",
+        "en": "Exit",
+    },
     "open": {
         "ru": "Открыть",
         "en": "Open",
@@ -103,6 +107,10 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "splash_logo_text": {
         "ru": "UART",
         "en": "UART",
+    },
+    "splash_window_title": {
+        "ru": "Modern UART Control",
+        "en": "Modern UART Control",
     },
     "about": {
         "ru": "О программе",
@@ -405,6 +413,14 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "switch_language": {
         "ru": "Нажмите для смены языка",
         "en": "Click to switch language",
+    },
+    "lang_button_a11y": {
+        "ru": "Сменить язык",
+        "en": "Switch language",
+    },
+    "lang_button_desc_a11y": {
+        "ru": "Переключить язык пользовательского интерфейса",
+        "en": "Toggle UI language",
     },
     "russian": {
         "ru": "Русский",
@@ -939,6 +955,14 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
     "scan_ports": {
         "ru": "Сканирование портов",
         "en": "Scan Ports",
+    },
+    "operation_in_progress": {
+        "ru": "Операция уже выполняется",
+        "en": "Operation already in progress",
+    },
+    "cancel_operation": {
+        "ru": "Отменить операцию",
+        "en": "Cancel operation",
     },
     "connect": {
         "ru": "Подключить",
