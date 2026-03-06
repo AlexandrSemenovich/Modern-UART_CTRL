@@ -16,11 +16,11 @@
 
 ## 4. Панель консоли (ConsolePanelView)
 - **Файл**: [`python.src.views.console_panel_view`](src/views/console_panel_view.py:1).
-- **Проблемы**: часть placeholder'ов и кнопок toolbar генерируются один раз. Нужно добавить `retranslate_ui()` для всех `QAction` (`Find`, `Save`, `Clear`).
+- **Статус**: ✅ Выполнено. Все элементы тулбара и вкладок получают тексты через `retranslate_ui()`, обновляются placeholder'ы поисковой строки, кнопки (`Clear`, `Save`, «Регулярные выражения»), метки навигации результатов и заголовки вкладок. Тулбар реагирует на `translator.language_changed`, `QAction` в контекстном меню используют `tr()`.
 
 ## 5. Панель быстрых блоков
 - **Файлы**: [`python.src.views.quick_blocks_panel`](src/views/quick_blocks_panel.py:1), [`python.src.views.quick_block_editor_dialog`](src/views/quick_block_editor_dialog.py:1).
-- **Проблемы**: подписи карточек и меню редактирования. Проверить вызов `tr()` для названий блоков, кнопок «Добавить/Удалить», диалогов подтверждения.
+- **Статус**: ✅ Выполнено. Тулбар панели хранит подписи в `_toolbar_labels` и пересобирает их в `_retranslate_ui()`, кнопки (`Добавить/Редактировать/Обновить`) и контекстное меню используют `tr()`. Диалог редактирования (`QuickBlockEditorDialog`) уже обновляет все поля через `_retranslate()`. Предусмотрен вызов `translator.language_changed`, а заголовки блоков/групп берутся из `strings.py`.
 
 ## 6. Диалог секундомера (StopwatchWindow)
 - **Файл**: [`python.src.views.stopwatch_window`](src/views/stopwatch_window.py:1).

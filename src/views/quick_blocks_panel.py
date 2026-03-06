@@ -40,8 +40,8 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         root.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, 0)
         root.setSpacing(Sizes.LAYOUT_SPACING // 2)
 
-        self._toolbar_breakpoint_compact = 1020
-        self._toolbar_breakpoint_ultra = 860
+        self._toolbar_breakpoint_compact = 480
+        self._toolbar_breakpoint_ultra = 320
         self._toolbar_text_mode = "full"
         self._toolbar_labels: dict[str, tuple[str, str]] = {}
         self._toolbar_container = self._create_toolbar()
@@ -153,14 +153,14 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         self._refresh_widget_style(self._toolbar_container)
         self._apply_toolbar_text_mode(target)
 
-    def _apply_toolbar_text_mode(self, size_class: str) -> None:
+    def _apply_toolbar_text_mode(self, size_class: str, *, force: bool = False) -> None:
         mode = "icons"
         if size_class == "compact":
             mode = "labels"
         elif size_class == "":
             mode = "full"
 
-        if self._toolbar_text_mode == mode and self._toolbar_labels:
+        if not force and self._toolbar_text_mode == mode and self._toolbar_labels:
             return
         self._toolbar_text_mode = mode
 
@@ -171,13 +171,15 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         ):
             if not button:
                 continue
-            icon_text = self._toolbar_labels.get(key, ("", ""))
+            full_text, short_text = self._toolbar_labels.get(key, ("", ""))
             if mode == "full":
-                button.setText(icon_text[0])
+                button.setText(full_text)
             elif mode == "labels":
-                button.setText(icon_text[1])
+                button.setText(short_text or full_text)
             else:
                 button.setText("")
+            button.setToolTip(full_text)
+            button.setAccessibleName(full_text)
 
     def _retranslate_ui(self) -> None:
         self._toolbar_labels = {
@@ -195,7 +197,7 @@ class QuickBlocksPanel(QtWidgets.QWidget):
         size_class = ""
         if hasattr(self, "_toolbar_container") and self._toolbar_container:
             size_class = self._toolbar_container.property("sizeClass") or ""
-        self._apply_toolbar_text_mode(size_class)
+        self._apply_toolbar_text_mode(size_class, force=True)
         self._update_toolbar_icons()
 
     def _refresh_widget_style(self, widget: QtWidgets.QWidget) -> None:

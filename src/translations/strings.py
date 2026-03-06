@@ -596,6 +596,26 @@ STRINGS: Final[dict[str, dict[str, str]]] = {
         "ru": "Редактор блока",
         "en": "Quick Block Editor",
     },
+    "add_block": {
+        "ru": "Добавить блок",
+        "en": "Add block",
+    },
+    "edit_block": {
+        "ru": "Редактировать блок",
+        "en": "Edit block",
+    },
+    "reload_quick_blocks": {
+        "ru": "Обновить блоки",
+        "en": "Reload blocks",
+    },
+    "assign_hotkey": {
+        "ru": "Назначить горячую клавишу",
+        "en": "Assign Hotkey",
+    },
+    "clear_hotkey": {
+        "ru": "Очистить горячую клавишу",
+        "en": "Clear Hotkey",
+    },
     "block_name": {
         "ru": "Имя блока",
         "en": "Block name",

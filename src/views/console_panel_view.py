@@ -268,6 +268,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         theme_manager.theme_changed.connect(self._on_theme_changed)
         self._colors = config_loader.get_colors(self._current_theme())
         self._init_update_timer()
+        self.retranslate_ui()
     
     def _setup_ui(self) -> None:
         """Create and arrange UI elements."""
@@ -354,14 +355,13 @@ class ConsolePanelView(QtWidgets.QWidget):
         search_row.setContentsMargins(0, 0, 0, 0)
         search_row.setAlignment(Qt.AlignVCenter)
 
-        self._search_label = QtWidgets.QLabel(tr("search", "Search:"))
+        self._search_label = QtWidgets.QLabel()
         self._search_label.setAlignment(Qt.AlignVCenter)
         self._search_label.setFixedHeight(control_height)
         self._search_label.setVisible(False)
         search_row.addWidget(self._search_label, 0, Qt.AlignVCenter)
 
         self._search_edit = QtWidgets.QLineEdit()
-        self._search_edit.setPlaceholderText(tr("search_logs", "Search logs..."))
         self._search_edit.setFixedHeight(control_height)
         self._search_edit.setAccessibleName(tr("search_a11y", "Search logs"))
         self._search_edit.setAccessibleDescription(tr("search_desc_a11y", "Enter text to filter log messages"))
@@ -376,7 +376,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         search_row.addWidget(self._search_edit, 1, Qt.AlignVCenter)
 
         # Regex checkbox
-        self._chk_regex = QtWidgets.QCheckBox(tr("regex", "Regex"))
+        self._chk_regex = QtWidgets.QCheckBox()
         self._chk_regex.setFixedHeight(control_height)
         self._chk_regex.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         self._chk_regex.setMaximumWidth(90)
@@ -401,7 +401,6 @@ class ConsolePanelView(QtWidgets.QWidget):
         search_meta_layout.addWidget(self._search_results_label)
 
         self._btn_prev_result = QtWidgets.QToolButton()
-        self._btn_prev_result.setText("<")
         self._btn_prev_result.setObjectName("console_prev_match")
         self._btn_prev_result.setFixedSize(control_height, control_height)
         self._btn_prev_result.setAccessibleName(tr("prev_match", "Previous match"))
@@ -411,7 +410,6 @@ class ConsolePanelView(QtWidgets.QWidget):
         search_meta_layout.addWidget(self._btn_prev_result)
 
         self._btn_next_result = QtWidgets.QToolButton()
-        self._btn_next_result.setText(">")
         self._btn_next_result.setObjectName("console_next_match")
         self._btn_next_result.setFixedSize(control_height, control_height)
         self._btn_next_result.setAccessibleName(tr("next_match", "Next match"))
@@ -428,12 +426,12 @@ class ConsolePanelView(QtWidgets.QWidget):
         controls_row.setContentsMargins(0, 0, 0, 0)
         controls_row.setAlignment(Qt.AlignVCenter)
 
-        self._show_label = QtWidgets.QLabel(tr("show", "Show:"))
+        self._show_label = QtWidgets.QLabel()
         self._show_label.setAlignment(Qt.AlignVCenter)
         self._show_label.setFixedHeight(control_height)
         controls_row.addWidget(self._show_label, 0, Qt.AlignVCenter)
 
-        self._chk_time = QtWidgets.QCheckBox(tr("time", "Time"))
+        self._chk_time = QtWidgets.QCheckBox()
         self._chk_time.setChecked(True)
         self._chk_time.setFixedHeight(control_height)
         self._chk_time.setAccessibleName(tr("chk_time_a11y", "Show timestamp"))
@@ -441,7 +439,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._chk_time.stateChanged.connect(self._on_display_option_changed)
         controls_row.addWidget(self._chk_time, 0, Qt.AlignVCenter)
 
-        self._chk_source = QtWidgets.QCheckBox(tr("source", "Source"))
+        self._chk_source = QtWidgets.QCheckBox()
         self._chk_source.setChecked(False)
         self._chk_source.setFixedHeight(control_height)
         self._chk_source.setAccessibleName(tr("chk_source_a11y", "Show source"))
@@ -452,7 +450,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         controls_row.addSpacerItem(QtWidgets.QSpacerItem(32, 0, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum))
         controls_row.addStretch(1)
 
-        self._btn_clear = QtWidgets.QPushButton(" " + tr("clear", "Clear"))
+        self._btn_clear = QtWidgets.QPushButton()
         self._btn_clear.setIcon(get_icon("trash"))
         self._btn_clear.setMaximumWidth(Sizes.BUTTON_CLEAR_MAX_WIDTH)
         self._btn_clear.setFixedHeight(control_height)
@@ -462,7 +460,7 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._btn_clear.clicked.connect(self.clear_requested.emit)
         controls_row.addWidget(self._btn_clear, 0, Qt.AlignVCenter)
 
-        self._btn_save = QtWidgets.QPushButton(" " + tr("save", "Save"))
+        self._btn_save = QtWidgets.QPushButton()
         self._btn_save.setIcon(get_icon("floppy-disk"))
         self._btn_save.setMaximumWidth(Sizes.BUTTON_SAVE_MAX_WIDTH)
         self._btn_save.setFixedHeight(control_height)
@@ -1582,9 +1580,29 @@ class ConsolePanelView(QtWidgets.QWidget):
         self._show_label.setText(tr("show", "Show:"))
         self._chk_time.setText(tr("time", "Time"))
         self._chk_source.setText(tr("source", "Source"))
-        self._btn_clear.setText(tr("clear", "Clear"))
-        self._btn_save.setText(tr("save", "Save"))
+        prev_label = tr("prev_match", "Previous match")
+        next_label = tr("next_match", "Next match")
+        self._btn_prev_result.setAccessibleName(prev_label)
+        self._btn_prev_result.setToolTip(prev_label)
+        self._btn_next_result.setAccessibleName(next_label)
+        self._btn_next_result.setToolTip(next_label)
+
+        clear_label = tr("clear", "Clear")
+        save_label = tr("save", "Save")
+        self._btn_clear.setText(f" {clear_label}")
+        self._btn_save.setText(f" {save_label}")
+        self._update_tab_titles()
         self._apply_theme_to_buttons()
+
+    def _update_tab_titles(self) -> None:
+        if not hasattr(self, '_tab_widget'):
+            return
+        if self._tab_widget.count() == 0:
+            return
+        self._tab_widget.setTabText(0, tr("combined", "1+2"))
+        for index, port_label in enumerate(self._port_labels, start=1):
+            if index < self._tab_widget.count():
+                self._tab_widget.setTabText(index, tr(port_label.lower(), port_label))
 
     def _register_button(
         self,
