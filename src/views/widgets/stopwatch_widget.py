@@ -60,7 +60,7 @@ class StopwatchWidget(QtWidgets.QWidget):
 
         self._btn_start.setProperty("class", "btn-primary")
         self._btn_stop.setProperty("class", "btn-secondary")
-        self._btn_reset.setProperty("class", "btn-ghost")
+        self._btn_reset.setProperty("class", "btn-secondary")
 
         for button in (self._btn_start, self._btn_stop, self._btn_reset):
             button.setMinimumHeight(Sizes.BUTTON_MIN_HEIGHT)

@@ -675,15 +675,15 @@ QGroupBox.card {
     border-radius: 12px;
     border: 1px solid palette(mid);
     margin-top: 0;
-    padding: 24px 16px 16px 16px;
+    padding: 16px;
 }
 
 QGroupBox.card::title {
     subcontrol-origin: border;
     subcontrol-position: top left;
-    left: 16px;
-    top: 6px;
-    padding: 0 8px;
+    left: 12px;
+    top: 0px;
+    padding: 0 4px;
     color: palette(window-text);
     font-weight: 600;
     background: transparent;
@@ -817,18 +817,19 @@ QLabel#stopwatch_status_label {
     border: none;
 }
 
-QFrame#stopwatch_window_card {
-    border: 1px solid palette(mid);
-    border-radius: 12px;
-    background: palette(window);
-}
-.StopwatchWidget #stopwatch_card {
-    border: 1px solid palette(mid);
-    border-radius: 12px;
-    background: palette(window);
+#status_info {
+    border: none;
+    padding: 0;
+    margin: 0;
 }
 
+#status_stopwatch_caption,
+#status_stopwatch_value {
+    font-weight: 400;
+    font-family: inherit;
+    letter-spacing: 0.2px;
+}
 
-.StopwatchWidget QPushButton {
-    min-height: 28px;
+QStatusBar {
+    border-top: 1px solid palette(mid);
 }

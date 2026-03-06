@@ -37,8 +37,8 @@ class QuickBlocksPanel(QtWidgets.QWidget):
 
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         root = QtWidgets.QVBoxLayout(self)
-        root.setContentsMargins(Sizes.LAYOUT_MARGIN // 2, 0, Sizes.LAYOUT_MARGIN // 2, 0)
-        root.setSpacing(Sizes.LAYOUT_SPACING // 2)
+        root.setContentsMargins(Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN)
+        root.setSpacing(Sizes.LAYOUT_SPACING)
 
         self._toolbar_breakpoint_compact = 480
         self._toolbar_breakpoint_ultra = 320

@@ -167,32 +167,27 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Status bar
         status_bar = self.statusBar()
-        status_bar.setContentsMargins(Sizes.LAYOUT_MARGIN, 2, Sizes.LAYOUT_MARGIN, 2)
+        status_bar.setContentsMargins(0, 0, 0, 0)
         status_bar.setSizeGripEnabled(False)
         status_bar.setMinimumHeight(int(Sizes.INPUT_MIN_HEIGHT * 0.75))
-        status_bar.setStyleSheet("QStatusBar { background-color: palette(window); border-top: 1px solid palette(mid); }")
         status_bar.showMessage(tr("ready", "Ready"))
-        
+
         info_layout = QtWidgets.QHBoxLayout()
         info_widget = QtWidgets.QWidget()
         info_widget.setLayout(info_layout)
+        info_layout.setContentsMargins(0, 0, 0, 0)
+        info_layout.setSpacing(Sizes.LAYOUT_SPACING // 2)
 
-        self._lang_label = QtWidgets.QLabel(tr("lang_label", "Lang:"))
-        info_layout.addWidget(self._lang_label)
+        caption_font = Fonts.get_caption_font()
+        self._stopwatch_caption_label = QtWidgets.QLabel()
+        self._stopwatch_caption_label.setFont(caption_font)
+        info_layout.addWidget(self._stopwatch_caption_label)
 
-        self._lang_btn = QtWidgets.QPushButton(translator.get_language().upper())
-        self._lang_btn.setAccessibleName(tr("lang_button_a11y", "Switch language"))
-        self._lang_btn.setAccessibleDescription(tr("lang_button_desc_a11y", "Toggle UI language"))
-        self._lang_btn.setFixedWidth(60)
-        self._lang_btn.setToolTip(tr("switch_language", "Click to switch language"))
-        self._lang_btn.clicked.connect(self._toggle_language)
-        info_layout.addWidget(self._lang_btn)
-
-        info_layout.addSpacing(Sizes.LAYOUT_SPACING)
         self._stopwatch_status_label = QtWidgets.QLabel()
-        self._stopwatch_status_label.setObjectName("stopwatch_status_label")
+        self._stopwatch_status_label.setFont(caption_font)
         info_layout.addWidget(self._stopwatch_status_label)
-        self._update_stopwatch_status_label_text()
+        self._stopwatch_caption_label.hide()
+        self._stopwatch_status_label.hide()
 
         status_bar.addPermanentWidget(info_widget)
     
@@ -399,7 +394,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._left_panel = self._create_left_panel()
         left_panel = self._left_panel
         left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
-        left_panel.setMinimumWidth(Sizes.LEFT_PANEL_MIN_WIDTH)
+        left_panel.setMaximumWidth(Sizes.LEFT_PANEL_MAX_WIDTH)
         left_panel.setObjectName("left_panel")
         hsplit.addWidget(left_panel)
         
@@ -463,12 +458,7 @@ class MainWindow(QtWidgets.QMainWindow):
         content = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(content)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
-        layout.setContentsMargins(
-            Sizes.LAYOUT_MARGIN * 1,
-            Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN,
-        )
+        layout.setContentsMargins(0, 0, 0, 0)
         
         # Create ViewModels and Views for each port
         port_ids = [
@@ -477,9 +467,19 @@ class MainWindow(QtWidgets.QMainWindow):
             (3, "tlm"),
         ]
 
+        ports_wrapper = QtWidgets.QFrame()
+        ports_wrapper.setProperty("class", "card")
+        ports_wrapper_layout = QtWidgets.QVBoxLayout(ports_wrapper)
+        ports_wrapper_layout.setSpacing(Sizes.LAYOUT_SPACING)
+        ports_wrapper_layout.setContentsMargins(
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+        )
+
         for port_num, port_key in port_ids:
             port_label = tr(port_key, port_key.upper())
-            # Create ViewModel using factory (composition pattern)
             viewmodel = self._viewmodel_factory.create_port_viewmodel(
                 port_label=port_label,
                 port_number=port_num,
@@ -487,11 +487,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self._port_viewmodels[port_num] = viewmodel
             self._port_states[port_num] = viewmodel.state
 
-            # Create View
             port_view = PortPanelView(viewmodel)
             self._port_views[port_num] = port_view
-            
-            layout.addWidget(port_view)
+            ports_wrapper_layout.addWidget(port_view)
             
             # Connect ViewModel signals to console (using bound methods to avoid lambda closure issues)
             # Use Qt.QueuedConnection for thread-safe handling of high-frequency serial data
@@ -519,17 +517,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Command input section
         command_group = self._create_command_group()
+        layout.addWidget(ports_wrapper)
         layout.addWidget(command_group)
 
         quick_panel = self._create_quick_blocks_panel()
         self._quick_blocks_group: QtWidgets.QGroupBox | None = None
         if quick_panel:
             self._quick_blocks_group = QtWidgets.QGroupBox()
+            self._quick_blocks_group.setProperty("class", "card")
             quick_layout = QtWidgets.QVBoxLayout()
             quick_layout.setSpacing(Sizes.LAYOUT_SPACING)
             quick_layout.setContentsMargins(
-                Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-                Sizes.LAYOUT_MARGIN, 0,
+                Sizes.CARD_MARGIN,
+                Sizes.CARD_MARGIN,
+                Sizes.CARD_MARGIN,
+                Sizes.CARD_MARGIN,
             )
             quick_layout.addWidget(quick_panel)
             self._quick_blocks_group.setLayout(quick_layout)
@@ -542,22 +544,35 @@ class MainWindow(QtWidgets.QMainWindow):
 
         layout.addStretch(1)
         content.setLayout(layout)
-        scroll_area.setWidget(content)
-        scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+
+        wrapper = QtWidgets.QWidget()
+        wrapper_layout = QtWidgets.QHBoxLayout(wrapper)
+        wrapper_layout.setContentsMargins(
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+            Sizes.LAYOUT_MARGIN,
+        )
+        wrapper_layout.setSpacing(0)
+        wrapper_layout.addWidget(content)
+
+        scroll_area.setWidget(wrapper)
+        scroll_area.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
         return scroll_area
     
     def _create_command_group(self) -> QtWidgets.QGroupBox:
         """Create command input group."""
         grp = QtWidgets.QGroupBox(tr("data_transmission", "Data Transmission"))
+        grp.setProperty("class", "card")
         self._command_group = grp
         layout = QtWidgets.QVBoxLayout()
         layout.setSpacing(Sizes.LAYOUT_SPACING)
         layout.setContentsMargins(
-            Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
         )
         
         # Command input
@@ -852,10 +867,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _update_stopwatch_status(self, formatted: str) -> None:
         label = getattr(self, "_stopwatch_status_label", None)
+        caption = getattr(self, "_stopwatch_caption_label", None)
         if label is not None:
             label.setToolTip(tr("stopwatch_status", "Stopwatch"))
             label.setText(formatted)
             label.setAccessibleName(tr("stopwatch_status", "Stopwatch"))
+            if caption:
+                caption.setText(tr("stopwatch_status", "Stopwatch"))
+                caption.show()
+                label.show()
 
     def _update_stopwatch_group_title(self) -> None:
         group = getattr(self, "_stopwatch_group", None)
@@ -867,10 +887,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self._stopwatch_widget.setAccessibleName(tooltip_text)
 
     def _update_stopwatch_status_label_text(self) -> None:
-        label = getattr(self, "_stopwatch_status_label", None)
-        if label is not None:
-            label.setText(tr("stopwatch_status", "Stopwatch"))
-            label.setAccessibleName(tr("stopwatch_status", "Stopwatch"))
+        status_label = getattr(self, "_stopwatch_status_label", None)
+        caption_label = getattr(self, "_stopwatch_caption_label", None)
+        if not status_label or not caption_label:
+            return
+
+        is_running = bool(getattr(self, "_stopwatch_viewmodel", None) and getattr(self._stopwatch_viewmodel, "is_running", False))
+        if is_running:
+            caption_label.setText(tr("stopwatch_status", "Stopwatch"))
+            caption_label.show()
+            status_label.show()
+        else:
+            caption_label.hide()
+            status_label.hide()
 
     def _toggle_stopwatch_window(self) -> None:
         if self._stopwatch_window is None:
@@ -1593,10 +1622,10 @@ class MainWindow(QtWidgets.QMainWindow):
         ]
 
         for port_num, port_key in port_ids:
-            if port_num in self._port_viewmodels:
+            if port_num in self._port_viewmodels and port_num in self._port_views:
                 new_label = tr(port_key, port_key.upper())
                 self._port_viewmodels[port_num].set_port_label(new_label)
-                self._port_views[port_num].setTitle(new_label)
+                self._port_views[port_num].set_port_label(new_label)
 
         self._setup_menu()
 

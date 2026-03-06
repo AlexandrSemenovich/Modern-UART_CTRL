@@ -23,7 +23,7 @@ except Exception:
     HAS_PYSERIAL = False
 
 
-class PortPanelView(QtWidgets.QGroupBox):
+class PortPanelView(QtWidgets.QFrame):
     """
     UI component for a single COM port panel.
     
@@ -66,9 +66,12 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._led_opacity_effect = None
         self._led_pulse_visible = True
         
-        # Set label from viewmodel
-        self.setTitle(viewmodel.port_label)
-        
+        # Create title label for card header
+        self._title_label = QtWidgets.QLabel(viewmodel.port_label)
+        title_font = Fonts.get_title_font()
+        self._title_label.setFont(title_font)
+        self._title_label.setObjectName("port_panel_title")
+
         self._setup_ui()
         self._connect_signals()
         self._connect_viewmodel_signals()
@@ -83,12 +86,28 @@ class PortPanelView(QtWidgets.QGroupBox):
     
     def _setup_ui(self) -> None:
         """Create and arrange UI elements."""
-        layout = QtWidgets.QFormLayout()
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setSpacing(Sizes.LAYOUT_SPACING)
-        layout.setContentsMargins(
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN,
-            Sizes.LAYOUT_MARGIN, Sizes.LAYOUT_MARGIN
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        wrapper = QtWidgets.QFrame()
+        wrapper.setProperty("class", "card")
+        wrapper_layout = QtWidgets.QVBoxLayout(wrapper)
+        layout.setSpacing(Sizes.LAYOUT_SPACING)
+        wrapper_layout.setSpacing(Sizes.LAYOUT_SPACING)
+        wrapper_layout.setContentsMargins(
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
+            Sizes.CARD_MARGIN,
         )
+
+        wrapper_layout.addWidget(self._title_label)
+
+        form_layout = QtWidgets.QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignLeft)
+        form_layout.setSpacing(Sizes.LAYOUT_SPACING)
+        wrapper_layout.addLayout(form_layout)
         
         # Port selection row
         port_layout = QtWidgets.QHBoxLayout()
@@ -121,7 +140,12 @@ class PortPanelView(QtWidgets.QGroupBox):
         port_layout.addWidget(self._scan_btn, 0)
         
         self._lbl_port = QtWidgets.QLabel(tr("port", "Port:"))
-        layout.addRow(self._lbl_port, port_layout)
+        row_port = QtWidgets.QWidget()
+        row_port_layout = QtWidgets.QHBoxLayout(row_port)
+        row_port_layout.setContentsMargins(0, 0, 0, 0)
+        row_port_layout.setSpacing(Sizes.LAYOUT_SPACING)
+        row_port_layout.addLayout(port_layout)
+        form_layout.addRow(self._lbl_port, row_port)
         
         # Baud rate row
         self._baud_combo = QtWidgets.QComboBox()
@@ -131,7 +155,7 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._baud_combo.setAccessibleName(tr("baud_combo_a11y", "Baud rate selection"))
         self._baud_combo.setAccessibleDescription(tr("baud_combo_desc_a11y", "Select the baud rate for serial communication"))
         self._lbl_baud = QtWidgets.QLabel(tr("baud_rate", "Baud:"))
-        layout.addRow(self._lbl_baud, self._baud_combo)
+        form_layout.addRow(self._lbl_baud, self._baud_combo)
         
         # Connect button (full width)
         self._connect_btn = QtWidgets.QPushButton(tr("connect", "Connect"))
@@ -139,9 +163,9 @@ class PortPanelView(QtWidgets.QGroupBox):
         self._connect_btn.setAccessibleName(tr("connect_btn_a11y", "Connect to port"))
         self._connect_btn.setAccessibleDescription(tr("connect_btn_desc_a11y", "Click to connect or disconnect from the selected COM port"))
         self._register_button(self._connect_btn, "primary")
-        layout.addRow(self._connect_btn)
-        
-        self.setLayout(layout)
+        form_layout.addRow(QtWidgets.QLabel(), self._connect_btn)
+
+        layout.addWidget(wrapper)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
     
@@ -451,9 +475,14 @@ class PortPanelView(QtWidgets.QGroupBox):
         if self._viewmodel.is_connected:
             self._connect_btn.setEnabled(True)
 
+    def set_port_label(self, label: str) -> None:
+        """Update card title when language or label changes."""
+        self._title_label.setText(label)
+        self._title_label.setAccessibleName(label)
+
     def retranslate_ui(self) -> None:
         """Update all static texts when language changes."""
-        self.setTitle(self._viewmodel.port_label)
+        self.set_port_label(self._viewmodel.port_label)
         self._lbl_port.setText(tr("port", "Port:"))
         self._lbl_baud.setText(tr("baud_rate", "Baud:"))
         self._scan_btn.setText(tr("scan", "Scan"))

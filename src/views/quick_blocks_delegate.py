@@ -18,8 +18,8 @@ class QuickBlocksDelegate(QtWidgets.QStyledItemDelegate):
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._padding = max(Sizes.CARD_MARGIN // 2, 8)
-        self._spacing = Sizes.LAYOUT_SPACING // 2
+        self._padding = Sizes.CARD_MARGIN
+        self._spacing = Sizes.LAYOUT_SPACING
         self._hit_areas: dict[int, dict[str, QtCore.QRect]] = {}
         self._trigger_callback = trigger_callback
         self._theme_colors = Colors()
@@ -94,21 +94,22 @@ class QuickBlocksDelegate(QtWidgets.QStyledItemDelegate):
         selected = bool(option.state & QtWidgets.QStyle.State_Selected)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-        container_rect = option.rect.adjusted(self._padding, self._padding // 2, -self._padding, -self._padding // 2)
-        bg_color = base_color.lighter(108 if hover else 102)
-        border_color = palette.color(QtGui.QPalette.AlternateBase)
+        container_rect = option.rect.adjusted(self._padding, self._padding, -self._padding, -self._padding)
+        bg_color = palette.color(QtGui.QPalette.Window)
+        border_color = palette.color(QtGui.QPalette.Mid)
+        if hover:
+            bg_color = bg_color.lighter(104)
         if selected:
-            bg_color = palette.color(QtGui.QPalette.Highlight).lighter(160)
             border_color = palette.color(QtGui.QPalette.Highlight)
         painter.setBrush(bg_color)
-        painter.setPen(QtCore.Qt.NoPen)
+        painter.setPen(border_color)
         corner_radius = 12
         painter.drawRoundedRect(container_rect, corner_radius, corner_radius)
 
-        content_rect = container_rect.adjusted(self._spacing, self._spacing // 2, -self._spacing, -self._spacing // 2)
+        content_rect = container_rect.adjusted(self._spacing, self._spacing, -self._spacing, -self._spacing)
         button_count = 2 if item.block and item.block.mode != "single" else 1
         button_width = 84
-        button_height = max(28, content_rect.height() - self._spacing)
+        button_height = max(Sizes.BUTTON_MIN_HEIGHT, content_rect.height() - self._spacing)
         actions_width = button_count * button_width + (button_count - 1) * self._spacing
         actions_left = content_rect.right() - actions_width - self._spacing
         if actions_left < content_rect.left() + 160:

@@ -12,7 +12,7 @@ Features:
 from PySide6 import QtWidgets, QtCore, QtGui
 import logging
 
-from src.styles.constants import ToastConfig
+from src.styles.constants import ToastConfig, Sizes
 from src.utils.translator import tr, translator
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class ToastNotification(QtWidgets.QFrame):
         
     def _setup_ui(self) -> None:
         """Create and layout the toast UI."""
-        self.setFixedWidth(300)  # Compact width
+        self.setFixedWidth(max(300, Sizes.WINDOW_MIN_WIDTH // 4))  # Compact width
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         
         # Use Popup window type for proper positioning

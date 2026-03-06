@@ -8,7 +8,7 @@ import os
 
 from src.utils.translator import tr, translator
 from src.utils.theme_manager import theme_manager
-from src.styles.constants import Fonts
+from src.styles.constants import Fonts, Sizes
 
 
 class ModernSplashScreen(QWidget):
@@ -22,13 +22,15 @@ class ModernSplashScreen(QWidget):
         self._status_override = None
         
         # Window setup
-        self.setFixedSize(400, 500)
+        self.setMinimumSize(Sizes.WINDOW_MIN_WIDTH // 2, Sizes.WINDOW_MIN_HEIGHT // 2)
+        self.resize(max(400, Sizes.WINDOW_MIN_WIDTH // 2), max(500, Sizes.WINDOW_MIN_HEIGHT // 2))
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
         # Main layout
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(Sizes.CARD_MARGIN, Sizes.CARD_MARGIN, Sizes.CARD_MARGIN, Sizes.CARD_MARGIN)
+        layout.setSpacing(Sizes.LAYOUT_SPACING)
         
         # Background card with shadow
         self.background = QLabel(self)
