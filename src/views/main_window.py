@@ -46,6 +46,7 @@ from src.styles.constants import Fonts, Sizes, SerialConfig, FlashAnimation
 from src.views.port_panel_view import PortPanelView
 from src.views.console_panel_view import ConsolePanelView
 from src.views.quick_blocks_panel import QuickBlocksPanel
+from src.views.widget_host_window import WidgetHostWindow
 from src.utils.quick_blocks_repository import QuickBlock
 from src.viewmodels.com_port_viewmodel import ComPortViewModel, PortConnectionState
 from src.viewmodels.command_history_viewmodel import CommandHistoryModel
@@ -912,6 +913,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self._stopwatch_window.raise_()
             self._stopwatch_window.activateWindow()
 
+    def _toggle_widget_host_window(self) -> None:
+        if not hasattr(self, "_widget_host_window") or self._widget_host_window is None:
+            self._widget_host_window = WidgetHostWindow(parent=self)
+        if self._widget_host_window.isVisible():
+            self._widget_host_window.hide()
+        else:
+            self._widget_host_window.show()
+            self._widget_host_window.raise_()
+            self._widget_host_window.activateWindow()
+
     def _create_quick_blocks_panel(self) -> QtWidgets.QWidget | None:
         if not self._quick_blocks_repository:
             return None
@@ -1131,9 +1142,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._theme_actions[theme_key] = action
 
             self._view_menu.addSeparator()
-            self._action_stopwatch = QtGui.QAction(self)
-            self._action_stopwatch.triggered.connect(self._toggle_stopwatch_window)
-            self._view_menu.addAction(self._action_stopwatch)
+            self._action_widget_host = QtGui.QAction(self)
+            self._action_widget_host.triggered.connect(self._toggle_widget_host_window)
+            self._view_menu.addAction(self._action_widget_host)
 
             self._scale_menu = self._view_menu.addMenu("")
             self._scale_actions: list[tuple[float, QtGui.QAction]] = []
@@ -1165,7 +1176,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if "system" in self._theme_actions:
             self._theme_actions["system"].setText(tr("system_theme", "System"))
 
-        self._action_stopwatch.setText(tr("open_stopwatch", "Open Stopwatch"))
+        self._action_widget_host.setText(tr("open_widget_host", "Open Widget Host"))
         self._scale_menu.setTitle(tr("scale", "Scale"))
 
     # Maximum number of error dialogs to keep
@@ -1241,8 +1252,8 @@ class MainWindow(QtWidgets.QMainWindow):
         shortcut_language_toggle = QShortcut(QKeySequence("Ctrl+Shift+L"), self)
         shortcut_language_toggle.activated.connect(self._toggle_language)
 
-        shortcut_stopwatch_window = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
-        shortcut_stopwatch_window.activated.connect(self._toggle_stopwatch_window)
+        shortcut_widget_host = QShortcut(QKeySequence("Ctrl+Shift+W"), self)
+        shortcut_widget_host.activated.connect(self._toggle_widget_host_window)
 
         shortcut_escape = QShortcut(QKeySequence("Escape"), self)
         shortcut_escape.activated.connect(self.close)

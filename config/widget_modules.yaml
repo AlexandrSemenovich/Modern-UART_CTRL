@@ -1,0 +1,53 @@
+configuration_version: 1
+modules:
+  - id: stopwatch
+    title: "Секундомер"
+    icon: stopwatch
+    category: telemetry
+    view_class: src.views.widgets.stopwatch_widget.StopwatchWidget
+    viewmodel_factory: stopwatch
+    layout_hint:
+      min_cells: 1
+      preferred_size:
+        rows: 1
+        cols: 1
+    inputs:
+      services: {}
+    preset:
+      start_hidden: false
+      args: {}
+  - id: logs
+    title: "Логи"
+    icon: magnifying-glass
+    category: telemetry
+    view_class: src.views.console_panel_view.ConsolePanelView
+    viewmodel_factory: logs
+    layout_hint:
+      min_cells: 2
+      preferred_size:
+        rows: 2
+        cols: 2
+    inputs:
+      services: {}
+    preset:
+      start_hidden: false
+      args: {}
+  - id: quick_commands
+    title: "Быстрые команды"
+    icon: paper-plane
+    category: control
+    view_class: src.views.quick_blocks_panel.QuickBlocksPanel
+    viewmodel_factory: quick_commands
+    layout_hint:
+      min_cells: 1
+      preferred_size:
+        rows: 1
+        cols: 2
+    inputs:
+      services:
+        repository: quick_blocks_repository
+    preset:
+      start_hidden: false
+      args:
+        mode: grid
+        columns: 2

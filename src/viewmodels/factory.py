@@ -14,6 +14,7 @@ from src.viewmodels.protocols import (
     StopwatchViewModelProtocol,
 )
 from src.viewmodels.stopwatch_viewmodel import StopwatchViewModel
+from src.utils.service_container import service_container
 
 
 class ViewModelFactory:
@@ -107,3 +108,10 @@ __all__ = [
     "get_viewmodel_factory",
     "set_viewmodel_factory",
 ]
+
+
+service_container.register_singleton(
+    "viewmodel_factory",
+    lambda: get_viewmodel_factory(),
+    replace=True,
+)

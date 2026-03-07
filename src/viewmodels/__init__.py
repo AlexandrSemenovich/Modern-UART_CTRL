@@ -10,6 +10,12 @@ from src.viewmodels.protocols import (
     CommandHistoryModelProtocol,
     ViewModelFactoryProtocol,
 )
+from src.viewmodels.widget_host_viewmodel import (
+    WidgetHostViewModel,
+    WidgetModuleRegistry,
+    WidgetModuleDescriptor,
+    ModuleDockItem,
+)
 
 __all__ = [
     'MainViewModel',
@@ -20,4 +26,8 @@ __all__ = [
     'ComPortViewModelProtocol',
     'CommandHistoryModelProtocol',
     'ViewModelFactoryProtocol',
+    'WidgetHostViewModel',
+    'WidgetModuleRegistry',
+    'WidgetModuleDescriptor',
+    'ModuleDockItem',
 ]

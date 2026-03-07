@@ -11,6 +11,8 @@ if TYPE_CHECKING:  # pragma: no cover - imported only for typing
     from src.utils.config_loader import ConfigLoader
     from src.utils.quick_blocks_repository import QuickBlocksRepository
     from src.utils.stopwatch import StopwatchService
+    from src.utils.widget_settings_store import WidgetSettingsStore
+    from src.viewmodels.widget_host_viewmodel import WidgetHostViewModel
 
 
 def get_theme_manager() -> "ThemeManager":
@@ -31,3 +33,13 @@ def get_quick_blocks_repository() -> "QuickBlocksRepository":
 def get_stopwatch_service() -> "StopwatchService":
     """Resolve application-wide stopwatch service instance."""
     return service_container.resolve("stopwatch_service")
+
+
+def get_widget_settings_store() -> "WidgetSettingsStore":
+    """Resolve shared widget host settings store."""
+    return service_container.resolve("widget_settings_store")
+
+
+def get_widget_host_viewmodel() -> "WidgetHostViewModel":
+    """Resolve shared widget host viewmodel."""
+    return service_container.resolve("widget_host_viewmodel")
